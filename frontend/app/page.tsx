@@ -548,11 +548,25 @@ export default function Home() {
       : new URLSearchParams();
   if (!ready)
     return (
-      <div className="boot">
-        <div className="logo-mark">
-          <MessageCircle />
+      <div className="boot-splash">
+        <div className="boot-container">
+          <div className="boot-logo-wrapper">
+            <div className="boot-ripple boot-ripple-1" />
+            <div className="boot-ripple boot-ripple-2" />
+            <img
+              src="/whatsbridge_avatar.jpg"
+              alt="WhatsBridge Logo"
+              className="boot-logo-img"
+            />
+          </div>
+          <div className="boot-brand">
+            WhatsBridge<span className="brand-dot">.</span>
+          </div>
+          <div className="boot-bar">
+            <div className="boot-bar-fill" />
+          </div>
+          <p className="boot-status">Starting WhatsBridge workspace…</p>
         </div>
-        <p>Starting WhatsBridge…</p>
       </div>
     );
   if (!user)
@@ -560,9 +574,11 @@ export default function Home() {
       <div className="auth-layout">
         <section className="auth-story">
           <div className="brand">
-            <span className="logo-mark">
-              <MessageCircle />
-            </span>
+            <img
+              src="/whatsbridge_avatar.jpg"
+              alt="WhatsBridge"
+              className="brand-logo-img"
+            />
             WhatsBridge<span className="brand-dot">.</span>
           </div>
           <div>
@@ -762,9 +778,11 @@ export default function Home() {
       <div className="shell">
       <aside className={mobile ? "sidebar open" : "sidebar"}>
         <a className="brand" href="#" onClick={() => setPage("Overview")}>
-          <span className="logo-mark">
-            <MessageCircle size={21} />
-          </span>
+          <img
+            src="/whatsbridge_avatar.jpg"
+            alt="WhatsBridge"
+            className="brand-logo-img"
+          />
           WhatsBridge<span className="brand-dot">.</span>
         </a>
         <div className="workspace">

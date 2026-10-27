@@ -1351,13 +1351,172 @@ td small {
   padding: 0;
   color: var(--green);
 }
-.boot {
-  min-height: 100vh;
+/* =========================================================================
+   PREMIUM LOGO LOADING SPLASH ANIMATION
+   ========================================================================= */
+.boot-splash {
+  position: fixed;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  background: radial-gradient(circle at center, #ffffff 0%, #f4f8f5 100%);
+  z-index: 9999;
+}
+
+.dark .boot-splash {
+  background: radial-gradient(circle at center, #1b2e24 0%, #0f1c15 100%);
+}
+
+.boot-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: bootEntrance 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.boot-logo-wrapper {
+  position: relative;
+  width: 104px;
+  height: 104px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.boot-logo-img {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 10px 30px rgba(37, 211, 102, 0.35), 0 0 0 1px rgba(37, 211, 102, 0.25);
+  z-index: 2;
+  animation: bootBreathing 2.4s ease-in-out infinite;
+}
+
+.boot-ripple {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(37, 211, 102, 0.45);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.boot-ripple-1 {
+  animation: bootRipple 2.4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+}
+
+.boot-ripple-2 {
+  animation: bootRipple 2.4s cubic-bezier(0.1, 0.8, 0.3, 1) infinite 0.8s;
+}
+
+.boot-brand {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--ink, #0f172a);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: baseline;
+}
+
+.boot-brand .brand-dot {
+  color: var(--green, #25d366);
+}
+
+.boot-bar {
+  width: 140px;
+  height: 3px;
+  background: rgba(37, 211, 102, 0.15);
+  border-radius: 999px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 14px;
+}
+
+.boot-bar-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, #25d366, #128c7e, transparent);
+  border-radius: 999px;
+  animation: bootBarSlide 1.5s ease-in-out infinite;
+}
+
+.boot-status {
   font-size: 13px;
+  font-weight: 500;
+  color: var(--muted, #64748b);
+  letter-spacing: -0.01em;
+  animation: bootTextFade 2.4s ease-in-out infinite;
+}
+
+.brand-logo-img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  box-shadow: 0 0 8px rgba(37, 211, 102, 0.3);
+}
+
+@keyframes bootEntrance {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes bootBreathing {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 10px 30px rgba(37, 211, 102, 0.35), 0 0 0 1px rgba(37, 211, 102, 0.25);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 16px 40px rgba(37, 211, 102, 0.5), 0 0 20px rgba(37, 211, 102, 0.35);
+  }
+}
+
+@keyframes bootRipple {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1.85);
+    opacity: 0;
+  }
+}
+
+@keyframes bootBarSlide {
+  0% {
+    left: -45%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+@keyframes bootTextFade {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.boot {
+  display: none;
 }
 .mobile-menu {
   display: none;
