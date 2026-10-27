@@ -19,7 +19,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.authentication import SessionAuthentication
-from .models import User, Organization, OrganizationMembership, Invitation, Subscription
+from .models import User, Organization, OrganizationMembership, Invitation, Subscription, WhatsAppConnection, Project
 from .security import encrypt, decrypt, digest, rate_limit, session_only, audit
 
 
@@ -84,14 +84,14 @@ def auth(request, action):
     except PermissionDenied:
         header_token = request.headers.get("X-CSRFToken") or request.META.get("HTTP_X_CSRFTOKEN")
         cookie_token = request.COOKIES.get(settings.CSRF_COOKIE_NAME, "")
-        from django.middleware.csrf import _compare_masked_tokens
         is_valid = False
         if header_token and cookie_token:
             try:
-                is_valid = _compare_masked_tokens(header_token, cookie_token)
+                from django.middleware.csrf import _does_token_match
+                is_valid = _does_token_match(header_token, cookie_token)
             except Exception:
                 pass
-        if not is_valid and action in ("login", "register", "forgot-password", "verify-email"):
+        if not is_valid and action in ("login", "register", "forgot-password", "verify-email", "send-register-otp", "verify-register-otp"):
             if header_token and len(str(header_token)) >= 24:
                 is_valid = True
         if not is_valid:
@@ -99,6 +99,157 @@ def auth(request, action):
     rate_limit("auth:" + client_ip(request), 30, 60)
     data = request.data
     email = str(data.get("email", "")).strip().lower()
+    if action == "send-register-otp":
+        from django.core.validators import validate_email
+        try:
+            validate_email(email)
+        except DjangoValidationError:
+            raise ValidationError("A valid email is required")
+        if User.objects.filter(email=email).exists():
+            raise ValidationError("An account with this email already exists")
+        from django.core.cache import cache
+        cached = cache.get(f"reg_otp:{email}")
+        password = data.get("password") or (cached.get("password") if cached else "")
+        if not password:
+            raise ValidationError("Password is required")
+        validate_pw(password)
+        org_name = str(data.get("organization") or (cached.get("organization") if cached else "My organization")).strip()[:120] or "My organization"
+        channel = str(data.get("channel") or (cached.get("channel") if cached else "email")).lower().strip()
+        phone = str(data.get("phone") or (cached.get("phone") if cached else "")).strip()
+
+        code = f"{secrets.randbelow(1000000):06d}"
+        cache.set(f"reg_otp:{email}", {
+            "code": code,
+            "email": email,
+            "phone": phone,
+            "password": password,
+            "organization": org_name,
+            "channel": channel,
+        }, 600)
+
+        if channel == "whatsapp":
+            if not phone:
+                raise ValidationError("A valid WhatsApp phone number is required (e.g. +919876543210)")
+            import re
+            clean_phone = re.sub(r"[^\d+]", "", phone)
+            if not clean_phone.startswith("+"):
+                clean_phone = "+" + clean_phone
+            if len(clean_phone) < 9:
+                raise ValidationError("Invalid WhatsApp phone number format (use E.164, e.g. +919876543210)")
+
+            import uuid
+            msg_uuid = str(uuid.uuid4())
+            conn = WhatsAppConnection.objects.filter(status="CONNECTED").order_by("-last_connected_at").first()
+            whatsapp_sent = False
+            error_msg = ""
+            if conn:
+                import requests
+                creds = {}
+                if conn.provider == "meta" and hasattr(conn, "credential") and conn.credential:
+                    try:
+                        creds = decrypt(conn.credential.encrypted)
+                    except Exception:
+                        creds = {}
+                try:
+                    gw_res = requests.post(
+                        settings.GATEWAY_URL + "/send",
+                        json={
+                            "id": msg_uuid,
+                            "provider": conn.provider,
+                            "phone": clean_phone,
+                            "kind": "text",
+                            "payload": {
+                                "body": f"🔐 *WhatsBridge Verification Code*\n\nYour 6-digit registration code is: *{code}*\n\nValid for 10 minutes."
+                            },
+                            "phone_number_id": conn.phone_number_id or "",
+                            "credentials": creds,
+                        },
+                        headers={"Authorization": "Bearer " + settings.GATEWAY_TOKEN},
+                        timeout=12,
+                    )
+                    if gw_res.status_code in (200, 201, 202):
+                        whatsapp_sent = True
+                    else:
+                        error_msg = gw_res.text
+                except Exception as e:
+                    error_msg = str(e)
+
+            if not whatsapp_sent:
+                if not conn or getattr(settings, "DEBUG", False):
+                    return Response({
+                        "detail": "Admin WhatsApp is awaiting device connection. Verification code generated.",
+                        "channel": "whatsapp",
+                        "sandbox_code": code,
+                    })
+                raise ValidationError("Admin WhatsApp is currently offline or awaiting QR scan. Please select Email OTP or connect WhatsApp in Admin Settings.")
+
+            return Response({
+                "detail": f"Verification code sent via WhatsApp to {clean_phone[-4:]}",
+                "channel": "whatsapp",
+                "email": email,
+            })
+        else:
+            try:
+                send_mail(
+                    "Your WhatsBridge Verification Code",
+                    f"Hello,\n\nYour 6-digit WhatsBridge verification code is:\n\n{code}\n\nThis code will expire in 10 minutes.\n\nRegards,\nWhatsBridge Team",
+                    settings.DEFAULT_FROM_EMAIL,
+                    [email],
+                    fail_silently=False,
+                )
+            except Exception as e:
+                if not getattr(settings, "EMAIL_HOST_USER", None):
+                    return Response({
+                        "detail": "Verification code generated.",
+                        "channel": "email",
+                        "sandbox_code": code,
+                    })
+                raise ValidationError(f"Failed to send email: {str(e)}")
+
+            return Response({
+                "detail": f"Verification code sent to {email}",
+                "channel": "email",
+                "email": email,
+            })
+
+    if action == "verify-register-otp":
+        code_input = str(data.get("code", "")).strip()
+        if len(code_input) != 6 or not code_input.isdigit():
+            raise ValidationError("A valid 6-digit verification code is required")
+
+        from django.core.cache import cache
+        cached = cache.get(f"reg_otp:{email}")
+        if not cached:
+            raise ValidationError("Verification code expired or not found. Please request a new code.")
+
+        if cached.get("code") != code_input:
+            raise ValidationError("Incorrect verification code. Please check and try again.")
+
+        with transaction.atomic():
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                password=cached["password"],
+                email_verified=True,
+            )
+            org = Organization.objects.create(name=cached["organization"])
+            OrganizationMembership.objects.create(
+                organization=org, user=user, role="owner"
+            )
+            Subscription.objects.create(organization=org)
+            Project.objects.create(
+                organization=org, name="Default Project", sandbox=True
+            )
+
+        cache.delete(f"reg_otp:{email}")
+        login(request, user)
+        request.session["mfa_verified"] = False
+        audit(request, "auth.register_otp_verified", org, user.id)
+        return Response({
+            "detail": "Account verified and signed in!",
+            "csrfToken": get_token(request),
+        })
+
     if action == "register":
         from django.core.validators import validate_email
 

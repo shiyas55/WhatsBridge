@@ -302,6 +302,9 @@ export default function Home() {
     [modal, setModal] = useState(""),
     [selected, setSelected] = useState<Row | null>(null),
     [authMode, setAuthMode] = useState("login"),
+    [regStep, setRegStep] = useState<"details" | "verify">("details"),
+    [regChannel, setRegChannel] = useState<"whatsapp" | "email">("whatsapp"),
+    [regEmail, setRegEmail] = useState(""),
     [search, setSearch] = useState(""),
     [busy, setBusy] = useState(false),
     [mobile, setMobile] = useState(false);
@@ -612,14 +615,18 @@ export default function Home() {
             <span className="eyebrow">WELCOME TO WHATSBRIDGE</span>
             <h2>
               {authMode === "register"
-                ? "Create your workspace"
+                ? regStep === "verify"
+                  ? "Enter verification code"
+                  : "Create your workspace"
                 : authMode === "forgot-password"
                   ? "Reset your password"
                   : "Welcome back"}
             </h2>
             <p className="muted">
               {authMode === "register"
-                ? "Start building with a free sandbox project."
+                ? regStep === "verify"
+                  ? `Enter the 6-digit code sent to your ${regChannel === "whatsapp" ? "WhatsApp" : "Email"} (${regEmail}).`
+                  : "Start building with a free sandbox project."
                 : "Sign in to your developer workspace."}
             </p>
             {error && (
@@ -697,6 +704,140 @@ export default function Home() {
                 }
                 label="Reset password"
               />
+            ) : authMode === "register" && regStep === "verify" ? (
+              <Form
+                key="verify-reg-otp"
+                fields={[
+                  {
+                    name: "code",
+                    label: `6-Digit Code (${regChannel === "whatsapp" ? "WhatsApp" : "Email"})`,
+                    type: "text",
+                    required: true,
+                  },
+                ]}
+                submit={(d) =>
+                  act(async () => {
+                    setError("");
+                    const r = await api("/api/auth/verify-register-otp", "POST", {
+                      email: regEmail,
+                      code: d.code,
+                    });
+                    setNotice(r.detail);
+                    await loadSession();
+                  })
+                }
+                label="Verify & Create Account"
+              >
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "13px", marginTop: "4px" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError("");
+                      setRegStep("details");
+                    }}
+                    style={{ background: "none", border: "none", color: "var(--green, #25d366)", fontWeight: 600, cursor: "pointer", padding: 0 }}
+                  >
+                    ← Change details
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      act(async () => {
+                        const r = await api("/api/auth/send-register-otp", "POST", {
+                          email: regEmail,
+                          channel: regChannel,
+                        });
+                        setNotice(r.detail + (r.sandbox_code ? ` (Code: ${r.sandbox_code})` : ""));
+                      })
+                    }
+                    style={{ background: "none", border: "none", color: "var(--muted, #64748b)", cursor: "pointer", padding: 0 }}
+                  >
+                    Resend code
+                  </button>
+                </div>
+              </Form>
+            ) : authMode === "register" ? (
+              <div>
+                <div style={{ display: "flex", gap: "8px", marginBottom: "16px", background: "rgba(0,0,0,0.04)", padding: "4px", borderRadius: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setRegChannel("whatsapp")}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "none",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      background: regChannel === "whatsapp" ? "#ffffff" : "transparent",
+                      color: regChannel === "whatsapp" ? "#16a34a" : "var(--muted, #64748b)",
+                      boxShadow: regChannel === "whatsapp" ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span style={{ fontSize: "15px" }}>💬</span> WhatsApp OTP
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRegChannel("email")}
+                    style={{
+                      flex: 1,
+                      padding: "8px 12px",
+                      borderRadius: "8px",
+                      border: "none",
+                      fontSize: "13px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      background: regChannel === "email" ? "#ffffff" : "transparent",
+                      color: regChannel === "email" ? "#2563eb" : "var(--muted, #64748b)",
+                      boxShadow: regChannel === "email" ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    <span style={{ fontSize: "15px" }}>✉️</span> Email OTP
+                  </button>
+                </div>
+                <Form
+                  key={`reg-${regChannel}`}
+                  fields={[
+                    { name: "email", label: "Email address", type: "email" },
+                    ...(regChannel === "whatsapp"
+                      ? [
+                          {
+                            name: "phone",
+                            label: "WhatsApp phone number (e.g. +919876543210)",
+                            type: "tel",
+                            required: true,
+                          },
+                        ]
+                      : []),
+                    { name: "organization", label: "Organization name" },
+                    { name: "password", label: "Password (12+ characters)", type: "password" },
+                  ]}
+                  submit={(d) =>
+                    act(async () => {
+                      setError("");
+                      const r = await api("/api/auth/send-register-otp", "POST", {
+                        ...d,
+                        channel: regChannel,
+                      });
+                      setRegEmail(d.email as string);
+                      setNotice(r.detail + (r.sandbox_code ? ` (Code: ${r.sandbox_code})` : ""));
+                      setRegStep("verify");
+                    })
+                  }
+                  label={regChannel === "whatsapp" ? "Send WhatsApp Code →" : "Send Email Code →"}
+                />
+              </div>
             ) : (
               <Form
                 key={authMode}
@@ -711,17 +852,15 @@ export default function Home() {
                         },
                       ]
                     : []),
-                  ...(authMode === "register"
-                    ? [{ name: "organization", label: "Organization name" }]
-                    : authMode === "login"
-                      ? [
-                          {
-                            name: "code",
-                            label: "Two-factor code (if enabled)",
-                            required: false,
-                          },
-                        ]
-                      : []),
+                  ...(authMode === "login"
+                    ? [
+                        {
+                          name: "code",
+                          label: "Two-factor code (if enabled)",
+                          required: false,
+                        },
+                      ]
+                    : []),
                 ]}
                 submit={(d) =>
                   act(async () => {
@@ -741,20 +880,16 @@ export default function Home() {
                     if (authMode === "login") await loadSession();
                   })
                 }
-                label={
-                  authMode === "register"
-                    ? "Create account"
-                    : authMode === "forgot-password"
-                      ? "Send reset link"
-                      : "Sign in"
-                }
+                label={authMode === "forgot-password" ? "Send reset link" : "Sign in"}
               />
             )}
             <div className="auth-links">
               <button
-                onClick={() =>
-                  setAuthMode(authMode === "login" ? "register" : "login")
-                }
+                onClick={() => {
+                  setError("");
+                  setRegStep("details");
+                  setAuthMode(authMode === "login" ? "register" : "login");
+                }}
               >
                 {authMode === "login" ? "Create an account" : "Back to sign in"}
               </button>
