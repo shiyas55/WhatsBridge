@@ -308,12 +308,19 @@ export default function Home() {
   const active = projects.find((p) => p.id === project);
   const api = useCallback(
     async (path: string, method = "GET", body?: Row, extra: Row = {}) => {
+      let activeCsrf = csrf;
+      if (typeof document !== "undefined") {
+        const match = document.cookie.match(/(?:^|;\s*)csrftoken=([^;]+)/);
+        if (match && match[1]) {
+          activeCsrf = decodeURIComponent(match[1]);
+        }
+      }
       const r = await fetch(path, {
         method,
         credentials: "include",
         headers: {
           "Content-Type": "application/json",
-          "X-CSRFToken": csrf,
+          "X-CSRFToken": (extra["X-CSRFToken"] as string) || activeCsrf || csrf,
           ...extra,
         },
         ...(body ? { body: JSON.stringify(body) } : {}),

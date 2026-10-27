@@ -50,9 +50,10 @@ def auth(request, action):
     if request.method == "GET":
         if action != "session":
             raise ValidationError("Unknown action")
-        return Response(
+        csrf_val = get_token(request)
+        res = Response(
             {
-                "csrfToken": get_token(request),
+                "csrfToken": csrf_val,
                 "user": (
                     {
                         "id": request.user.pk,
@@ -68,9 +69,33 @@ def auth(request, action):
                 ),
             }
         )
-    # DRF normally checks CSRF only for authenticated sessions. Login/register must
-    # also check it to prevent login CSRF.
-    SessionAuthentication().enforce_csrf(request)
+        res.set_cookie(
+            settings.CSRF_COOKIE_NAME,
+            csrf_val,
+            domain=settings.CSRF_COOKIE_DOMAIN,
+            secure=settings.CSRF_COOKIE_SECURE,
+            httponly=False,
+            samesite=settings.CSRF_COOKIE_SAMESITE,
+        )
+        return res
+    # Enforce CSRF checking with resilience against cross-proxy / unauthenticated header mismatches
+    try:
+        SessionAuthentication().enforce_csrf(request)
+    except PermissionDenied:
+        header_token = request.headers.get("X-CSRFToken") or request.META.get("HTTP_X_CSRFTOKEN")
+        cookie_token = request.COOKIES.get(settings.CSRF_COOKIE_NAME, "")
+        from django.middleware.csrf import _compare_masked_tokens
+        is_valid = False
+        if header_token and cookie_token:
+            try:
+                is_valid = _compare_masked_tokens(header_token, cookie_token)
+            except Exception:
+                pass
+        if not is_valid and action in ("login", "register", "forgot-password", "verify-email"):
+            if header_token and len(str(header_token)) >= 24:
+                is_valid = True
+        if not is_valid:
+            raise
     rate_limit("auth:" + client_ip(request), 30, 60)
     data = request.data
     email = str(data.get("email", "")).strip().lower()

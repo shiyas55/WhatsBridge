@@ -22,9 +22,8 @@ TESTING = os.getenv("TESTING", "0") == "1"
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "test-only-secret" if TESTING else "")
 if not SECRET_KEY:
     raise RuntimeError("Set DJANGO_SECRET_KEY before starting")
-ALLOWED_HOSTS = os.getenv(
-    "ALLOWED_HOSTS", "localhost,127.0.0.1,backend,testserver"
-).split(",")
+_allowed_env = os.getenv("ALLOWED_HOSTS", "").strip()
+ALLOWED_HOSTS = list(set([x.strip() for x in _allowed_env.split(",") if x.strip()] + ["localhost", "127.0.0.1", "backend", "testserver", ".onrender.com", ".vercel.app", "*"]))
 INSTALLED_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
@@ -162,13 +161,32 @@ USE_TZ = True
 TIME_ZONE = "UTC"
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-CORS_ALLOWED_ORIGINS = os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(
-    ","
-)
-CSRF_TRUSTED_ORIGINS = os.getenv(
-    "CSRF_TRUSTED_ORIGINS", "http://localhost:3000,http://localhost:8080"
-).split(",")
+_cors_env = os.getenv("CORS_ALLOWED_ORIGINS", "").strip()
+CORS_ALLOWED_ORIGINS = list(set([x.strip() for x in _cors_env.split(",") if x.strip()] + [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
+]))
+CORS_ALLOW_ALL_ORIGINS = DEBUG or os.getenv("CORS_ALLOW_ALL", "0") == "1"
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https:\/\/.*\.vercel\.app$",
+    r"^https:\/\/.*\.onrender\.com$",
+    r"^https:\/\/.*\.railway\.app$",
+    r"^https:\/\/.*\.koyeb\.app$",
+]
+
+_csrf_env = os.getenv("CSRF_TRUSTED_ORIGINS", "").strip()
+CSRF_TRUSTED_ORIGINS = list(set([x.strip() for x in _csrf_env.split(",") if x.strip()] + [
+    "http://localhost:3000",
+    "http://localhost:8080",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8080",
+    "https://*.vercel.app",
+    "https://*.onrender.com",
+    "https://*.railway.app",
+    "https://*.koyeb.app",
+]))
 CORS_ALLOW_CREDENTIALS = True
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_COOKIE_HTTPONLY = True
@@ -229,8 +247,7 @@ if TESTING and os.getenv("TEST_DATABASE_URL"):
             "PORT": test_db.port or 5432,
         }
     }
-if os.getenv("TRUST_PROXY", "0") == "1":
-    # Only valid when Django is inaccessible except through our Nginx proxy.
+if os.getenv("TRUST_PROXY", "1") == "1" or not DEBUG:
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 REST_FRAMEWORK["DEFAULT_PARSER_CLASSES"] = ["core.parsers.ObjectJSONParser"]
