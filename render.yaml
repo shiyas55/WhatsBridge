@@ -1,0 +1,52 @@
+services:
+  # ----------------------------------------------------
+  # WhatsBridge Django REST Backend (Free Tier)
+  # ----------------------------------------------------
+  - type: web
+    name: whatsbridge-backend
+    env: python
+    rootDir: backend
+    plan: free
+    buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+    startCommand: "uvicorn config.asgi:application --host 0.0.0.0 --port $PORT --workers 2 --no-access-log"
+    envVars:
+      - key: DEBUG
+        value: "0"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: CREDENTIAL_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        sync: false # Set to your Neon PostgreSQL connection string
+      - key: GATEWAY_URL
+        fromService:
+          type: web
+          name: whatsbridge-gateway
+          property: host
+      - key: GATEWAY_TOKEN
+        generateValue: true
+      - key: WEBHOOK_ALLOWED_HOSTS
+        value: "example.com,webhook.site,httpbin.org"
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: "gemini-flash-lite-latest"
+
+  # ----------------------------------------------------
+  # WhatsApp Baileys Node.js Gateway (Free Tier)
+  # ----------------------------------------------------
+  - type: web
+    name: whatsbridge-gateway
+    env: node
+    rootDir: gateway
+    plan: free
+    buildCommand: "npm install && npm run build"
+    startCommand: "node dist/server.js"
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: GATEWAY_TOKEN
+        fromService:
+          type: web
+          name: whatsbridge-backend
+          envVarKey: GATEWAY_TOKEN

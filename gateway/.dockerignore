@@ -1,0 +1,8 @@
+.env
+node_modules
+.next
+dist
+__pycache__
+.pytest_cache
+*.sqlite3
+*.tsbuildinfo

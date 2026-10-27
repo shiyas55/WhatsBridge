@@ -1,0 +1,2506 @@
+openapi: 3.0.3
+info:
+  title: WhatsBridge API
+  version: 1.0.0
+paths:
+  /api/ai:
+    post:
+      operationId: ai_create
+      tags:
+      - ai
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/auth/{action}:
+    get:
+      operationId: auth_retrieve
+      parameters:
+      - in: path
+        name: action
+        schema:
+          type: string
+        required: true
+      tags:
+      - auth
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: auth_create
+      parameters:
+      - in: path
+        name: action
+        schema:
+          type: string
+        required: true
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/organizations:
+    get:
+      operationId: organizations_retrieve
+      tags:
+      - organizations
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: organizations_create
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/overview:
+    get:
+      operationId: overview_retrieve
+      tags:
+      - overview
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/platform:
+    get:
+      operationId: platform_retrieve
+      tags:
+      - platform
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: platform_create
+      tags:
+      - platform
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/projects:
+    get:
+      operationId: projects_retrieve
+      tags:
+      - projects
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: projects_create
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    patch:
+      operationId: projects_partial_update
+      tags:
+      - projects
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/team:
+    get:
+      operationId: team_retrieve
+      tags:
+      - team
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    post:
+      operationId: team_create
+      tags:
+      - team
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+    delete:
+      operationId: team_destroy
+      tags:
+      - team
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/connections:
+    get:
+      operationId: v1_connections_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConnectionList'
+          description: ''
+    post:
+      operationId: v1_connections_create
+      parameters:
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+  /api/v1/connections/{id}:
+    get:
+      operationId: v1_connections_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this whats app connection.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+    put:
+      operationId: v1_connections_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this whats app connection.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+    patch:
+      operationId: v1_connections_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this whats app connection.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedConnectionRequest'
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+    delete:
+      operationId: v1_connections_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this whats app connection.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/connections/{id}/disconnect:
+    post:
+      operationId: v1_connections_disconnect_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this whats app connection.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+  /api/v1/connections/{id}/onboard:
+    post:
+      operationId: v1_connections_onboard_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this whats app connection.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+  /api/v1/connections/{id}/reconnect:
+    post:
+      operationId: v1_connections_reconnect_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this whats app connection.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConnectionRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Connection'
+          description: ''
+  /api/v1/contacts:
+    get:
+      operationId: v1_contacts_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedContactList'
+          description: ''
+    post:
+      operationId: v1_contacts_create
+      parameters:
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+          description: ''
+  /api/v1/contacts/{id}:
+    get:
+      operationId: v1_contacts_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this contact.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+          description: ''
+    put:
+      operationId: v1_contacts_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this contact.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+          description: ''
+    patch:
+      operationId: v1_contacts_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this contact.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedContactRequest'
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+          description: ''
+    delete:
+      operationId: v1_contacts_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this contact.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/contacts/{id}/consent:
+    post:
+      operationId: v1_contacts_consent_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this contact.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ContactRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+          description: ''
+  /api/v1/keys:
+    get:
+      operationId: v1_keys_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedAPIKeyList'
+          description: ''
+    post:
+      operationId: v1_keys_create
+      parameters:
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+  /api/v1/keys/{id}:
+    get:
+      operationId: v1_keys_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+    delete:
+      operationId: v1_keys_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/keys/{id}/rotate:
+    post:
+      operationId: v1_keys_rotate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this api key.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/APIKeyRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/APIKey'
+          description: ''
+  /api/v1/messages:
+    get:
+      operationId: v1_messages_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedMessageList'
+          description: ''
+    post:
+      operationId: v1_messages_create
+      parameters:
+      - in: header
+        name: Idempotency-Key
+        schema:
+          type: string
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MessageRequestRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '202':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/messages/{id}:
+    get:
+      operationId: v1_messages_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this message.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Message'
+          description: ''
+  /api/v1/otp/send:
+    post:
+      operationId: v1_otp_send_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/otp/verify:
+    post:
+      operationId: v1_otp_verify_create
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: {}
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: {}
+          description: ''
+  /api/v1/templates:
+    get:
+      operationId: v1_templates_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedTemplateList'
+          description: ''
+    post:
+      operationId: v1_templates_create
+      parameters:
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+          description: ''
+  /api/v1/templates/{id}:
+    get:
+      operationId: v1_templates_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this message template.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+          description: ''
+    put:
+      operationId: v1_templates_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this message template.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+          description: ''
+    patch:
+      operationId: v1_templates_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this message template.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedTemplateRequest'
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Template'
+          description: ''
+    delete:
+      operationId: v1_templates_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this message template.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/webhooks:
+    get:
+      operationId: v1_webhooks_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWebhookList'
+          description: ''
+    post:
+      operationId: v1_webhooks_create
+      parameters:
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+          description: ''
+  /api/v1/webhooks/{id}:
+    get:
+      operationId: v1_webhooks_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this webhook endpoint.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+          description: ''
+    put:
+      operationId: v1_webhooks_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this webhook endpoint.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+          description: ''
+    patch:
+      operationId: v1_webhooks_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this webhook endpoint.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWebhookRequest'
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+          description: ''
+    delete:
+      operationId: v1_webhooks_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this webhook endpoint.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/webhooks/{id}/history:
+    get:
+      operationId: v1_webhooks_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this webhook endpoint.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+          description: ''
+  /api/v1/webhooks/{id}/retry:
+    post:
+      operationId: v1_webhooks_retry_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this webhook endpoint.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+          description: ''
+  /api/v1/webhooks/{id}/rotate:
+    post:
+      operationId: v1_webhooks_rotate_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this webhook endpoint.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Webhook'
+          description: ''
+  /api/v1/workflows:
+    get:
+      operationId: v1_workflows_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: A page number within the paginated result set.
+        schema:
+          type: integer
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedWorkflowList'
+          description: ''
+    post:
+      operationId: v1_workflows_create
+      parameters:
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/v1/workflows/{id}:
+    get:
+      operationId: v1_workflows_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+    put:
+      operationId: v1_workflows_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+    patch:
+      operationId: v1_workflows_partial_update
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedWorkflowRequest'
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+    delete:
+      operationId: v1_workflows_destroy
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/workflows/{id}/history:
+    get:
+      operationId: v1_workflows_history_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/v1/workflows/{id}/pause:
+    post:
+      operationId: v1_workflows_pause_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/v1/workflows/{id}/publish:
+    post:
+      operationId: v1_workflows_publish_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/v1/workflows/{id}/resume:
+    post:
+      operationId: v1_workflows_resume_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/v1/workflows/{id}/retry:
+    post:
+      operationId: v1_workflows_retry_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+  /api/v1/workflows/{id}/run:
+    post:
+      operationId: v1_workflows_run_create
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        description: A UUID string identifying this workflow.
+        required: true
+      - in: query
+        name: project
+        schema:
+          type: string
+          format: uuid
+        description: Required for browser sessions; inferred from API keys
+      tags:
+      - v1
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowRequest'
+        required: true
+      security:
+      - ProjectAPIKey: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+          description: ''
+components:
+  schemas:
+    APIKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        prefix:
+          type: string
+          readOnly: true
+        scopes: {}
+        ip_allowlist: {}
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_used_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - last_used_at
+      - name
+      - prefix
+      - project
+      - revoked_at
+    APIKeyRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        scopes: {}
+        ip_allowlist: {}
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+      required:
+      - name
+    CategoryEnum:
+      enum:
+      - utility
+      - authentication
+      - marketing
+      type: string
+      description: |-
+        * `utility` - Utility
+        * `authentication` - Authentication
+        * `marketing` - Marketing
+    Connection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+        status:
+          type: string
+          readOnly: true
+        phone_number_id:
+          type: string
+          maxLength: 80
+        last_connected_at:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        error:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - error
+      - id
+      - last_connected_at
+      - name
+      - project
+      - provider
+      - status
+    ConnectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+        phone_number_id:
+          type: string
+          maxLength: 80
+      required:
+      - name
+      - provider
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          readOnly: true
+        phone:
+          type: string
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 120
+        attributes: {}
+        consent:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - consent
+      - created_at
+      - id
+      - phone
+      - project
+    ContactRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 120
+        attributes: {}
+      required:
+      - phone
+    KindEnum:
+      enum:
+      - text
+      - template
+      - image
+      - document
+      - video
+      - audio
+      type: string
+      description: |-
+        * `text` - text
+        * `template` - template
+        * `image` - image
+        * `document` - document
+        * `video` - video
+        * `audio` - audio
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+        connection:
+          type: string
+          format: uuid
+        phone:
+          type: string
+          maxLength: 20
+        kind:
+          type: string
+          maxLength: 20
+        payload:
+          type: object
+          additionalProperties: {}
+          readOnly: true
+        direction:
+          type: string
+          maxLength: 10
+        status:
+          type: string
+          maxLength: 20
+        provider_id:
+          type: string
+          maxLength: 200
+        scheduled_at:
+          type: string
+          format: date-time
+        attempts:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+        error:
+          type: string
+          maxLength: 250
+        created_at:
+          type: string
+          format: date-time
+      required:
+      - connection
+      - id
+      - payload
+      - phone
+      - project
+    MessageRequestRequest:
+      type: object
+      properties:
+        connection:
+          type: string
+          format: uuid
+        phone:
+          type: string
+          minLength: 1
+          description: E.164 phone number with recorded messaging consent
+        kind:
+          allOf:
+          - $ref: '#/components/schemas/KindEnum'
+          default: text
+        payload:
+          description: 'Text: {"body":"Hello"}; template: {"name":"approved_name","language":"en_US","components":[]};
+            media: {"link":"https://..."}'
+        scheduled_at:
+          type: string
+          format: date-time
+      required:
+      - connection
+      - payload
+      - phone
+    PaginatedAPIKeyList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/APIKey'
+    PaginatedConnectionList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Connection'
+    PaginatedContactList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+    PaginatedMessageList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+    PaginatedTemplateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Template'
+    PaginatedWebhookList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Webhook'
+    PaginatedWorkflowList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workflow'
+    PatchedConnectionRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        provider:
+          $ref: '#/components/schemas/ProviderEnum'
+        phone_number_id:
+          type: string
+          maxLength: 80
+    PatchedContactRequest:
+      type: object
+      properties:
+        phone:
+          type: string
+          minLength: 1
+          maxLength: 20
+        name:
+          type: string
+          maxLength: 120
+        attributes: {}
+    PatchedTemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        language:
+          type: string
+          minLength: 1
+          default: en_US
+          maxLength: 12
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        components: {}
+    PatchedWebhookRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          minLength: 1
+          maxLength: 500
+        events: {}
+        enabled:
+          type: boolean
+    PatchedWorkflowRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        graph: {}
+    ProviderEnum:
+      enum:
+      - sandbox
+      - meta
+      type: string
+      description: |-
+        * `sandbox` - Sandbox
+        * `meta` - Official Meta
+    Template:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        language:
+          type: string
+          default: en_US
+          maxLength: 12
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        components: {}
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - project
+    TemplateRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        language:
+          type: string
+          minLength: 1
+          default: en_US
+          maxLength: 12
+        category:
+          $ref: '#/components/schemas/CategoryEnum'
+        components: {}
+      required:
+      - name
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          readOnly: true
+        url:
+          type: string
+          format: uri
+          maxLength: 500
+        events: {}
+        enabled:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - project
+      - url
+    WebhookRequest:
+      type: object
+      properties:
+        url:
+          type: string
+          format: uri
+          minLength: 1
+          maxLength: 500
+        events: {}
+        enabled:
+          type: boolean
+      required:
+      - url
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        project:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 120
+        status:
+          type: string
+          readOnly: true
+        graph: {}
+        published_version:
+          type: integer
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - id
+      - name
+      - project
+      - published_version
+      - status
+    WorkflowRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        graph: {}
+      required:
+      - name
+  securitySchemes:
+    ProjectAPIKey:
+      type: http
+      scheme: bearer
+      description: Project-scoped wb_test_ or wb_live_ API key. Keep it on your server.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

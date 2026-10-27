@@ -1,0 +1,31 @@
+name: Keep Render & Neon Database Awake (No Sleep)
+
+on:
+  schedule:
+    # Runs every 10 minutes to prevent Render from going to sleep
+    - cron: '*/10 * * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  keep-awake:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render Backend & Neon Database
+        env:
+          BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          GATEWAY_URL: ${{ secrets.RENDER_GATEWAY_URL }}
+        run: |
+          echo "⏰ Sending keep-alive ping to Render & Neon Database..."
+          
+          # Target default Render URL or secret if configured
+          TARGET_URL="${BACKEND_URL:-https://whatsbridge-backend.onrender.com}/health"
+          echo "Pinging Backend: $TARGET_URL"
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" "$TARGET_URL" || true)
+          echo "$RESPONSE"
+
+          if [ -n "$GATEWAY_URL" ]; then
+            echo "Pinging Gateway: $GATEWAY_URL/health"
+            curl -s -w "\nHTTP_STATUS:%{http_code}" "$GATEWAY_URL/health" || true
+          fi
+          
+          echo "✅ Keep-alive check completed successfully (Render and Neon database kept active)."

@@ -1,0 +1,39 @@
+name: Verify
+on: [push, pull_request]
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env: {POSTGRES_USER: whatsbridge, POSTGRES_PASSWORD: test, POSTGRES_DB: whatsbridge}
+        ports: ['5432:5432']
+        options: --health-cmd "pg_isready -U whatsbridge" --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7
+        ports: ['6379:6379']
+    env:
+      TESTING: '1'
+      TEST_DATABASE_URL: postgres://whatsbridge:test@localhost:5432/whatsbridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: '3.13'}
+      - run: pip install -r backend/requirements.lock
+      - run: python backend/manage.py check
+      - run: python backend/manage.py makemigrations --check --dry-run
+      - run: pytest backend -q
+  typescript:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: {directory: [frontend, gateway]}
+    defaults:
+      run: {working-directory: '${{ matrix.directory }}'}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '24', cache: npm, cache-dependency-path: '${{ matrix.directory }}/package-lock.json'}
+      - run: npm ci
+      - run: npm run build
+      - if: matrix.directory == 'gateway'
+        run: npm test

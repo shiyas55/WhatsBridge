@@ -1,0 +1,94 @@
+name: whatsbridge
+x-backend: &backend
+  build: ./backend
+  env_file: .env
+  restart: unless-stopped
+  depends_on:
+    db: {condition: service_healthy}
+    redis: {condition: service_healthy}
+    migrate: {condition: service_completed_successfully}
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: whatsbridge
+      POSTGRES_USER: whatsbridge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run scripts/init_env.py first}
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U whatsbridge -d whatsbridge']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+  redis:
+    image: redis:7-alpine
+    command: [redis-server, --appendonly, 'yes', --appendfsync, always, --maxmemory-policy, noeviction]
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+  migrate:
+    build: ./backend
+    env_file: .env
+    command: [sh, -c, 'python manage.py migrate --noinput && python manage.py collectstatic --noinput']
+    volumes: [static:/app/staticfiles]
+    depends_on:
+      db: {condition: service_healthy}
+  backend:
+    <<: *backend
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+  worker:
+    <<: *backend
+    command: [celery, -A, config, worker, -l, warning, --concurrency=2]
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_healthy}
+      migrate: {condition: service_completed_successfully}
+      gateway: {condition: service_healthy}
+  beat:
+    <<: *backend
+    command: [celery, -A, config, beat, -l, warning, --schedule=/tmp/celerybeat-schedule]
+  gateway:
+    build: ./gateway
+    environment:
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN:?Run scripts/init_env.py first}
+      META_GRAPH_VERSION: ${META_GRAPH_VERSION:-}
+      REDIS_URL: redis://redis:6379/1
+    depends_on:
+      redis: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, node, -e, "fetch('http://localhost:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+  frontend:
+    build: ./frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      backend: {condition: service_healthy}
+    restart: unless-stopped
+  nginx:
+    image: nginx:1.27-alpine
+    ports: ['127.0.0.1:8080:80']
+    volumes:
+      - ./nginx/dev.conf:/etc/nginx/conf.d/default.conf:ro
+      - static:/static:ro
+    depends_on: [backend, frontend]
+    restart: unless-stopped
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ['127.0.0.1:8025:8025']
+volumes:
+  postgres:
+  redis:
+  static:
