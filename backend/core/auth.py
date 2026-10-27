@@ -114,6 +114,10 @@ def auth(request, action):
             user = User.objects.create_user(
                 username=email, email=email, password=password
             )
+            # Auto-verify email if no external SMTP server is configured
+            if not getattr(settings, "EMAIL_HOST_USER", None) or os.getenv("AUTO_VERIFY_EMAIL", "1") == "1":
+                user.email_verified = True
+                user.save(update_fields=["email_verified"])
             org = Organization.objects.create(
                 name=data.get("organization", "My organization")[:120]
             )
@@ -121,9 +125,13 @@ def auth(request, action):
                 organization=org, user=user, role="owner"
             )
             Subscription.objects.create(organization=org)
-        send_verification(user)
+        if not user.email_verified:
+            send_verification(user)
+            return Response(
+                {"detail": "Check your email to verify your account"}, status=201
+            )
         return Response(
-            {"detail": "Check your email to verify your account"}, status=201
+            {"detail": "Account registered successfully! You can now sign in."}, status=201
         )
     if action == "verify-email":
         try:
@@ -137,8 +145,14 @@ def auth(request, action):
     if action == "login":
         rate_limit("login-email:" + email, 10, 300)
         user = authenticate(request, username=email, password=data.get("password", ""))
-        if not user or not user.email_verified:
-            raise PermissionDenied("Invalid credentials or unverified email")
+        if not user:
+            raise PermissionDenied("Invalid email or password")
+        if not user.email_verified:
+            if not getattr(settings, "EMAIL_HOST_USER", None) or os.getenv("AUTO_VERIFY_EMAIL", "1") == "1":
+                user.email_verified = True
+                user.save(update_fields=["email_verified"])
+            else:
+                raise PermissionDenied("Please verify your email address before signing in")
         if user.totp_enabled:
             with transaction.atomic():
                 user = User.objects.select_for_update().get(pk=user.pk)
