@@ -210,14 +210,18 @@ EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
 EMAIL_USE_TLS = os.getenv("EMAIL_USE_TLS", "0") == "1"
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "WhatsBridge <hello@localhost>")
 PUBLIC_URL = os.getenv("PUBLIC_URL", "http://localhost:8080")
-GATEWAY_URL = os.getenv("GATEWAY_URL", "http://gateway:4000")
-try:
-    _gw_host = urlparse(GATEWAY_URL).hostname
-    if _gw_host:
-        import socket
-        socket.gethostbyname(_gw_host)
-except Exception:
-    GATEWAY_URL = "http://127.0.0.1:4000"
+_raw_gw = os.getenv("GATEWAY_URL", "").strip()
+if not _raw_gw:
+    GATEWAY_URL = "http://127.0.0.1:4000" if DEBUG else "https://whatsbridge-gateway.onrender.com"
+else:
+    if not _raw_gw.startswith("http://") and not _raw_gw.startswith("https://"):
+        if _raw_gw.endswith(":443") or "onrender.com" in _raw_gw:
+            GATEWAY_URL = f"https://{_raw_gw}"
+        else:
+            GATEWAY_URL = f"http://{_raw_gw}"
+    else:
+        GATEWAY_URL = _raw_gw
+GATEWAY_URL = GATEWAY_URL.rstrip("/")
 
 GATEWAY_TOKEN = os.getenv("GATEWAY_TOKEN", "test-gateway" if TESTING else "")
 CREDENTIAL_KEY = os.getenv("CREDENTIAL_KEY", "")

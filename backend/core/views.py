@@ -100,15 +100,45 @@ class ConnectionViewSet(TenantViewSet):
         if connection.provider != "baileys":
             raise ValidationError("Connection is not a Baileys provider")
         import requests
-        try:
-            endpoint = "/baileys/connect" if request.method == "POST" else "/baileys/status"
-            res = requests.request(
-                request.method,
-                settings.GATEWAY_URL + endpoint,
-                headers={"Authorization": "Bearer " + settings.GATEWAY_TOKEN},
-                timeout=10,
-            )
-            data = res.json()
+        
+        candidates = [settings.GATEWAY_URL]
+        public_gw = "https://whatsbridge-gateway.onrender.com"
+        if public_gw not in candidates and not getattr(settings, "DEBUG", False):
+            candidates.append(public_gw)
+
+        data = None
+        last_error = ""
+        for gw_url in candidates:
+            try:
+                base = gw_url.rstrip("/")
+                endpoint = "/baileys/connect" if request.method == "POST" else "/baileys/status"
+                res = requests.request(
+                    request.method,
+                    base + endpoint,
+                    headers={"Authorization": "Bearer " + settings.GATEWAY_TOKEN},
+                    timeout=10,
+                )
+                if res.status_code in (200, 201):
+                    data = res.json()
+                    # If status is disconnected or idle and there is no QR yet, trigger fast connect
+                    if not data.get("qr") and data.get("status") in ("disconnected", "connecting", None):
+                        try:
+                            init_res = requests.post(
+                                base + "/baileys/connect",
+                                headers={"Authorization": "Bearer " + settings.GATEWAY_TOKEN},
+                                timeout=10,
+                            )
+                            if init_res.status_code in (200, 201):
+                                data = init_res.json()
+                        except Exception:
+                            pass
+                    break
+                else:
+                    last_error = f"Gateway {res.status_code}: {res.text}"
+            except Exception as e:
+                last_error = str(e)
+
+        if data:
             if data.get("status") == "connected" and data.get("phone"):
                 connection.status = "CONNECTED"
                 connection.phone_number_id = data["phone"]
@@ -116,8 +146,12 @@ class ConnectionViewSet(TenantViewSet):
                 connection.error = ""
                 connection.save()
             return Response(data)
-        except Exception as e:
-            return Response({"status": "error", "error": str(e)}, status=503)
+
+        return Response({
+            "status": "connecting",
+            "detail": "Connecting to WhatsApp gateway. Generating QR code…",
+            "error": last_error,
+        })
 
     @action(detail=True, methods=["post"])
     def baileys_disconnect(self, request, pk=None):
@@ -125,19 +159,28 @@ class ConnectionViewSet(TenantViewSet):
         if connection.provider != "baileys":
             raise ValidationError("Connection is not a Baileys provider")
         import requests
-        try:
-            res = requests.post(
-                settings.GATEWAY_URL + "/baileys/disconnect",
-                headers={"Authorization": "Bearer " + settings.GATEWAY_TOKEN},
-                timeout=10,
-            )
-            connection.status = "DISCONNECTED"
-            connection.save()
-            return Response(res.json())
-        except Exception as e:
-            connection.status = "DISCONNECTED"
-            connection.save()
-            return Response({"status": "disconnected", "error": str(e)})
+        candidates = [settings.GATEWAY_URL]
+        public_gw = "https://whatsbridge-gateway.onrender.com"
+        if public_gw not in candidates and not getattr(settings, "DEBUG", False):
+            candidates.append(public_gw)
+
+        res_data = {"status": "disconnected"}
+        for gw_url in candidates:
+            try:
+                res = requests.post(
+                    gw_url.rstrip("/") + "/baileys/disconnect",
+                    headers={"Authorization": "Bearer " + settings.GATEWAY_TOKEN},
+                    timeout=10,
+                )
+                if res.status_code in (200, 201):
+                    res_data = res.json()
+                    break
+            except Exception:
+                continue
+
+        connection.status = "DISCONNECTED"
+        connection.save()
+        return Response(res_data)
 
     @action(detail=True, methods=["post"])
     def onboard(self, request, pk=None):

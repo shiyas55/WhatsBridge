@@ -2990,11 +2990,15 @@ function BaileysQrModal({
     qr: string | null;
     phone: string | null;
     name: string | null;
+    detail?: string | null;
+    error?: string | null;
   }>({
     status: "connecting",
     qr: null,
     phone: null,
     name: null,
+    detail: null,
+    error: null,
   });
   const [loading, setLoading] = useState(false);
   const [testPhone, setTestPhone] = useState("+919876543210");
@@ -3015,12 +3019,16 @@ function BaileysQrModal({
           endpoint,
           refreshSession ? "POST" : "GET",
         );
-        setData(res);
-        if (res.status === "connected") {
+        if (res) setData(res);
+        if (res?.status === "connected") {
           await refresh();
         }
       } catch (err: any) {
         console.error("Failed to query Baileys:", err);
+        setData((prev: any) => ({
+          ...prev,
+          detail: "Connecting to WhatsApp service… retrying shortly",
+        }));
       } finally {
         setLoading(false);
       }
@@ -3029,12 +3037,12 @@ function BaileysQrModal({
   );
 
   useEffect(() => {
-    fetchStatus();
+    fetchStatus(true);
     const interval = setInterval(() => {
       if (data.status !== "connected") {
         fetchStatus(false);
       }
-    }, 3000);
+    }, 2500);
     return () => clearInterval(interval);
   }, [fetchStatus, data.status]);
 
@@ -3161,14 +3169,36 @@ function BaileysQrModal({
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: "12px",
+                gap: "10px",
                 borderRadius: "14px",
                 background: "rgba(255,255,255,0.04)",
                 border: "1px dashed rgba(255,255,255,0.2)",
+                padding: "16px",
+                textAlign: "center",
               }}
             >
               <RefreshCw size={24} className="animate-spin" />
-              <span style={{ fontSize: "13px", opacity: 0.8 }}>Generating QR code…</span>
+              <span style={{ fontSize: "12px", opacity: 0.9, lineHeight: "1.4" }}>
+                {data.detail || "Generating WhatsApp QR code…"}
+              </span>
+              <button
+                type="button"
+                onClick={() => fetchStatus(true)}
+                disabled={loading}
+                style={{
+                  marginTop: "6px",
+                  padding: "5px 12px",
+                  fontSize: "11px",
+                  borderRadius: "6px",
+                  background: "var(--green, #25d366)",
+                  color: "#000",
+                  fontWeight: 600,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              >
+                Instant Reload QR
+              </button>
             </div>
           )}
 
