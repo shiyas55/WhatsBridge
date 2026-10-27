@@ -1,13 +1,17 @@
 @import "tailwindcss";
 :root {
-  --bg: #f7f9f8;
-  --surface: #fff;
-  --ink: #1d2b25;
-  --muted: #7a8780;
-  --line: #e7ece9;
-  --green: #18865a;
-  --pale: #edf7f0;
-  --shadow: 0 2px 3px #1b392603;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-raised: #f1f5f9;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --green: #10b981;
+  --pale: #ecfdf5;
+  --input-bg: #ffffff;
+  --input-border: #cbd5e1;
+  --input-color: #0f172a;
+  --shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05);
   font-family:
     Inter,
     -apple-system,
@@ -1522,82 +1526,164 @@ td small {
   display: none;
 }
 .dark {
-  --bg: #14211b;
-  --surface: #1b2b22;
-  --ink: #e0ebe4;
-  --muted: #91a899;
-  --line: #314639;
-  --pale: #263f30;
+  --bg: #0b0f17;
+  --surface: #111827;
+  --surface-raised: #1f2937;
+  --ink: #f8fafc;
+  --muted: #94a3b8;
+  --line: #1e293b;
+  --green: #10b981;
+  --pale: rgba(16, 185, 129, 0.12);
+  --input-bg: #0f172a;
+  --input-border: #334155;
+  --input-color: #f8fafc;
+  --shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+}
+.dark body {
+  background: var(--bg);
+  color: var(--ink);
+}
+.dark .sidebar {
+  background: #0d121d;
+  border-right-color: #1e293b;
+}
+.dark .topbar {
+  background: #0d121d;
+  border-bottom-color: #1e293b;
+}
+.dark .card {
+  background: #111827;
+  border-color: #1e293b;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 .dark .welcome {
-  background: #233b2b;
-  border-color: #375340;
+  background: linear-gradient(135deg, #0e1e24 0%, #11292b 100%);
+  border-color: #1e3f3b;
 }
 .dark .welcome h2 {
-  color: #e0eee4;
+  color: #f0fdf4;
 }
 .dark .help-card,
 .dark .resource-banner {
-  background: #203528;
+  background: #151d2d;
+  border-color: #243247;
 }
 .dark input,
 .dark select,
 .dark textarea {
-  border-color: #3b5042;
+  background: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
+}
+.dark input:focus,
+.dark select:focus,
+.dark textarea:focus {
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25) !important;
+  outline: none;
+}
+.dark .field-label {
+  color: #f8fafc !important;
+}
+.dark .nav-item {
+  color: #94a3b8;
+}
+.dark .nav-item:hover {
+  background: #1e293b;
+  color: #f8fafc;
 }
 .dark .nav-item.active {
-  background: #2a4534;
-  color: #a4dcba;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-left: 3px solid #10b981;
+}
+.dark .stat-card {
+  background: #111827;
+  border-color: #1e293b;
 }
 .dark .stat-card > div > svg {
-  background: #294031;
+  background: #1e293b;
+  color: #34d399;
 }
 .dark .pill {
-  background: #2a4232;
-  border-color: #3b5d46;
-  color: #b5d5bd;
+  background: #142426;
+  border-color: #1f423d;
+  color: #6ee7b7;
+}
+.dark .workspace {
+  background: #090d14;
+  border-color: #1e293b;
 }
 .dark .workspace .avatar,
 .dark .profile .avatar {
-  background: #2c4234;
-  color: #9fc3aa;
+  background: #1e293b;
+  color: #34d399;
 }
 .dark .modal {
-  background: #192720;
-  border-color: #2b3f33;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  background: #111827 !important;
+  border-color: #1e293b !important;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px #1e293b !important;
 }
-.dark .modal .section-heading {
-  border-color: #2b3f33;
+.dark .modal .section-heading h2 {
+  color: #f8fafc !important;
 }
 .dark .modal .modal-close {
-  background: #14221b;
-  border-color: #2b3f33;
-  color: #91a899;
+  background: #1e293b !important;
+  border-color: #334155 !important;
+  color: #94a3b8 !important;
 }
 .dark .modal .modal-close:hover {
-  background: #253a2e;
-  color: #e0ebe4;
+  background: #334155 !important;
+  color: #f8fafc !important;
 }
 .dark .modal .field-label {
-  color: #e0ebe4;
+  color: #f8fafc !important;
 }
 .dark .modal .field input,
 .dark .modal .field select,
 .dark .modal .field textarea {
-  background: #14221b;
-  border-color: #2b3f33;
-  color: #e0ebe4;
+  background: #0f172a !important;
+  border-color: #334155 !important;
+  color: #f8fafc !important;
 }
 .dark .modal .field input:focus,
 .dark .modal .field select:focus,
 .dark .modal .field textarea:focus {
-  border-color: #2fb97f;
-  box-shadow: 0 0 0 3px rgba(47, 185, 127, 0.2);
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25) !important;
 }
 .dark .empty-icon-wrap {
-  background: #253a2e;
-  color: #a4dcba;
+  background: #1e293b;
+  color: #34d399;
+}
+.dark table th {
+  background: #0f172a;
+  color: #94a3b8;
+  border-bottom-color: #1e293b;
+}
+.dark table td {
+  border-bottom-color: #1e293b;
+  color: #f8fafc;
+}
+.dark table tr:hover td {
+  background: #162032;
+}
+.dark pre {
+  background: #070b12;
+  border: 1px solid #1e293b;
+  color: #38bdf8;
+}
+.dark select option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+.dark .auth-card {
+  background: #111827;
+  border-color: #1e293b;
 }
 @media (min-width: 1550px) {
   .sidebar {

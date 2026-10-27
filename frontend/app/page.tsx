@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Sparkles,
   Sun,
+  Moon,
   Users,
   Webhook,
   Workflow,
@@ -177,7 +178,7 @@ function Form({
             flexShrink: 0,
           }}
         >
-          <span className="field-label" style={{ fontSize: "14px", fontWeight: 600, color: "#1F2937" }}>
+          <span className="field-label" style={{ fontSize: "14px", fontWeight: 600, color: "var(--ink)" }}>
             {f.label}
           </span>
           {f.options ? (
@@ -190,9 +191,9 @@ function Form({
                 height: "46px",
                 padding: "0 16px",
                 borderRadius: "10px",
-                border: "1px solid #D1D5DB",
-                background: "#ffffff",
-                color: "#111827",
+                border: "1px solid var(--input-border, var(--line))",
+                background: "var(--input-bg, var(--surface))",
+                color: "var(--input-color, var(--ink))",
                 fontSize: "14px",
                 boxSizing: "border-box",
               }}
@@ -213,9 +214,9 @@ function Form({
                 width: "100%",
                 padding: "12px 16px",
                 borderRadius: "10px",
-                border: "1px solid #D1D5DB",
-                background: "#ffffff",
-                color: "#111827",
+                border: "1px solid var(--input-border, var(--line))",
+                background: "var(--input-bg, var(--surface))",
+                color: "var(--input-color, var(--ink))",
                 fontSize: "14px",
                 boxSizing: "border-box",
               }}
@@ -231,9 +232,9 @@ function Form({
                 height: "46px",
                 padding: "0 16px",
                 borderRadius: "10px",
-                border: "1px solid #D1D5DB",
-                background: "#ffffff",
-                color: "#111827",
+                border: "1px solid var(--input-border, var(--line))",
+                background: "var(--input-bg, var(--surface))",
+                color: "var(--input-color, var(--ink))",
                 fontSize: "14px",
                 boxSizing: "border-box",
               }}
@@ -307,7 +308,34 @@ export default function Home() {
     [regEmail, setRegEmail] = useState(""),
     [search, setSearch] = useState(""),
     [busy, setBusy] = useState(false),
-    [mobile, setMobile] = useState(false);
+    [mobile, setMobile] = useState(false),
+    [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (saved === "dark" || (!saved && prefersDark)) {
+      document.documentElement.classList.add("dark");
+      setIsDark(true);
+    } else {
+      document.documentElement.classList.remove("dark");
+      setIsDark(false);
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      document.documentElement.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
+
   const active = projects.find((p) => p.id === project);
   const api = useCallback(
     async (path: string, method = "GET", body?: Row, extra: Row = {}) => {
@@ -1009,9 +1037,10 @@ export default function Home() {
             </span>
             <button
               aria-label="Toggle color theme"
-              onClick={() => document.documentElement.classList.toggle("dark")}
+              onClick={toggleTheme}
+              title={isDark ? "Switch to light mode" : "Switch to dark mode"}
             >
-              <Sun size={18} />
+              {isDark ? <Sun size={18} color="#f59e0b" /> : <Moon size={18} />}
             </button>
             <button
               aria-label="Sign out"
@@ -2296,10 +2325,11 @@ await whatsbridge.messages.create({
             width: "100%",
             maxWidth: "480px",
             margin: "auto",
-            background: "#ffffff",
+            background: "var(--surface)",
             borderRadius: "20px",
+            border: "1px solid var(--line)",
             padding: "32px 32px",
-            boxShadow: "0 20px 40px -15px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.04)",
+            boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.4)",
             display: "flex",
             flexDirection: "column",
             flexShrink: 0,
@@ -2319,7 +2349,7 @@ await whatsbridge.messages.create({
               flexShrink: 0,
             }}
           >
-            <h2 style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "-0.3px", color: "#111827", margin: 0 }}>
+            <h2 style={{ fontSize: "20px", fontWeight: 700, letterSpacing: "-0.3px", color: "var(--ink)", margin: 0 }}>
               {modal === "project"
                 ? "Create project"
                 : modal === "key"
@@ -2340,9 +2370,9 @@ await whatsbridge.messages.create({
                 width: "38px",
                 height: "38px",
                 borderRadius: "8px",
-                border: "1px solid #E5E7EB",
-                background: "#ffffff",
-                color: "#4B5563",
+                border: "1px solid var(--line)",
+                background: "var(--surface-raised, var(--surface))",
+                color: "var(--muted)",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
