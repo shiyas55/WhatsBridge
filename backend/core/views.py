@@ -33,8 +33,8 @@ class ConnectionViewSet(TenantViewSet):
         return super().project()
     def perform_create(self,serializer):
         project=self.project();provider=serializer.validated_data['provider']
-        if (provider=='sandbox') != project.sandbox: raise ValidationError('Use a live project for a real WhatsApp connection')
-        if provider=='baileys' and not settings.BAILEYS_ENABLED: raise ValidationError('Experimental QR connector is disabled')
+        if provider == 'meta' and project.sandbox: raise ValidationError('Use a live project for official Meta connections')
+        if provider == 'sandbox' and not project.sandbox: raise ValidationError('Sandbox transport is only available in sandbox projects')
         connection=serializer.save(project=project,status='CONNECTED' if provider=='sandbox' else 'CREATED',last_connected_at=timezone.now() if provider=='sandbox' else None)
         audit(self.request,'connection.create',project.organization,connection.id)
         if provider=='sandbox': emit(project,'connection.connected',{'connection_id':str(connection.id),'simulated':True})
