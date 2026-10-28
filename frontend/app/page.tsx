@@ -26,7 +26,7 @@ export default function Home(){
  useEffect(()=>{setResult(null);setSearch('');refresh().catch(e=>setError(e.message))},[refresh]);
  useEffect(()=>{if(!project||!user)return;let stopped=false;let poll:ReturnType<typeof setInterval>|undefined;const fallback=()=>{if(!stopped&&!poll)poll=setInterval(()=>{if(document.visibilityState==='visible')refresh().catch(()=>{})},10000)};const socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/projects/${project}`);socket.onmessage=e=>{const event=JSON.parse(e.data);setNotice(event.type.replaceAll('.',' · '));refresh().catch(()=>{})};socket.onerror=fallback;socket.onclose=fallback;return()=>{stopped=true;clearInterval(poll);socket.close()}},[project,user,refresh]);
  const mutate=async(path:string,data:Row,method='POST')=>{await api(path+'?project='+project,method,{...data,project});setNotice('Saved successfully');setModal('');await refresh();};
- const fieldsForConnection:Field[]=[{name:'name',label:'Connection name',value:'My WhatsApp'},{name:'provider',label:'Provider',options:[{value:'baileys',label:'WhatsApp Web · QR code linking (Recommended)'},{value:'meta',label:'Official Meta Cloud API'},...(active?.sandbox?[{value:'sandbox',label:'Sandbox · simulated delivery'}]:[])]}];
+ const fieldsForConnection:Field[]=[{name:'name',label:'Connection name',value:'My WhatsApp'},{name:'provider',label:'Provider',options:[{value:'baileys',label:'WhatsApp Web · QR code linking (Recommended)'},{value:'meta',label:'Official Meta Cloud API'}]}];
  const linkWhatsApp=()=>act(async()=>{
    if(!active)throw new Error('Select a project first');
    let target=active;
