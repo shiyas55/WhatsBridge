@@ -19,16 +19,19 @@ u = urlparse(os.getenv('DATABASE_URL','postgres://whatsbridge:whatsbridge@db:543
 DATABASES = {'default': {'ENGINE':'django.db.backends.postgresql','NAME':u.path[1:],'USER':u.username,'PASSWORD':u.password,'HOST':u.hostname,'PORT':u.port or 5432,'CONN_MAX_AGE':60}}
 if TESTING:
     DATABASES = {'default': {'ENGINE':'django.db.backends.sqlite3','NAME':BASE_DIR/'test-dev.sqlite3'}}
-REDIS_URL = os.getenv('REDIS_URL','redis://redis:6379/0')
-CACHES = {'default': {'BACKEND':'django.core.cache.backends.redis.RedisCache','LOCATION':REDIS_URL}}
-CHANNEL_LAYERS = {'default': {'BACKEND':'channels_redis.core.RedisChannelLayer','CONFIG':{'hosts':[REDIS_URL]}}}
-if TESTING:
+REDIS_URL = os.getenv('REDIS_URL', '')
+if REDIS_URL and not TESTING:
+    CACHES = {'default': {'BACKEND':'django.core.cache.backends.redis.RedisCache','LOCATION':REDIS_URL}}
+    CHANNEL_LAYERS = {'default': {'BACKEND':'channels_redis.core.RedisChannelLayer','CONFIG':{'hosts':[REDIS_URL]}}}
+    CELERY_BROKER_URL = REDIS_URL
+    CELERY_RESULT_BACKEND = REDIS_URL
+else:
     CACHES = {'default': {'BACKEND':'django.core.cache.backends.locmem.LocMemCache'}}
     CHANNEL_LAYERS = {'default': {'BACKEND':'channels.layers.InMemoryChannelLayer'}}
-CELERY_BROKER_URL = REDIS_URL
-CELERY_RESULT_BACKEND = REDIS_URL
-CELERY_TASK_ALWAYS_EAGER = TESTING
-CELERY_TASK_EAGER_PROPAGATES = TESTING
+    CELERY_BROKER_URL = 'memory://'
+    CELERY_RESULT_BACKEND = 'cache+memory://'
+    CELERY_TASK_ALWAYS_EAGER = True
+    CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_BEAT_SCHEDULE = {'dispatch-due': {'task':'core.tasks.dispatch_due','schedule':10.0},'retention':{'task':'core.tasks.retention','schedule':86400.0}}
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES':['core.security.ProjectKeyAuthentication','rest_framework.authentication.SessionAuthentication'],'DEFAULT_PERMISSION_CLASSES':['rest_framework.permissions.IsAuthenticated'],'DEFAULT_SCHEMA_CLASS':'drf_spectacular.openapi.AutoSchema','DEFAULT_PAGINATION_CLASS':'rest_framework.pagination.PageNumberPagination','PAGE_SIZE':50,'EXCEPTION_HANDLER':'core.security.exception_handler'}
 SPECTACULAR_SETTINGS = {'TITLE':'WhatsBridge API','VERSION':'1.0.0','SERVE_INCLUDE_SCHEMA':False,'COMPONENT_SPLIT_REQUEST':True}

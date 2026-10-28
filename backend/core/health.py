@@ -5,11 +5,21 @@ from django.contrib.auth.decorators import user_passes_test
 from .models import Message, WebhookDelivery
 
 def health(request):
+    db_ok = False
+    cache_ok = False
     try:
         with connection.cursor() as cursor: cursor.execute('SELECT 1')
-        cache.set('health',True,10)
-        return JsonResponse({'status':'ok','database':'ok','cache':'ok'})
-    except Exception: return JsonResponse({'status':'unavailable'},status=503)
+        db_ok = True
+    except Exception:
+        pass
+    try:
+        cache.set('health', True, 10)
+        cache_ok = True
+    except Exception:
+        pass
+    if db_ok:
+        return JsonResponse({'status': 'ok', 'database': 'ok', 'cache': 'ok' if cache_ok else 'in_memory'})
+    return JsonResponse({'status': 'unavailable', 'database': 'failed'}, status=503)
 
 @user_passes_test(lambda user:user.is_superuser)
 def metrics(request):
