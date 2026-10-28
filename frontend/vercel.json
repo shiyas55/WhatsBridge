@@ -1,4 +1,12 @@
 {
+  "framework": "nextjs",
+  "installCommand": "npm install",
+  "buildCommand": "npm run build"
+
+
+}
+
+{
   "rewrites": [
     {
       "source": "/api/v1/:path*",
@@ -7,6 +15,10 @@
     {
       "source": "/api/:path*",
       "destination": "https://whatsbridge-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/baileys_qr",
+      "destination": "https://whatsbridge-backend.onrender.com/baileys_qr"
     }
   ]
 }
