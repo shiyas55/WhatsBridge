@@ -335,3 +335,34 @@ def test_live_qr_creation_is_opt_in_and_not_sandbox(env,settings):
     assert client.post('/api/v1/connections?project='+str(project.id),{'name':'Phone','provider':'baileys'},format='json').status_code==400
     project.sandbox=False;project.save();settings.BAILEYS_ENABLED=False
     assert client.post('/api/v1/connections?project='+str(project.id),{'name':'Phone','provider':'baileys'},format='json').status_code==400
+
+def test_opt_in_qr_otp_send_verify_and_replay(env,settings):
+    settings.BAILEYS_ENABLED=True;settings.BAILEYS_OTP_ENABLED=True;settings.BAILEYS_TOKEN='private-test-token'
+    client,_,_,p,c,_=env;p.sandbox=False;p.save();c.provider='baileys';c.save()
+    with patch('core.otp.secrets.randbelow',return_value=582914):r=otp_send(env)
+    assert r.status_code==202 and r.data['experimental'] and not r.data['delivery_guaranteed']
+    assert 'sandbox_code' not in r.data
+    challenge=OTPChallenge.objects.get(pk=r.data['challenge_id'])
+    assert check_password('582914',challenge.code_hash)
+    assert 295 < (challenge.expires_at-timezone.now()).total_seconds() <= 300
+    assert '582914' not in json.dumps(challenge.message.payload)
+    response=Mock(status_code=200);response.json.return_value={'status':'accepted','provider_id':'otp-provider-id'}
+    with patch('core.tasks.requests.post',return_value=response) as send:
+        send_message(str(challenge.message_id))
+        assert send.call_args.kwargs['json']['payload']['body'].startswith('Your verification code is 582914')
+    data={'challenge_id':str(challenge.id),'code':'582914'}
+    verified=client.post('/api/v1/otp/verify?project='+str(p.id),data,format='json')
+    assert verified.status_code==200
+    proof=signing.loads(verified.data['verification_token'],salt='whatsbridge-phone-verification-v1',max_age=300)
+    assert proof['project']==str(p.id) and proof['purpose']=='phone_verification'
+    assert client.post('/api/v1/otp/verify?project='+str(p.id),data,format='json').status_code==400
+
+def test_disable_experimental_otp_before_dispatch(env,settings):
+    settings.BAILEYS_ENABLED=True;settings.BAILEYS_OTP_ENABLED=True
+    _,_,_,p,c,_=env;p.sandbox=False;p.save();c.provider='baileys';c.save()
+    r=otp_send(env);assert r.status_code==202
+    challenge=OTPChallenge.objects.get(pk=r.data['challenge_id'])
+    settings.BAILEYS_OTP_ENABLED=False
+    with patch('core.tasks.requests.post') as send:
+        send_message(str(challenge.message_id));send.assert_not_called()
+    challenge.message.refresh_from_db();assert challenge.message.status=='failed'

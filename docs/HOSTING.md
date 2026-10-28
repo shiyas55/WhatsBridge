@@ -1,3 +1,5 @@
+> Update: an explicit research-only `BAILEYS_OTP_ENABLED=1` option now exists. It is disabled by default and does not establish production OTP support. See [experimental OTP guide](EXPERIMENTAL-OTP.md). Earlier statements below that QR OTP is disabled describe the default configuration.
+
 # Vercel + Render: QR recovery
 
 ## What was checked
@@ -57,3 +59,13 @@ For initial QR troubleshooting, apply the small environment/service-root fix abo
 - Render Blueprint validation against Render's published JSON schema.
 
 Live environment updates, authenticated live QR generation, phone linking and real delivery remain unverified. Production OTP stays on the official Meta authentication-template path.
+
+## Confirmed 404: gateway deployment mismatch
+
+The reported popup error is an upstream 404, not a layout error. The public gateway returned `{"status":"ok","baileys":"qr_ready"}`, which is not the health response of the current connector source. Deploy the current commit to the **gateway service itself**, not only the Django backend or Vercel frontend.
+
+Both `experimental/baileys` and the existing `gateway` directory now contain the matching QR connector. Prefer `experimental/baileys` as the Render root. Build with `npm ci && npm run build`; start with `npm start`. Set `BAILEYS_HOST=0.0.0.0`, the private token, encryption key, and session directory as documented above. The official Meta adapter remains in `providers/meta`.
+
+After deployment, `/health` must contain `"protocol":"whatsbridge-qr-v1"`. If it still says `"baileys":"qr_ready"`, the gateway is running an older/different source, branch, root directory, or deployment. Repeatedly refreshing the popup cannot correct that.
+
+The backend uses `POST /sessions/{organization}/{project}/{connection}/pair` and `GET /sessions/{organization}/{project}/{connection}` with private Bearer authentication. Keep all three tenant identifiers; do not substitute an unscoped legacy endpoint.

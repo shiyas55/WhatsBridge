@@ -3,7 +3,7 @@ import {timingSafeEqual,createHash} from 'node:crypto';
 import makeWASocket,{DisconnectReason,Browsers,proto,type WASocket} from '@whiskeysockets/baileys';
 import QRCode from 'qrcode';
 import pino from 'pino';
-import {SessionStore,scopeId,UUID,type Claim} from './store.js';
+import {SessionStore,scopeId,UUID,storedScopes,type Claim} from './store.js';
 const token = process.env.BAILEYS_TOKEN || '';
 const key = Buffer.from(process.env.BAILEYS_ENCRYPTION_KEY || '', 'base64');
 const root = process.env.BAILEYS_SESSION_DIR;
@@ -35,7 +35,7 @@ async function start(s:Session){
  })();try{await s.starting;}finally{s.starting=undefined;}
 }
 const app=express();app.disable('x-powered-by');app.use(express.json({limit:'32kb'}));
-app.get('/health',(_req,res)=>res.json({status:'ok',provider:'baileys',experimental:true}));
+app.get('/health',(_req,res)=>res.json({status:'ok',provider:'baileys',experimental:true,protocol:'whatsbridge-qr-v1'}));
 app.use((req,res,next)=>{
  res.setHeader('Cache-Control','no-store');
  const auth=req.headers.authorization??'';
@@ -63,4 +63,15 @@ app.post(route+'/send',async(req,res)=>{
 });
 app.get(route+'/receipts',(_req,res)=>{const s:Session=res.locals.session;res.json({receipts:s.store.data.receipts});});
 app.use((_e:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>res.status(503).json({error:'Experimental connector unavailable'}));
-app.listen(Number(process.env.PORT??14001),process.env.BAILEYS_HOST || '127.0.0.1',()=>console.log('Experimental WhatsApp QR connector ready; OTP disabled'));
+app.listen(Number(process.env.PORT??14001),process.env.BAILEYS_HOST || '127.0.0.1',()=>{console.log('Experimental WhatsApp QR connector ready');void restoreSessions();});
+
+async function restoreSessions(){
+ try {
+  for(const scope of await storedScopes(root!)){
+   try{const session=await load(scope);if(session.store.data.creds.registered)await start(session);}
+   catch{console.error('Encrypted session could not be restored; owner reconnect required');}
+   // Bound startup pacing. Network failures require explicit reconnect, not an infinite loop.
+   await new Promise(resolve=>setTimeout(resolve,250));
+  }
+ }catch{console.error('Session directory could not be read');}
+}

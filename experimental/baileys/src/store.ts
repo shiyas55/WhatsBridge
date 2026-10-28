@@ -1,5 +1,5 @@
 import {createCipheriv,createDecipheriv,randomBytes} from 'node:crypto';
-import {mkdir,readFile,writeFile,rename} from 'node:fs/promises';
+import {mkdir,readFile,writeFile,rename,readdir} from 'node:fs/promises';
 import {join} from 'node:path';
 import {BufferJSON,initAuthCreds,proto,type AuthenticationState} from '@whiskeysockets/baileys';
 export const UUID=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -14,4 +14,10 @@ export class SessionStore {
  async save(){const blob=seal(this.data,this.key,this.scope);this.tail=this.tail.then(async()=>{const path=join(this.root,this.scope+'.enc');await writeFile(path+'.tmp',blob,{mode:0o600});await rename(path+'.tmp',path);});return this.tail;}
  auth():AuthenticationState{return {creds:this.data.creds,keys:{get:async(type,ids)=>{const found:any={};for(const id of ids){let v=this.data.keys[`${type}:${id}`];if(type==='app-state-sync-key'&&v)v=proto.Message.AppStateSyncKeyData.fromObject(v);if(v)found[id]=v;}return found;},set:async(data)=>{for(const [type,values]of Object.entries(data)){for(const [id,value]of Object.entries(values??{})){if(value)this.data.keys[`${type}:${id}`]=value;else delete this.data.keys[`${type}:${id}`];}}await this.save();}}};}
  async clearAuth(){this.data.creds=initAuthCreds();this.data.keys={};await this.save();}
+}
+
+// Enumerate only tenant-scoped encrypted records; never follow arbitrary paths.
+export async function storedScopes(root:string):Promise<string[]> {
+ try { return (await readdir(root)).filter(name=>name.endsWith('.enc')).map(name=>name.slice(0,-4)).filter(scope=>{const parts=scope.split('_');return parts.length===3&&parts.every(part=>UUID.test(part));}); }
+ catch(error:any){if(error.code==='ENOENT')return [];throw error;}
 }

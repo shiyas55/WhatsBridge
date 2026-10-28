@@ -20,6 +20,10 @@ def connector(connection,method='GET',action='',data=None):
         if token:
             headers['Authorization'] = 'Bearer ' + token
         response=requests.request(method,endpoint(connection)+action,json=data,headers=headers,timeout=15)
+        if response.status_code == 404:
+            raise ValidationError('The deployed QR gateway does not support this pairing route. Deploy experimental/baileys (or the updated gateway directory), check BAILEYS_URL, and confirm /health reports protocol whatsbridge-qr-v1.')
+        if response.status_code in (401,403):
+            raise ValidationError('QR gateway authentication failed. Configure the same private BAILEYS_TOKEN on backend and gateway.')
         if not response.ok:
             error_details = 'QR connector error'
             try:

@@ -89,3 +89,6 @@ if TESTING and os.getenv('LOCAL_DB_PATH'):
     DATABASES['default'] = {'ENGINE':'django.db.backends.sqlite3','NAME':os.environ['LOCAL_DB_PATH']}
 
 EMAIL_FILE_PATH = os.getenv("EMAIL_FILE_PATH", "/tmp/whatsbridge-mail")
+
+# Explicit research opt-in; no supported production delivery guarantee.
+BAILEYS_OTP_ENABLED = os.getenv('BAILEYS_OTP_ENABLED','0') == '1'

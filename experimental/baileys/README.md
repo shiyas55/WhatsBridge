@@ -1,3 +1,5 @@
+> Update: an explicit research-only `BAILEYS_OTP_ENABLED=1` option now exists. It is disabled by default and does not establish production OTP support. See [experimental OTP guide](../../docs/EXPERIMENTAL-OTP.md). Earlier statements below that QR OTP is disabled describe the default configuration.
+
 # Isolated experimental WhatsApp QR connector
 
 This opt-in service implements QR pairing, encrypted per-tenant linked-device sessions, consented outbound text messages, and outbound delivery receipts. It is separate from the official Meta provider gateway. Production OTP remains on approved Meta authentication templates. There is no WhatsApp-Web-based production OTP guarantee.

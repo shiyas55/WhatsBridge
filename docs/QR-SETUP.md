@@ -1,3 +1,5 @@
+> Update: an explicit research-only `BAILEYS_OTP_ENABLED=1` option now exists. It is disabled by default and does not establish production OTP support. See [experimental OTP guide](EXPERIMENTAL-OTP.md). Earlier statements below that QR OTP is disabled describe the default configuration.
+
   # Account → project → QR → API
 
   The corrected local app is running at http://localhost:3002. Older tabs on ports 3000/3001 use earlier development processes. Local mode uses SQLite and a local task dispatcher; this is not the PostgreSQL/Redis production deployment.

@@ -81,3 +81,5 @@ Read [architecture](docs/ARCHITECTURE.md), [API guide](docs/API.md),
 [deployment runbook](docs/DEPLOYMENT.md), and [implementation status](docs/STATUS.md).
 
 Hosting troubleshooting: [Vercel and Render QR recovery](docs/HOSTING.md). The revised Render Blueprint proposes paid services; it has not been applied.
+
+[Experimental linked-device OTP](docs/EXPERIMENTAL-OTP.md) is available behind an explicit opt-in flag; production delivery is not guaranteed.

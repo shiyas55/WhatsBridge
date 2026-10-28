@@ -45,7 +45,7 @@ def send_message(message_id):
     try:
         url=settings.GATEWAY_URL+'/send';service_token=settings.GATEWAY_TOKEN
         if msg.connection.provider=='baileys':
-            if not settings.BAILEYS_ENABLED:
+            if not settings.BAILEYS_ENABLED or (is_otp and not settings.BAILEYS_OTP_ENABLED):
                 Message.objects.filter(pk=msg.pk).update(status='failed',error='WhatsApp connector is disabled');return
             from .experimental import endpoint
             url=endpoint(msg.connection)+'/send';service_token=settings.BAILEYS_TOKEN or settings.GATEWAY_TOKEN or ''

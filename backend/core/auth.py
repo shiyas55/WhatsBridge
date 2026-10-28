@@ -36,7 +36,7 @@ def send_verification(user):
 def auth(request, action):
     if request.method == 'GET':
         if action != 'session': raise ValidationError('Unknown action')
-        return Response({'csrfToken':get_token(request),'user':({'id':request.user.pk,'email':request.user.email,'first_name':request.user.first_name,'is_staff':request.user.is_staff,'email_verified':request.user.email_verified,'totp_enabled':request.user.totp_enabled} if request.user.is_authenticated and getattr(request.user,'pk',None) else None)})
+        return Response({'features':{'experimental_qr_otp':settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED},'csrfToken':get_token(request),'user':({'id':request.user.pk,'email':request.user.email,'first_name':request.user.first_name,'is_staff':request.user.is_staff,'email_verified':request.user.email_verified,'totp_enabled':request.user.totp_enabled} if request.user.is_authenticated and getattr(request.user,'pk',None) else None)})
     # DRF normally checks CSRF only for authenticated sessions. Login/register must
     # also check it to prevent login CSRF.
     SessionAuthentication().enforce_csrf(request)

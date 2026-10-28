@@ -82,7 +82,7 @@ export default function QRPairing({
       {connected ? <p className="wb-qr-success">Your phone is linked. You can now send consented text messages through your project API.</p> : <section className="wb-qr-steps">
         <h3>On your phone</h3><ol><li>Open <strong>WhatsApp</strong>.</li><li>Go to <strong>Settings</strong> or <strong>⋮</strong> → <strong>Linked devices</strong>.</li><li>Tap <strong>Link a device</strong> and scan this code.</li></ol>
       </section>}
-      <p className="wb-qr-note"><ShieldCheck size={16}/><span>Experimental connection · Encrypted session storage.<br/>OTP requires an official Meta connection.</span></p>
+      <p className="wb-qr-note"><ShieldCheck size={16}/><span>Experimental connection · Encrypted session storage.<br/>Production OTP uses the official Meta connection.</span></p>
     </div>
   );
 }

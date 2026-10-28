@@ -13,3 +13,18 @@ def test_hosted_database_keeps_tls_options_and_encoded_password():
     db=database_config('postgresql://user:p%40ss@db.example.com/app?sslmode=require&channel_binding=require')
     assert db['PASSWORD']=='p@ss'
     assert db['OPTIONS']=={'sslmode':'require','channel_binding':'require'}
+
+def test_connector_preserves_tenant_route_and_reports_deployed_mismatch(settings):
+    from types import SimpleNamespace
+    from unittest.mock import patch, Mock
+    from rest_framework.exceptions import ValidationError
+    from core.experimental import connector
+    settings.BAILEYS_ENABLED=True; settings.BAILEYS_TOKEN='private-test-token'
+    settings.BAILEYS_URL='https://qr.example.test'
+    connection=SimpleNamespace(id='connection',project_id='project',project=SimpleNamespace(organization_id='organization'))
+    response=Mock(status_code=404,ok=False)
+    with patch('core.experimental.requests.request',return_value=response) as request:
+        with pytest.raises(ValidationError,match='does not support this pairing route'):
+            connector(connection,'POST','/pair',{})
+        assert request.call_args.args[:2]==('POST','https://qr.example.test/sessions/organization/project/connection/pair')
+        assert request.call_args.kwargs['headers']['Authorization']=='Bearer private-test-token'

@@ -6,6 +6,8 @@ from datetime import timedelta
 from django.contrib.auth.hashers import make_password, check_password
 from django.db import transaction
 from django.utils import timezone
+from django.conf import settings
+from django.core import signing
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError
@@ -28,12 +30,14 @@ def otp(request, action):
         if type(ttl) is not int or not 60<=ttl<=600: raise ValidationError('TTL must be 60–600 seconds')
         connection=WhatsAppConnection.objects.filter(pk=request.data.get('connection'),project=project,status='CONNECTED').first()
         if not connection: raise ValidationError('Connected transport required')
-        if connection.provider not in ('sandbox','meta'): raise ValidationError('OTP requires sandbox or an official Meta authentication template; experimental QR OTP is disabled')
+        experimental = connection.provider == 'baileys'
+        if experimental and not (settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED):
+            raise ValidationError('Experimental QR OTP is disabled. Enable BAILEYS_OTP_ENABLED explicitly for research use.')
+        if connection.provider not in ('sandbox','meta','baileys'): raise ValidationError('Unsupported OTP provider')
         code=f'{secrets.randbelow(1000000):06d}'
         kind='text';payload={'body':f'Your verification code is {code}. Valid for {ttl//60} minutes.'}
         if connection.provider=='meta':
             # Only operator-vetted authentication templates may carry real OTPs.
-            from django.conf import settings
             allowed=getattr(settings,'OTP_TEMPLATE_NAMES',[])
             name=request.data.get('template')
             if name not in allowed: raise ValidationError('Use an operator-approved Meta authentication template')
@@ -48,6 +52,7 @@ def otp(request, action):
             challenge.message=msg;challenge.save()
             audit(request,'otp.created',project.organization,challenge.id)
         result={'challenge_id':str(challenge.id),'expires_at':challenge.expires_at,'status':'queued'}
+        if experimental: result.update(experimental=True, delivery_guaranteed=False)
         if project.sandbox and connection.provider=='sandbox': result['sandbox_code']=code
         return Response(result,status=202)
     rate_limit('otp-verify:'+str(project.id),120,3600)
@@ -65,4 +70,5 @@ def otp(request, action):
             AuditLog.objects.create(organization=project.organization,action='otp.verified' if valid else 'otp.failed',target=str(challenge.id))
             if valid: emit(project,'otp.verified',{'challenge_id':str(challenge.id)})
     if not valid: return Response({'error':{'code':'invalid_challenge','details':'Invalid, expired, used, or locked challenge'}},status=400)
-    return Response({'verified':True})
+    proof=signing.dumps({'purpose':'phone_verification','project':str(project.id),'challenge':str(challenge.id),'phone':challenge.phone,'simulated':challenge.message.connection.provider=='sandbox'},salt='whatsbridge-phone-verification-v1')
+    return Response({'verified':True,'verification_token':proof,'expires_in':300,'token_type':'phone_verification'})
