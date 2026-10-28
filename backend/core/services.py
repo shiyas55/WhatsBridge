@@ -12,8 +12,23 @@ KINDS = {'text','image','document','video','audio','template'}
 EVENTS = {'message.received','message.sent','message.delivered','message.read','message.failed','connection.connected','connection.disconnected','otp.verified','workflow.completed','workflow.failed'}
 
 def phone_number(phone):
-    if not isinstance(phone,str) or not PHONE.fullmatch(phone): raise ValidationError({'phone':'Use E.164 format, e.g. +15551234567'})
-    return phone
+    if not isinstance(phone, str):
+        raise ValidationError({'phone': 'Use E.164 format, e.g. +15551234567'})
+    cleaned = re.sub(r'[\s\-\(\)\.]', '', phone.strip())
+    if cleaned.startswith('00'):
+        cleaned = '+' + cleaned[2:]
+    elif not cleaned.startswith('+'):
+        if len(cleaned) == 12 and cleaned.startswith('91'):
+            cleaned = '+' + cleaned
+        elif len(cleaned) == 11 and cleaned.startswith('1'):
+            cleaned = '+' + cleaned
+        elif len(cleaned) == 10:
+            cleaned = '+91' + cleaned
+        else:
+            cleaned = '+' + cleaned
+    if not PHONE.fullmatch(cleaned):
+        raise ValidationError({'phone': 'Use E.164 format, e.g. +15551234567 or +919567334117'})
+    return cleaned
 
 def emit(project, event, data):
     from asgiref.sync import async_to_sync

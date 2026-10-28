@@ -209,6 +209,22 @@ class KeyViewSet(TenantViewSet):
 class ContactViewSet(TenantViewSet):
     queryset=Contact.objects.all();serializer_class=ContactSerializer
     def project(self): session_only(self.request);return super().project()
+    def create(self,request,*args,**kwargs):
+        project=self.project()
+        serializer=self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        phone=serializer.validated_data['phone']
+        name=serializer.validated_data.get('name','')
+        attributes=serializer.validated_data.get('attributes',{})
+        contact,created=Contact.objects.update_or_create(
+            project=project,
+            phone=phone,
+            defaults={'name':name,'attributes':attributes}
+        )
+        if not contact.consents.filter(purpose='messaging').exists():
+            ContactConsent.objects.create(contact=contact,purpose='messaging',basis='Direct contact creation',granted=True)
+        audit(request,'contact.create' if created else 'contact.update',project.organization,contact.id)
+        return Response(self.get_serializer(contact).data,status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
     @action(detail=True,methods=['post'])
     def consent(self,request,pk=None):
         contact=self.get_object();purpose=request.data.get('purpose','messaging');basis=request.data.get('basis','')
