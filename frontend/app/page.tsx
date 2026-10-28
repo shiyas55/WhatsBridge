@@ -13,7 +13,7 @@ function Badge({children}:{children:React.ReactNode}){return <span className={'b
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
 function Empty({text='No records yet. Create your first one to get started.'}:{text?:string}){return <div className="empty"><MessageCircle size={30}/><h3>A clean slate</h3><p>{text}</p></div>}
 export default function Home(){
- const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'overview'|'users'|'projects'|'connections'>('overview'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null);
+ const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null);
  const active=projects.find(p=>p.id===project);
  const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=r.status===204?null:await r.json();if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
  const act=async(fn:()=>Promise<void>)=>{setError('');try{await fn()}catch(e){setError((e as Error).message)}};
@@ -46,17 +46,17 @@ export default function Home(){
  <div className="auth-links"><button onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create an account':'Back to sign in'}</button><button onClick={()=>setAuthMode('forgot-password')}>Forgot password?</button></div><p className="fine">Development email links arrive in <a href="http://localhost:8025" target="_blank" rel="noreferrer">Mailpit</a>. Production uses your configured email provider.</p></div></section></div>;
  return (
   <>
-  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage('Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span></a><div className="workspace"><span className="avatar">{(active?.name??'W').slice(0,1)}</span><div><strong>{active?.name??'Your workspace'}</strong><small>{active?.sandbox?'Sandbox workspace':'Developer workspace'}</small></div><ChevronDown size={14}/></div><nav>{nav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.filter(n=>n!=='Admin'||user.is_staff).map(n=>{const Icon=icons[n];return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{setPage(n);setMobile(false);setError('')}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><Zap size={18}/><strong>Built for your next idea</strong><p>Start in the sandbox.<br/>Ship with a supported provider.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div><button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||'Developer'}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
- <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span><strong>{page}</strong></div><div className="top-actions"><span className="environment"><i/>{active?.sandbox?'Sandbox':'Live project'}</span><button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={()=>act(async()=>{await api('/api/auth/logout','POST',{});await loadSession()})}><LogOut size={17}/></button></div></header>
- <main><div className="page-heading"><div><span className="eyebrow">{page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE'}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}{p.sandbox?' · sandbox':''}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</div></div>
+  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage('Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span></a><div className="workspace"><span className="avatar">{(active?.name??'W').slice(0,1)}</span><div><strong>{active?.name??'Your workspace'}</strong><small>Production workspace</small></div><ChevronDown size={14}/></div><nav>{nav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.filter(n=>n!=='Admin'||(user?.is_staff||user?.is_superuser)).map(n=>{const Icon=icons[n];return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{setPage(n);setMobile(false);setError('')}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div><button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||'Developer'}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
+ <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span><strong>{page}</strong></div><div className="top-actions"><span className="environment"><i/>Production Live</span><button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={()=>act(async()=>{await api('/api/auth/logout','POST',{});await loadSession()})}><LogOut size={17}/></button></div></header>
+ <main><div className="page-heading"><div><span className="eyebrow">{page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE'}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</div></div>
  {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}{notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice('')}>Dismiss</button></div>}{urlParams.has('invite')&&<button className="primary" onClick={()=>act(async()=>{await api('/api/auth/accept-invitation','POST',{token:urlParams.get('invite')});history.replaceState({},'','/');await refreshProjects();setNotice('Invitation accepted')})}>Accept team invitation</button>}
- {!project&&page!=='Projects'?<section className="card welcome"><h2>Make room for your first integration.</h2><p>Create a project to get a sandbox, scoped API keys, and messaging tools.</p><button className="primary" onClick={()=>setModal('project')}>Create your first project <ArrowRight size={16}/></button></section>:<>
- {page==='Overview'&&<><section className="welcome"><div><span className="pill"><span/> {active?.sandbox?'SANDBOX ENVIRONMENT':'OFFICIAL PROVIDER ENVIRONMENT'}</span><h2>From a few lines of code<br/>to a real conversation.</h2><p>{active?.sandbox?'Your sandbox is ready. Connect a transport, add a consenting contact, and send your first test message.':'Manage your official transport and monitor confirmed provider events.'}</p><button className="primary" onClick={()=>setPage('Send Message')}>Send a test message <ArrowRight size={16}/></button><button className="text-button" onClick={()=>setPage('API Documentation')}>Explore the docs <ArrowUpRight size={15}/></button></div><div className="code-card"><div><span/><span/><span/><small>your-next-idea.ts</small></div><pre>{`// One request. A new conversation.
+ {!project&&page!=='Projects'?<section className="card welcome"><h2>Make room for your first integration.</h2><p>Create a project to get scoped API keys, WhatsApp connections, and messaging tools.</p><button className="primary" onClick={()=>setModal('project')}>Create your first project <ArrowRight size={16}/></button></section>:<>
+ {page==='Overview'&&<><section className="welcome"><div><span className="pill"><span/> PRODUCTION ENVIRONMENT</span><h2>From a few lines of code<br/>to a real conversation.</h2><p>Manage your official transport, link your WhatsApp, and monitor confirmed message events in real time.</p><button className="primary" onClick={()=>setPage('Send Message')}>Send a message <ArrowRight size={16}/></button><button className="text-button" onClick={()=>setPage('API Documentation')}>Explore the docs <ArrowUpRight size={15}/></button></div><div className="code-card"><div><span/><span/><span/><small>your-next-idea.ts</small></div><pre>{`// One request. A new conversation.
 await whatsbridge.messages.create({
   phone: "+15551234567",
   kind: "text",
   payload: { body: "Hello, world" }
-});`}</pre><footer><i /> Server-side integration · see API documentation</footer></div></section><div className="stat-grid">{[['Messages queued', stats.messages ?? 0, Send], ['Active connections', stats.connections ?? 0, MessageCircle], ['Contacts', stats.contacts ?? 0, Contact], ['Monthly limit', stats.subscription?.monthly_limit ?? 0, Activity]].map(([label, value, Icon]: any) => <div className="stat-card" key={label}><div><span>{label}</span><Icon size={17} /></div><strong>{Number(value).toLocaleString()}</strong><small>{label === 'Monthly limit' ? 'Organization-wide message reservations' : 'From your project records'}</small></div>)}</div><div className="overview-grid"><section className="card"><div className="section-heading"><div><h2>Your connections</h2><p>Messaging transports for this project</p></div><button className="text-button" onClick={() => setPage('Connections')}>View all <ArrowUpRight size={14} /></button></div>{connections.length ? connections.slice(0, 4).map(c => <div className="connection-row" key={c.id}><span className="connection-icon"><MessageCircle size={22} /></span><div><strong>{c.name}</strong><small>{c.provider === 'sandbox' ? 'Sandbox · simulated events' : c.provider === 'baileys' ? 'WhatsApp Web · experimental' : 'Meta WhatsApp Cloud API'}</small></div><Badge>{c.status}</Badge></div>) : <Empty text="Add a sandbox connection to start sending test messages." />}<button className="dashed-button" onClick={() => setModal('connection')}><Plus size={16} /> Add a connection</button></section><section className="card"><div className="section-heading"><div><h2>Get your integration going</h2><p>Three steps from setup to send</p></div><span className="step-count">{[connections.length > 0, (stats.contacts ?? 0) > 0, (stats.messages ?? 0) > 0].filter(Boolean).length}/3</span></div>{[['Connect a transport', 'Choose sandbox or official Meta.', 'Connections', connections.length > 0], ['Add a consenting contact', 'Record permission before sending.', 'Contacts', (stats.contacts ?? 0) > 0], ['Send your first message', 'Try your integration end to end.', 'Send Message', (stats.messages ?? 0) > 0]].map(([title, desc, target, done], i) => <button className="checklist" key={String(title)} onClick={() => setPage(String(target))}><span className={done ? 'step done' : 'step'}>{done ? <Check size={14} /> : i + 1}</span><span><strong>{title}</strong><small>{desc}</small></span><ArrowRight size={16} /></button>)}</section></div><section className="resource-banner"><div><Code2 size={23} /><span><strong>Designed for the way you build.</strong><small>REST API, signed webhooks, and integration examples in your stack.</small></span></div><button onClick={() => setPage('API Documentation')}>Open developer docs <ArrowUpRight size={16} /></button></section></>}
+});`}</pre><footer><i /> Server-side integration · see API documentation</footer></div></section><div className="stat-grid">{[['Messages queued', stats.messages ?? 0, Send], ['Active connections', stats.connections ?? 0, MessageCircle], ['Contacts', stats.contacts ?? 0, Contact], ['Monthly limit', stats.subscription?.monthly_limit ?? 0, Activity]].map(([label, value, Icon]: any) => <div className="stat-card" key={label}><div><span>{label}</span><Icon size={17} /></div><strong>{Number(value).toLocaleString()}</strong><small>{label === 'Monthly limit' ? 'Organization-wide message reservations' : 'From your project records'}</small></div>)}</div><div className="overview-grid"><section className="card"><div className="section-heading"><div><h2>Your connections</h2><p>Messaging transports for this project</p></div><button className="text-button" onClick={() => setPage('Connections')}>View all <ArrowUpRight size={14} /></button></div>{connections.length ? connections.slice(0, 4).map(c => <div className="connection-row" key={c.id}><span className="connection-icon"><MessageCircle size={22} /></span><div><strong>{c.name}</strong><small>{c.provider === 'baileys' ? 'WhatsApp Web · QR code linking' : 'Meta WhatsApp Cloud API'}</small></div><Badge>{c.status}</Badge></div>) : <Empty text="Add a WhatsApp connection to start sending messages." />}<button className="dashed-button" onClick={() => setModal('connection')}><Plus size={16} /> Add a connection</button></section><section className="card"><div className="section-heading"><div><h2>Get your integration going</h2><p>Three steps from setup to send</p></div><span className="step-count">{[connections.length > 0, (stats.contacts ?? 0) > 0, (stats.messages ?? 0) > 0].filter(Boolean).length}/3</span></div>{[['Connect a transport', 'Choose WhatsApp QR or official Meta.', 'Connections', connections.length > 0], ['Add a consenting contact', 'Record permission before sending.', 'Contacts', (stats.contacts ?? 0) > 0], ['Send your first message', 'Try your integration end to end.', 'Send Message', (stats.messages ?? 0) > 0]].map(([title, desc, target, done], i) => <button className="checklist" key={String(title)} onClick={() => setPage(String(target))}><span className={done ? 'step done' : 'step'}>{done ? <Check size={14} /> : i + 1}</span><span><strong>{title}</strong><small>{desc}</small></span><ArrowRight size={16} /></button>)}</section></div><section className="resource-banner"><div><Code2 size={23} /><span><strong>Designed for the way you build.</strong><small>REST API, signed webhooks, and integration examples in your stack.</small></span></div><button onClick={() => setPage('API Documentation')}>Open developer docs <ArrowUpRight size={16} /></button></section></>}
               {page === 'Projects' && (
                 <div className="project-grid">
                   {projects.map(p => (
@@ -64,7 +64,7 @@ await whatsbridge.messages.create({
                       <div onClick={() => { setProject(p.id); setPage('Overview') }} style={{cursor:'pointer',width:'100%'}}>
                         <Blocks />
                         <h2>{p.name}</h2>
-                        <Badge>{p.sandbox ? 'Sandbox' : 'Live'}</Badge>
+                        <Badge>Production</Badge>
                         <code>{p.id}</code>
                       </div>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%',marginTop:'14px',paddingTop:'12px',borderTop:'1px solid var(--border)'}}>
@@ -138,7 +138,7 @@ await whatsbridge.messages.create({
                     {[['Platform Users', result?.users_count ?? result?.users?.length ?? 0, Users],
                       ['Total Projects', result?.projects_count ?? result?.projects?.length ?? 0, Blocks],
                       ['Active Transports', result?.connections_count ?? result?.connections?.length ?? 0, MessageCircle],
-                      ['Queued Messages', result?.queue ?? 0, Send]].map(([label, value, Icon]: any) => (
+                      ['Total Messages', result?.messages_total ?? result?.queue ?? 0, Send]].map(([label, value, Icon]: any) => (
                       <div className="stat-card" key={label}>
                         <div><span>{label}</span><Icon size={17} /></div>
                         <strong>{Number(value).toLocaleString()}</strong>
@@ -147,12 +147,13 @@ await whatsbridge.messages.create({
                     ))}
                   </div>
 
-                  <div style={{display:'flex',gap:'8px',borderBottom:'1px solid var(--line)',paddingBottom:'10px'}}>
+                  <div style={{display:'flex',gap:'8px',borderBottom:'1px solid var(--line)',paddingBottom:'10px',flexWrap:'wrap'}}>
                     {[
-                      ['overview','Overview & Quotas'],
                       ['users','All Platform Users'],
+                      ['usage','Platform Usage & Quotas'],
                       ['projects','All Projects'],
-                      ['connections','All Transports']
+                      ['connections','All Transports'],
+                      ['overview','Organization Controls']
                     ].map(([k,label])=>(
                       <button key={k} type="button" className={adminTab===k?'primary':''} onClick={()=>setAdminTab(k as any)} style={{padding:'7px 14px',fontSize:'12px'}}>
                         {label}
@@ -160,35 +161,12 @@ await whatsbridge.messages.create({
                     ))}
                   </div>
 
-                  {adminTab === 'overview' && (
-                    <section className="card">
-                      <div className="section-heading">
-                        <div>
-                          <h2>Organization & Quota Controls</h2>
-                          <p>Suspend tenants or scale monthly message capacities across the platform.</p>
-                        </div>
-                        <a href="/admin/" target="_blank" rel="noreferrer" style={{fontSize:'12px',fontWeight:600}}>
-                          Open Django administration ↗
-                        </a>
-                      </div>
-                      <Form fields={[
-                        { name: 'organization', label: 'Organization', options: (result?.organizations ?? []).map((o: Row) => ({ value: o.id, label: o.name })) },
-                        { name: 'suspended', label: 'Access Status', options: [{ value: 'false', label: 'Active · Normal Access' }, { value: 'true', label: 'Suspended · Block API & Sending' }] },
-                        { name: 'monthly_limit', label: 'Monthly Message Limit', type: 'number', value: '50000' }
-                      ]} label="Update Organization Settings" submit={d => act(async () => {
-                        await api('/api/platform', 'POST', { ...d, suspended: d.suspended === 'true', monthly_limit: Number(d.monthly_limit) });
-                        await refresh();
-                        setNotice('Organization settings updated successfully');
-                      })} />
-                    </section>
-                  )}
-
                   {adminTab === 'users' && (
                     <section className="card">
                       <div className="section-heading">
                         <div>
-                          <h2>All Registered Platform Users</h2>
-                          <p>Super-admin controls to manage roles, email verification, and credentials.</p>
+                          <h2>All Platform Users ({result?.users?.length ?? 0})</h2>
+                          <p>Full administrator user controls: roles, verification, credentials, and full account management.</p>
                         </div>
                       </div>
                       <div className="table-scroll">
@@ -197,6 +175,7 @@ await whatsbridge.messages.create({
                             <tr>
                               <th>User / Email</th>
                               <th>Role & Access</th>
+                              <th>Projects & Usage</th>
                               <th>Status</th>
                               <th>Joined</th>
                               <th>Admin Actions</th>
@@ -210,10 +189,17 @@ await whatsbridge.messages.create({
                                   <small>ID: {u.id} · {u.first_name || 'No display name'}</small>
                                 </td>
                                 <td>
-                                  <Badge>{u.is_staff ? 'Super Admin / Staff' : 'Standard Developer'}</Badge>
+                                  <Badge>{u.is_superuser ? 'Super Administrator' : u.is_staff ? 'Staff Member' : 'Standard Developer'}</Badge>
                                 </td>
                                 <td>
-                                  <Badge>{u.email_verified ? 'Verified' : 'Unverified'}</Badge>
+                                  <strong>{u.projects_count ?? 0} projects</strong>
+                                  <small>{(u.messages_count ?? 0).toLocaleString()} messages sent</small>
+                                </td>
+                                <td>
+                                  <div style={{display:'flex',gap:'4px',flexDirection:'column'}}>
+                                    <Badge>{u.email_verified ? 'Verified' : 'Unverified'}</Badge>
+                                    <small style={{color: u.is_active ? 'var(--green)' : 'var(--red)'}}>{u.is_active ? 'Active' : 'Disabled'}</small>
+                                  </div>
                                 </td>
                                 <td>
                                   <small>{new Date(u.date_joined).toLocaleDateString()}</small>
@@ -235,11 +221,36 @@ await whatsbridge.messages.create({
                                       {u.email_verified ? 'Unverify' : 'Mark Verified'}
                                     </button>
                                     <button type="button" onClick={() => act(async () => {
+                                      const r = await api('/api/platform', 'POST', { action: 'toggle_active', user_id: u.id });
+                                      setNotice(r.detail);
+                                      await refresh();
+                                    })}>
+                                      {u.is_active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                    <button type="button" onClick={() => act(async () => {
                                       const r = await api('/api/platform', 'POST', { action: 'reset_user_password', user_id: u.id, password: 'Password123!@#' });
                                       setNotice(r.detail);
                                     })}>
                                       Reset PW
                                     </button>
+                                    {String(user?.id) !== String(u.id) && (
+                                      <button
+                                        type="button"
+                                        style={{color:'var(--red, #ef4444)'}}
+                                        title="Delete User"
+                                        onClick={() => {
+                                          if (confirm(`Permanently delete user "${u.email}"? All their projects and data will be removed.`)) {
+                                            act(async () => {
+                                              const r = await api('/api/platform', 'POST', { action: 'delete_user', user_id: u.id });
+                                              setNotice(r.detail);
+                                              await refresh();
+                                            });
+                                          }
+                                        }}
+                                      >
+                                        <Trash2 size={13} />
+                                      </button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>
@@ -250,11 +261,88 @@ await whatsbridge.messages.create({
                     </section>
                   )}
 
+                  {adminTab === 'usage' && (
+                    <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
+                      <div className="stat-grid">
+                        {[
+                          ['Total Messages', result?.messages_total ?? 0, Send],
+                          ['Queued in Pipeline', result?.queue ?? 0, Activity],
+                          ['Failed / Rejected', result?.failures ?? 0, LifeBuoy],
+                          ['Dead Letter Webhooks', result?.webhook_dead_letters ?? 0, Webhook]
+                        ].map(([label, value, Icon]: any) => (
+                          <div className="stat-card" key={label}>
+                            <div><span>{label}</span><Icon size={17} /></div>
+                            <strong>{Number(value).toLocaleString()}</strong>
+                            <small>Global metric</small>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="two-col">
+                        <section className="card">
+                          <h2>Message Delivery Statuses</h2>
+                          <p className="muted">Live distribution of messages by lifecycle stage.</p>
+                          {(result?.by_status ?? []).map((s: Row) => (
+                            <div className="usage-row" key={s.status}>
+                              <span>{s.status}</span>
+                              <strong>{Number(s.count).toLocaleString()}</strong>
+                              <div className="meter">
+                                <i style={{ width: `${Math.min(100, 100 * s.count / Math.max(result?.messages_total || 1, 1))}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </section>
+
+                        <section className="card">
+                          <h2>Message Formats (Kinds)</h2>
+                          <p className="muted">Volume split between plain text, templates, and OTPs.</p>
+                          {(result?.by_kind ?? []).map((k: Row) => (
+                            <div className="usage-row" key={k.kind}>
+                              <span>{k.kind}</span>
+                              <strong>{Number(k.count).toLocaleString()}</strong>
+                              <div className="meter">
+                                <i style={{ width: `${Math.min(100, 100 * k.count / Math.max(result?.messages_total || 1, 1))}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </section>
+                      </div>
+
+                      <section className="card">
+                        <h2>Organization Quotas & Consumption</h2>
+                        <div className="table-scroll">
+                          <table>
+                            <thead>
+                              <tr>
+                                <th>Organization Name</th>
+                                <th>Monthly Quota Limit</th>
+                                <th>Projects</th>
+                                <th>Messages Sent</th>
+                                <th>Status</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {(result?.organizations ?? []).map((org: Row) => (
+                                <tr key={org.id}>
+                                  <td><strong>{org.name}</strong><small>{org.id}</small></td>
+                                  <td>{Number(org.monthly_limit).toLocaleString()} msg / mo</td>
+                                  <td>{org.projects_count ?? 0} projects</td>
+                                  <td><strong>{Number(org.messages_count ?? 0).toLocaleString()}</strong></td>
+                                  <td><Badge>{org.suspended ? 'Suspended' : 'Active'}</Badge></td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </section>
+                    </div>
+                  )}
+
                   {adminTab === 'projects' && (
                     <section className="card">
                       <div className="section-heading">
                         <div>
-                          <h2>All Platform Projects</h2>
+                          <h2>All Platform Projects ({result?.projects?.length ?? 0})</h2>
                           <p>Every tenant project provisioned across the platform.</p>
                         </div>
                       </div>
@@ -277,7 +365,7 @@ await whatsbridge.messages.create({
                                   <small>{p.id}</small>
                                 </td>
                                 <td>{p['organization__name'] || 'Organization'}</td>
-                                <td><Badge>{p.sandbox ? 'Sandbox' : 'Live'}</Badge></td>
+                                <td><Badge>Production</Badge></td>
                                 <td><small>{new Date(p.created_at).toLocaleDateString()}</small></td>
                                 <td>
                                   <div className="row-actions">
@@ -311,7 +399,7 @@ await whatsbridge.messages.create({
                     <section className="card">
                       <div className="section-heading">
                         <div>
-                          <h2>All WhatsApp & Gateway Connections</h2>
+                          <h2>All WhatsApp & Gateway Connections ({result?.connections?.length ?? 0})</h2>
                           <p>Every linked QR phone and Meta Cloud API transport across all projects.</p>
                         </div>
                       </div>
@@ -364,6 +452,29 @@ await whatsbridge.messages.create({
                       </div>
                     </section>
                   )}
+
+                  {adminTab === 'overview' && (
+                    <section className="card">
+                      <div className="section-heading">
+                        <div>
+                          <h2>Organization & Quota Controls</h2>
+                          <p>Suspend tenants or scale monthly message capacities across the platform.</p>
+                        </div>
+                        <a href="/admin/" target="_blank" rel="noreferrer" style={{fontSize:'12px',fontWeight:600}}>
+                          Open Django administration ↗
+                        </a>
+                      </div>
+                      <Form fields={[
+                        { name: 'organization', label: 'Organization', options: (result?.organizations ?? []).map((o: Row) => ({ value: o.id, label: o.name })) },
+                        { name: 'suspended', label: 'Access Status', options: [{ value: 'false', label: 'Active · Normal Access' }, { value: 'true', label: 'Suspended · Block API & Sending' }] },
+                        { name: 'monthly_limit', label: 'Monthly Message Limit', type: 'number', value: '50000' }
+                      ]} label="Update Organization Settings" submit={d => act(async () => {
+                        await api('/api/platform', 'POST', { ...d, suspended: d.suspended === 'true', monthly_limit: Number(d.monthly_limit) });
+                        await refresh();
+                        setNotice('Organization settings updated successfully');
+                      })} />
+                    </section>
+                  )}
                 </div>
               )}
               {page === 'API Playground' && <section className="card"><h2>Session-authenticated request</h2><p className="muted">No API key is stored in the browser. Your backend integrations should use a scoped Bearer key.</p><Form fields={[{ name: 'method', label: 'Method', options: ['GET', 'POST'].map(v => ({ value: v, label: v })) }, { name: 'path', label: 'API path', value: '/api/v1/messages' }, { name: 'body', label: 'JSON request body', type: 'textarea', value: '{}' }]} label="Run request" submit={d => act(async () => { if (!d.path.startsWith('/api/v1/')) throw new Error('Use a /api/v1/ path'); setResult(await api(d.path + '?project=' + project, d.method, d.method === 'POST' ? { ...JSON.parse(d.body), project } : undefined, { 'Idempotency-Key': crypto.randomUUID() })) })} /></section>}
@@ -413,13 +524,13 @@ await whatsbridge.messages.create({
               })()}
  {result&&page!=='Admin'&&<section className="card result"><div className="section-heading"><h2>{result.secret?'Copy this secret now · shown once':'Request result'}</h2><button onClick={()=>setResult(null)}>Close</button></div><pre>{JSON.stringify(result,null,2)}</pre></section>}
  </>}
- <footer className="footer"><span>WhatsBridge <span>·</span> Developer platform</span><span><i/> {active?.sandbox?'Sandbox · no real messages sent':'Official transport · provider rules apply'}</span></footer></main></div>
+ <footer className="footer"><span>WhatsBridge <span>·</span> Production Platform</span><span><i/> Production transport · provider rules apply</span></footer></main></div>
  </div>
  {modal&&<Modal onClose={()=>setModal('')} title={modal==='qr'?'Link your WhatsApp':modal==='key'?'Create an API key':modal==='onboard'?'Official Meta onboarding':modal==='consent'?'Record recipient consent':modal==='connection'?'Add connection':modal==='project'?'Create project':'Create '+modal} description={modal==='qr'?'Connect your phone by scanning the QR code below.':modal==='connection'?'Choose a messaging transport for this project.':modal==='project'?'Set up an isolated environment for your application.':undefined}>
  {modal==='qr'&&(selected ? <QRPairing connection={selected as any} api={api} onConnected={()=>{setNotice('WhatsApp linked. You can now send consented text messages.');refresh().catch(e=>setError(e.message))}}/> : <div style={{padding:'40px 20px',textAlign:'center',color:'var(--muted)'}}>Preparing WhatsApp connection session…</div>)}
- {modal==='project'&&<Form fields={[{name:'name',label:'Project name'},{name:'organization',label:'Organization',options:orgs.map(o=>({value:o.organization_id,label:o.organization__name}))},{name:'sandbox',label:'Environment',options:[{value:'true',label:'Sandbox · simulated messages'},{value:'false',label:'Live · Meta or experimental QR'}]}]} submit={d=>act(async()=>{await api('/api/projects','POST',{...d,sandbox:d.sandbox==='true'});await refreshProjects();setModal('')})}/>}
+ {modal==='project'&&(()=>{const prodOrg=orgs.find(o=>o.organization__name==='WhatsBridge Production')||orgs[0];const orgOptions=orgs.length?orgs.map(o=>({value:o.organization_id,label:o.organization__name})):[{value:prodOrg?.organization_id||'',label:'WhatsBridge Production'}];return <Form fields={[{name:'name',label:'Project name',value:'WhatsApp Production'},{name:'organization',label:'Organization',options:orgOptions,value:prodOrg?.organization_id}]} label="Create Live Project" submit={d=>act(async()=>{const orgId=d.organization||prodOrg?.organization_id;await api('/api/projects','POST',{name:d.name,organization:orgId,sandbox:false});await refreshProjects();setModal('');setNotice(`Project "${d.name}" created successfully.`);})}/>})()}
  {modal==='organization'&&<Form fields={[{name:'name',label:'Organization name'}]} submit={d=>act(async()=>{await api('/api/organizations','POST',d);await refreshProjects();setModal('')})}/>}
- {modal==='connection'&&<Form fields={fieldsForConnection} label="Connect" submit={d=>act(async()=>{let targetProjectId=project;if(['baileys','meta'].includes(d.provider)&&active?.sandbox){const newProj=await api('/api/projects','POST',{organization:active.organization,name:(active.name||'Live')+' · WhatsApp',sandbox:false});await refreshProjects();targetProjectId=newProj.id;setProject(newProj.id);}const c=await api('/api/v1/connections?project='+targetProjectId,'POST',{...d,project:targetProjectId});await refresh();if(c.provider==='baileys'){setSelected(c);setModal('qr');}else setModal('');})}/>}
+ {modal==='connection'&&<Form fields={fieldsForConnection} label="Connect" submit={d=>act(async()=>{const c=await api('/api/v1/connections?project='+project,'POST',{...d,project});await refresh();if(c.provider==='baileys'){setSelected(c);setModal('qr');}else setModal('');})}/>}
  {modal==='key'&&<Form fields={[{name:'name',label:'Key name',value:'Production API Key'},{name:'scopes',label:'Permissions',options:[{value:'messages:send,messages:read,connections:read,otp:send,otp:verify',label:'Full Access · Send & Read Messages, Connections (Recommended)'},{value:'messages:send,connections:read',label:'Send Messages Only'},{value:'messages:read,connections:read',label:'Read-Only Access'}]},{name:'expires',label:'Expiration',options:[{value:'never',label:'Never expires (Recommended)'},{value:'30d',label:'30 days'},{value:'90d',label:'90 days'},{value:'1y',label:'1 year'}]}]} label="Create Key" submit={d=>act(async()=>{let expires_at:string|undefined=undefined;if(d.expires==='30d'){const dt=new Date();dt.setDate(dt.getDate()+30);expires_at=dt.toISOString();}else if(d.expires==='90d'){const dt=new Date();dt.setDate(dt.getDate()+90);expires_at=dt.toISOString();}else if(d.expires==='1y'){const dt=new Date();dt.setFullYear(dt.getFullYear()+1);expires_at=dt.toISOString();}const body={name:d.name,scopes:d.scopes.split(',').map((s:string)=>s.trim()),...(expires_at?{expires_at}:{})};const r=await api('/api/v1/keys?project='+project,'POST',{...body,project});await refresh();setResult(r);setModal('');})}/>}
  {modal==='template'&&<Form fields={[{name:'name',label:'Template name (lowercase and underscores)'},{name:'language',label:'Language',value:'en_US'},{name:'category',label:'Category',options:['utility','authentication','marketing'].map(v=>({value:v,label:v}))},{name:'components',label:'Meta components JSON',type:'textarea',value:'[]'}]} submit={d=>act(()=>mutate('/api/v1/templates',{...d,components:JSON.parse(d.components)}))}><p className="fine">Saved as a local draft. This does not submit to Meta or confer provider approval.</p></Form>}
  {modal==='contact'&&<Form fields={[{name:'name',label:'Contact name',value:'Customer'},{name:'phone',label:'Phone number (e.g. +919567334117)',value:'+91'}]} label="Add contact" submit={d=>act(()=>mutate('/api/v1/contacts',d))}/>}
