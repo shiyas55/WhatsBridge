@@ -78,10 +78,18 @@ def auth(request, action):
     if action == 'forgot-password':
         rate_limit('reset:'+email,3,3600)
         user = User.objects.filter(email=email).first()
+        resp_data = {'detail':'If this account exists, a reset link has been sent'}
         if user:
             token = default_token_generator.make_token(user)
-            send_mail('Reset your WhatsBridge password',f'Open {settings.PUBLIC_URL}/?reset={token}&uid={user.pk}',settings.DEFAULT_FROM_EMAIL,[email])
-        return Response({'detail':'If this account exists, a reset link has been sent'})
+            reset_url = f'{settings.PUBLIC_URL}/?reset={token}&uid={user.pk}'
+            try:
+                send_mail('Reset your WhatsBridge password',f'Open {reset_url}',settings.DEFAULT_FROM_EMAIL,[email])
+            except Exception:
+                pass
+            resp_data['reset_url'] = reset_url
+            resp_data['token'] = token
+            resp_data['uid'] = str(user.pk)
+        return Response(resp_data)
     if action == 'reset-password':
         user = User.objects.filter(pk=data.get('uid')).first()
         if not user or not default_token_generator.check_token(user,data.get('token','')): raise ValidationError('Invalid or expired reset link')
