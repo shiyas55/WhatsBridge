@@ -1,6 +1,7 @@
 'use client';
 import QRPairing from './QRPairing';
 import Modal from './Modal';
+import WhatsAppWeb from './WhatsAppWeb';
 import { useEffect, useState, useCallback, useRef, FormEvent } from 'react';
 import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDown, Code2, Contact, Copy, Globe, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Mail, MessageCircle, MoreHorizontal, Plus, Search, Send, Settings, ShieldCheck, Sparkles, Sun, Users, Webhook, Workflow, Zap, Menu, Trash2, GripVertical, Play, Clock, GitBranch } from 'lucide-react';
 
@@ -13,7 +14,7 @@ function Badge({children}:{children:React.ReactNode}){return <span className={'b
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
 function Empty({text='No records yet. Create your first one to get started.'}:{text?:string}){return <div className="empty"><MessageCircle size={30}/><h3>A clean slate</h3><p>{text}</p></div>}
 export default function Home(){
- const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[syncing,setSyncing]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null),[createdKey,setCreatedKey]=useState<Row|null>(null),[selectedKey,setSelectedKey]=useState<Row|null>(null),[copiedText,setCopiedText]=useState(''),[testPhone,setTestPhone]=useState('+919567334117'),[testBody,setTestBody]=useState('Hello from WhatsBridge API! 👋'),[testKeyInput,setTestKeyInput]=useState(''),[testRunning,setTestRunning]=useState(false),[testResult,setTestResult]=useState<any>(null);
+ const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[syncing,setSyncing]=useState(false),[inboxView,setInboxView]=useState<'chat'|'table'>('chat'),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null),[createdKey,setCreatedKey]=useState<Row|null>(null),[selectedKey,setSelectedKey]=useState<Row|null>(null),[copiedText,setCopiedText]=useState(''),[testPhone,setTestPhone]=useState('+919567334117'),[testBody,setTestBody]=useState('Hello from WhatsBridge API! 👋'),[testKeyInput,setTestKeyInput]=useState(''),[testRunning,setTestRunning]=useState(false),[testResult,setTestResult]=useState<any>(null);
  const rowsRef=useRef<Row[]>([]);
  useEffect(()=>{rowsRef.current=rows},[rows]);
  const copyText=(txt:string,label:string)=>{try{navigator.clipboard.writeText(txt)}catch(e){const el=document.createElement('textarea');el.value=txt;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}setCopiedText(label);setTimeout(()=>setCopiedText(''),2500);};
@@ -189,8 +190,55 @@ await whatsbridge.messages.create({
                   <button className="card project-card" onClick={() => setModal('organization')}><Plus /><h2>New organization</h2><p>Create a separate workspace and team.</p></button>
                 </div>
               )}
-              {['Connections', 'API Keys', 'Inbox', 'Contacts', 'Team Members'].includes(page) && (
-                <section className="card">
+              {page === 'Inbox' && (
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'16px',background:'var(--surface)',padding:'10px 16px',borderRadius:'10px',border:'1px solid var(--line)'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                    <span style={{fontSize:'12px',fontWeight:700,color:'var(--muted)',letterSpacing:'0.5px'}}>INBOX VIEW:</span>
+                    <div style={{display:'inline-flex',background:'var(--bg)',border:'1px solid var(--line)',borderRadius:'8px',padding:'3px',gap:'4px'}}>
+                      <button
+                        type="button"
+                        className={inboxView === 'chat' ? 'primary' : 'text-button'}
+                        style={{padding:'6px 14px',fontSize:'12px',borderRadius:'6px'}}
+                        onClick={() => setInboxView('chat')}
+                      >
+                        <MessageCircle size={14} style={{marginRight:'5px'}} /> WhatsApp Web
+                      </button>
+                      <button
+                        type="button"
+                        className={inboxView === 'table' ? 'primary' : 'text-button'}
+                        style={{padding:'6px 14px',fontSize:'12px',borderRadius:'6px'}}
+                        onClick={() => setInboxView('table')}
+                      >
+                        Audit Records Table
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{display:'flex',alignItems:'center',gap:'12px'}}>
+                    {syncing && (
+                      <span style={{fontSize:'11px',display:'inline-flex',alignItems:'center',gap:'5px',background:'var(--pale)',color:'var(--green)',padding:'4px 10px',borderRadius:'12px',fontWeight:600}}>
+                        <span style={{width:'6px',height:'6px',borderRadius:'50%',background:'var(--green)',display:'inline-block',animation:'pulse 1s infinite'}}/>
+                        Live streaming
+                      </span>
+                    )}
+                    <span style={{fontSize:'12px',color:'var(--muted)'}}>
+                      {connections.find(c => c.status === 'CONNECTED') ? `🟢 ${connections.find(c => c.status === 'CONNECTED')?.name}` : 'Transport disconnected'}
+                    </span>
+                  </div>
+                </div>
+              )}
+              {page === 'Inbox' && inboxView === 'chat' ? (
+                <WhatsAppWeb
+                  messages={rows}
+                  connections={connections}
+                  project={project}
+                  api={api}
+                  refresh={refresh}
+                  copyText={copyText}
+                  copiedText={copiedText}
+                />
+              ) : (
+                ['Connections', 'API Keys', 'Inbox', 'Contacts', 'Team Members'].includes(page) && (
+                  <section className="card">
                   {page === 'API Keys' && (
                     <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--pale)',padding:'12px 18px',borderRadius:'10px',marginBottom:'16px',border:'1px solid var(--border)'}}>
                       <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
@@ -396,7 +444,7 @@ await whatsbridge.messages.create({
                   )}
                   <p className="fine">Showing up to 50 records. The REST API supports pagination.</p>
                 </section>
-              )}
+              ))}
               {page === 'Send Message' && <section className="card narrow"><h2>Create a message</h2><p className="muted">Send a text message directly through your connected WhatsApp or sandbox transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phone', label: 'Recipient · E.164', value: '+15551234567' }, { name: 'body', label: 'Message', type: 'textarea', value: 'Hello from WhatsBridge 👋' }]} label="Queue message" submit={d => act(async () => { const r = await api('/api/v1/messages?project=' + project, 'POST', { project, connection: d.connection, phone: d.phone, kind: 'text', payload: { body: d.body } }, { 'Idempotency-Key': crypto.randomUUID() }); setResult(r); setNotice('Message dispatched successfully! Check Inbox for delivery.'); await refresh() })} /><p className="fine">Use the API Playground for templates, media, and scheduled messages.</p></section>}
               {page === 'Bulk Messaging' && <section className="card narrow"><h2>Bulk Broadcast Messaging</h2><p className="muted">Broadcast WhatsApp messages to multiple recipients at once. Messages are automatically scheduled with a safe 5-second interval to avoid anti-spam limits.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phones', label: 'Recipient Numbers (one per line or comma-separated E.164, e.g. +15551234567)', type: 'textarea', value: '+15551234567\n+15559876543' }, { name: 'body', label: 'Message Body', type: 'textarea', value: 'Hello! This is a message from WhatsBridge.' }]} label="Dispatch Bulk Campaign" submit={d => act(async () => { const r = await api('/api/v1/messages/bulk?project=' + project, 'POST', { project, connection: d.connection, phones: d.phones, body: d.body }); setResult(r); setNotice(`Bulk campaign queued for ${r.total} recipient(s)!`); await refresh() })} /><p className="fine">Works directly with your linked WhatsApp account or official provider.</p></section>}
               {page === 'OTP Verification' && <div className="two-col"><section className="card"><h2>1. Create a challenge</h2><p className="muted">Generate and deliver a real 6-digit verification code directly to WhatsApp via your connected transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connections.filter(c=>c.status==='CONNECTED').map(c=>({value:c.id,label:c.name + (c.provider==='baileys'?' · WhatsApp QR':c.provider==='meta'?' · Meta API':' · Sandbox')})) }, { name: 'phone', label: 'Phone number (e.g. +919567334117)', value: '+91' }, { name: 'template', label: 'Meta Template Name (only required for official Meta API; leave blank for WhatsApp QR)', required: false }]} label="Send OTP" submit={d => act(async () => { const r = await api('/api/v1/otp/send?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('Verification code dispatched to WhatsApp! Enter it below.'); })} /></section><section className="card"><h2>2. Verify the code</h2><Form key={result?.challenge_id} fields={[{ name: 'challenge_id', label: 'Challenge ID', value: result?.challenge_id }, { name: 'code', label: 'Six-digit code' }]} label="Verify code" submit={d => act(async () => { const r = await api('/api/v1/otp/verify?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('OTP verified successfully!'); })} /></section></div>}
