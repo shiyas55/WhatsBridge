@@ -48,16 +48,18 @@ class ConnectionViewSet(TenantViewSet):
         data=connector(connection,'POST','/pair',{})
         sync_state(connection,data);audit(request,'connection.pair',connection.project.organization,connection.id)
         response=Response(data);response['Cache-Control']='no-store';return response
-    @action(detail=True,methods=['get'])
+    @action(detail=True,methods=['get','post'])
     def qr(self,request,pk=None):
+        if request.method == 'POST': return self.pair(request,pk=pk)
         session_only(request);project_for(request,admin=True)
         connection=self.get_object()
         if connection.provider!='baileys' or connection.status=='REVOKED':raise ValidationError('QR pairing is only available for active experimental connections')
         from .experimental import connector,sync_state
         data=connector(connection);sync_state(connection,data)
         response=Response(data);response['Cache-Control']='no-store';return response
-    @action(detail=True,methods=['get'],url_path='baileys_qr')
+    @action(detail=True,methods=['get','post'],url_path='baileys_qr')
     def baileys_qr(self,request,pk=None):
+        if request.method == 'POST': return self.pair(request,pk=pk)
         return self.qr(request,pk=pk)
     @action(detail=True,methods=['post'],url_path='baileys_pair')
     def baileys_pair(self,request,pk=None):
