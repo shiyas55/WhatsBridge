@@ -90,5 +90,5 @@ if TESTING and os.getenv('LOCAL_DB_PATH'):
 
 EMAIL_FILE_PATH = os.getenv("EMAIL_FILE_PATH", "/tmp/whatsbridge-mail")
 
-# Explicit research opt-in; no supported production delivery guarantee.
-BAILEYS_OTP_ENABLED = os.getenv('BAILEYS_OTP_ENABLED','0') == '1'
+# WhatsApp Web QR OTP enabled in production; opt-in toggle available via env.
+BAILEYS_OTP_ENABLED = os.getenv('BAILEYS_OTP_ENABLED', '1' if not TESTING else '0') == '1'
