@@ -1,0 +1,173 @@
+{
+  "info": {
+    "name": "WhatsBridge API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "api_key",
+      "value": ""
+    },
+    {
+      "key": "connection_id",
+      "value": ""
+    },
+    {
+      "key": "phone",
+      "value": "+15551234567"
+    },
+    {
+      "key": "challenge_id",
+      "value": ""
+    },
+    {
+      "key": "code",
+      "value": ""
+    },
+    {
+      "key": "idempotency_key",
+      "value": "example-business-event-1"
+    }
+  ],
+  "item": [
+    {
+      "name": "List connections",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/v1/connections",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Send message",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/v1/messages",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Idempotency-Key",
+            "value": "{{idempotency_key}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"connection\": \"{{connection_id}}\",\n  \"phone\": \"{{phone}}\",\n  \"kind\": \"text\",\n  \"payload\": {\n    \"body\": \"Hello from WhatsBridge\"\n  }\n}"
+        }
+      }
+    },
+    {
+      "name": "List messages",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/v1/messages",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Send sandbox OTP",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/v1/otp/send",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"connection\": \"{{connection_id}}\",\n  \"phone\": \"{{phone}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "Verify OTP",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/v1/otp/verify",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"code\": \"{{code}}\"\n}"
+        }
+      }
+    },
+    {
+      "name": "List workflows",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/v1/workflows",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
+    },
+    {
+      "name": "List webhook endpoints",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/api/v1/webhooks",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{api_key}}"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ]
+      }
+    }
+  ]
+}
