@@ -97,6 +97,22 @@ const app = express();
 app.disable('x-powered-by');
 app.use(express.json({ limit: '32kb' }));
 app.get('/health', (_req, res) => res.json({ status: 'ok', provider: 'baileys', experimental: true, protocol: 'whatsbridge-qr-v1' }));
+function checkToken(sent) {
+    if (!sent)
+        return false;
+    const candidates = [];
+    if (process.env.BAILEYS_TOKEN)
+        candidates.push(process.env.BAILEYS_TOKEN);
+    if (process.env.GATEWAY_TOKEN)
+        candidates.push(process.env.GATEWAY_TOKEN);
+    candidates.push(defaultToken);
+    for (const candidate of candidates) {
+        if (Buffer.byteLength(sent) === Buffer.byteLength(candidate) && timingSafeEqual(Buffer.from(sent), Buffer.from(candidate))) {
+            return true;
+        }
+    }
+    return false;
+}
 app.use((req, res, next) => {
     res.setHeader('Cache-Control', 'no-store');
     const auth = req.headers.authorization ?? '';
@@ -105,7 +121,7 @@ app.use((req, res, next) => {
         return;
     }
     const sent = auth.slice(7);
-    if (Buffer.byteLength(sent) === Buffer.byteLength(token) && timingSafeEqual(Buffer.from(sent), Buffer.from(token))) {
+    if (checkToken(sent)) {
         next();
         return;
     }

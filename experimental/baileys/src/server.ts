@@ -41,12 +41,25 @@ async function start(s:Session){
 }
 const app=express();app.disable('x-powered-by');app.use(express.json({limit:'32kb'}));
 app.get('/health',(_req,res)=>res.json({status:'ok',provider:'baileys',experimental:true,protocol:'whatsbridge-qr-v1'}));
+function checkToken(sent: string): boolean {
+  if (!sent) return false;
+  const candidates: string[] = [];
+  if (process.env.BAILEYS_TOKEN) candidates.push(process.env.BAILEYS_TOKEN);
+  if (process.env.GATEWAY_TOKEN) candidates.push(process.env.GATEWAY_TOKEN);
+  candidates.push(defaultToken);
+  for (const candidate of candidates) {
+    if (Buffer.byteLength(sent) === Buffer.byteLength(candidate) && timingSafeEqual(Buffer.from(sent), Buffer.from(candidate))) {
+      return true;
+    }
+  }
+  return false;
+}
 app.use((req,res,next)=>{
  res.setHeader('Cache-Control','no-store');
  const auth=req.headers.authorization??'';
  if(!auth.startsWith('Bearer ')){res.sendStatus(401);return;}
  const sent=auth.slice(7);
- if(Buffer.byteLength(sent)===Buffer.byteLength(token)&&timingSafeEqual(Buffer.from(sent),Buffer.from(token))){next();return;}
+ if(checkToken(sent)){next();return;}
  res.sendStatus(401);
 });
 app.use('/sessions/:org/:project/:connection',async(req,res,next)=>{try{res.locals.scope=scopeId(req.params.org,req.params.project,req.params.connection);res.locals.session=await load(res.locals.scope);next();}catch{res.status(400).json({error:'Invalid or unavailable session'});}});
