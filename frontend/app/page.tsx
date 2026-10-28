@@ -146,7 +146,7 @@ await whatsbridge.messages.create({
   phone: "+15551234567",
   kind: "text",
   payload: { body: "Hello, world" }
-});`}</pre><footer><i /> Server-side integration · see API documentation</footer></div></section><div className="stat-grid">{[['Messages queued', stats.messages ?? 0, Send], ['Active connections', stats.connections ?? 0, MessageCircle], ['Contacts', stats.contacts ?? 0, Contact], ['Monthly limit', stats.subscription?.monthly_limit ?? 0, Activity]].map(([label, value, Icon]: any) => <div className="stat-card" key={label}><div><span>{label}</span><Icon size={17} /></div><strong>{Number(value).toLocaleString()}</strong><small>{label === 'Monthly limit' ? 'Organization-wide message reservations' : 'From your project records'}</small></div>)}</div><div className="overview-grid"><section className="card"><div className="section-heading"><div><h2>Your connections</h2><p>Messaging transports for this project</p></div><button className="text-button" onClick={() => setPage('Connections')}>View all <ArrowUpRight size={14} /></button></div>{connections.length ? connections.slice(0, 4).map(c => <div className="connection-row" key={c.id}><span className="connection-icon"><MessageCircle size={22} /></span><div><strong>{c.name}</strong><small>{c.provider === 'baileys' ? 'WhatsApp Web · QR code linking' : 'Meta WhatsApp Cloud API'}</small></div><Badge>{c.status}</Badge></div>) : <Empty text="Add a WhatsApp connection to start sending messages." />}<button className="dashed-button" onClick={() => setModal('connection')}><Plus size={16} /> Add a connection</button></section><section className="card"><div className="section-heading"><div><h2>Get your integration going</h2><p>Three steps from setup to send</p></div><span className="step-count">{[connections.length > 0, (stats.contacts ?? 0) > 0, (stats.messages ?? 0) > 0].filter(Boolean).length}/3</span></div>{[['Connect a transport', 'Choose WhatsApp QR or official Meta.', 'Connections', connections.length > 0], ['Add a consenting contact', 'Record permission before sending.', 'Contacts', (stats.contacts ?? 0) > 0], ['Send your first message', 'Try your integration end to end.', 'Send Message', (stats.messages ?? 0) > 0]].map(([title, desc, target, done], i) => <button className="checklist" key={String(title)} onClick={() => setPage(String(target))}><span className={done ? 'step done' : 'step'}>{done ? <Check size={14} /> : i + 1}</span><span><strong>{title}</strong><small>{desc}</small></span><ArrowRight size={16} /></button>)}</section></div><section className="resource-banner"><div><Code2 size={23} /><span><strong>Designed for the way you build.</strong><small>REST API, signed webhooks, and integration examples in your stack.</small></span></div><button onClick={() => setPage('API Documentation')}>Open developer docs <ArrowUpRight size={16} /></button></section></>}
+});`}</pre><footer><i /> Server-side integration · see API documentation</footer></div></section><div className="stat-grid">{[['Messages queued', stats.messages ?? 0, Send], ['Active connections', stats.connections ?? 0, MessageCircle], ['Contacts', stats.contacts ?? 0, Contact], ['Monthly limit', stats.subscription?.monthly_limit ?? 0, Activity]].map(([label, value, Icon]: any) => <div className="stat-card" key={label}><div><span>{label}</span><Icon size={17} /></div><strong>{Number(value).toLocaleString()}</strong><small>{label === 'Monthly limit' ? 'Organization-wide message reservations' : 'From your project records'}</small></div>)}</div><div className="overview-grid"><section className="card"><div className="section-heading"><div><h2>Your connections</h2><p>Messaging transports for this project</p></div><button className="text-button" onClick={() => setPage('Connections')}>View all <ArrowUpRight size={14} /></button></div>{connections.length ? connections.slice(0, 4).map(c => <div className="connection-row" key={c.id}><span className="connection-icon"><MessageCircle size={22} /></span><div style={{minWidth:0,flex:1}}><strong>{c.name}</strong><div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'3px'}}><small style={{fontFamily:'monospace',color:'var(--muted)'}}>{c.id}</small><button type="button" className="text-button" style={{padding:'2px 4px'}} title="Copy Connection ID" onClick={() => copyText(c.id, 'ov-conn-' + c.id)}>{copiedText === 'ov-conn-' + c.id ? <Check size={11} color="var(--green)"/> : <Copy size={11}/>}</button></div><small style={{display:'block',marginTop:'2px'}}>{c.provider === 'baileys' ? 'WhatsApp Web · QR code linking' : 'Meta WhatsApp Cloud API'}</small></div><Badge>{c.status}</Badge></div>) : <Empty text="Add a WhatsApp connection to start sending messages." />}<button className="dashed-button" onClick={() => setModal('connection')}><Plus size={16} /> Add a connection</button></section><section className="card"><div className="section-heading"><div><h2>Get your integration going</h2><p>Three steps from setup to send</p></div><span className="step-count">{[connections.length > 0, (stats.contacts ?? 0) > 0, (stats.messages ?? 0) > 0].filter(Boolean).length}/3</span></div>{[['Connect a transport', 'Choose WhatsApp QR or official Meta.', 'Connections', connections.length > 0], ['Add a consenting contact', 'Record permission before sending.', 'Contacts', (stats.contacts ?? 0) > 0], ['Send your first message', 'Try your integration end to end.', 'Send Message', (stats.messages ?? 0) > 0]].map(([title, desc, target, done], i) => <button className="checklist" key={String(title)} onClick={() => setPage(String(target))}><span className={done ? 'step done' : 'step'}>{done ? <Check size={14} /> : i + 1}</span><span><strong>{title}</strong><small>{desc}</small></span><ArrowRight size={16} /></button>)}</section></div><section className="resource-banner"><div><Code2 size={23} /><span><strong>Designed for the way you build.</strong><small>REST API, signed webhooks, and integration examples in your stack.</small></span></div><button onClick={() => setPage('API Documentation')}>Open developer docs <ArrowUpRight size={16} /></button></section></>}
               {page === 'Projects' && (
                 <div className="project-grid">
                   {projects.map(p => (
@@ -255,10 +255,37 @@ await whatsbridge.messages.create({
                             <tr key={r.id}>
                               <td>
                                 <strong>{r.name || r.phone || r.user__email}</strong>
-                                <small>{r.id}</small>
+                                <div style={{display:'flex',alignItems:'center',gap:'6px',marginTop:'4px'}}>
+                                  <small style={{fontFamily:'monospace',color:'var(--muted)'}}>{r.id}</small>
+                                  <button
+                                    type="button"
+                                    className="text-button"
+                                    style={{padding:'2px 4px',display:'inline-flex',alignItems:'center'}}
+                                    title={page === 'Connections' ? 'Copy Connection ID' : 'Copy ID'}
+                                    onClick={() => copyText(r.id, 'col-id-' + r.id)}
+                                  >
+                                    {copiedText === 'col-id-' + r.id ? <Check size={11} color="var(--green)"/> : <Copy size={11}/>}
+                                  </button>
+                                </div>
                               </td>
                               <td>
-                                {page === 'API Keys' ? (
+                                {page === 'Connections' ? (
+                                  <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:'6px'}}>
+                                      <code style={{fontSize:'11px'}}>{r.id}</code>
+                                      <button
+                                        type="button"
+                                        className="text-button"
+                                        style={{padding:'2px 4px'}}
+                                        title="Copy Connection ID"
+                                        onClick={() => copyText(r.id, 'det-conn-' + r.id)}
+                                      >
+                                        {copiedText === 'det-conn-' + r.id ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
+                                      </button>
+                                    </span>
+                                    <small style={{color:'var(--muted)'}}>{r.provider === 'baileys' ? 'WhatsApp Web QR' : 'Official Meta Cloud API'}</small>
+                                  </div>
+                                ) : page === 'API Keys' ? (
                                   <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
                                     <span style={{display:'inline-flex',alignItems:'center',gap:'6px'}}>
                                       <code>{r.prefix}…</code>
@@ -288,6 +315,13 @@ await whatsbridge.messages.create({
                                 <div className="row-actions">
                                   {page === 'Connections' && (
                                     <>
+                                      <button
+                                        type="button"
+                                        title="Copy Connection ID"
+                                        onClick={() => copyText(r.id, 'act-conn-' + r.id)}
+                                      >
+                                        {copiedText === 'act-conn-' + r.id ? <><Check size={11} color="var(--green)"/> Copied ID</> : <><Copy size={11}/> Copy ID</>}
+                                      </button>
                                       {r.provider === 'baileys' && <button onClick={() => { setSelected(r); setModal('qr') }}>Show QR / status</button>}
                                       <button onClick={() => { setSelected(r); setModal('onboard') }} disabled={r.provider !== 'meta'}>Onboard</button>
                                       <button onClick={() => r.provider === 'baileys' && r.status !== 'CONNECTED' ? (setSelected(r), setModal('qr')) : act(() => mutate('/api/v1/connections/' + r.id + '/' + (r.status === 'CONNECTED' ? 'disconnect' : 'reconnect'), {}))}>
