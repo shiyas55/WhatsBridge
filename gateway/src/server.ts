@@ -68,7 +68,12 @@ app.post(route+'/send',async(req,res)=>{
 });
 app.get(route+'/receipts',(_req,res)=>{const s:Session=res.locals.session;res.json({receipts:s.store.data.receipts});});
 app.use((_e:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>res.status(503).json({error:'Experimental connector unavailable'}));
-app.listen(Number(process.env.PORT??14001),process.env.BAILEYS_HOST || '127.0.0.1',()=>{console.log('Experimental WhatsApp QR connector ready');void restoreSessions();});
+const port = Number(process.env.PORT || 10000);
+const host = process.env.BAILEYS_HOST || '0.0.0.0';
+app.listen(port, host, () => {
+    console.log(`Experimental WhatsApp QR connector listening on ${host}:${port}`);
+    void restoreSessions();
+});
 
 async function restoreSessions(){
  try {

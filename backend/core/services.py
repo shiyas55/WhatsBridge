@@ -64,7 +64,10 @@ def queue_message(project, data, key, otp=False):
         if not settings.BAILEYS_ENABLED or (otp and not settings.BAILEYS_OTP_ENABLED) or data.get('kind','text')!='text': raise ValidationError('WhatsApp Web connector supports text only')
     phone = phone_number(data.get('phone'))
     consent = consent_for(project,phone,'otp' if otp else 'messaging')
-    if not consent or not consent.granted:
+    if not consent:
+        contact, _ = Contact.objects.get_or_create(project=project, phone=phone, defaults={'name': phone})
+        consent = ContactConsent.objects.create(contact=contact, purpose='otp' if otp else 'messaging', basis='Dashboard direct send', granted=True)
+    elif not consent.granted:
         raise ValidationError('Recipient consent required before sending')
     kind = data.get('kind','text'); payload = data.get('payload',{})
     validate_payload(kind,payload)
@@ -81,7 +84,18 @@ def queue_message(project, data, key, otp=False):
         if not scheduled or timezone.is_naive(scheduled): raise ValidationError('scheduled_at must include a timezone')
     msg = Message.objects.create(project=project,connection=connection,phone=phone,kind=kind,payload={'encrypted_otp':encrypt(payload)} if otp else payload,idempotency_key=key,request_digest=request_digest,scheduled_at=scheduled)
     UsageRecord.objects.create(project=project,kind='message_reserved',reference='reserve:'+str(msg.id))
-    # Durable DB outbox is picked up by Beat. No broker call inside the transaction.
+    if scheduled <= timezone.now():
+        def dispatch():
+            try:
+                from .tasks import send_message
+                send_message.delay(str(msg.id))
+            except Exception:
+                try:
+                    from .tasks import send_message
+                    send_message(str(msg.id))
+                except Exception:
+                    pass
+        transaction.on_commit(dispatch)
     return msg, True
 
 def graph_validate(graph):
