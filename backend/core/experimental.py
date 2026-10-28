@@ -6,9 +6,9 @@ from rest_framework.exceptions import ValidationError
 from .services import emit
 
 def endpoint(connection):
-    if not settings.BAILEYS_ENABLED:
+    if not settings.BAILEYS_ENABLED or not settings.BAILEYS_TOKEN:
         raise ValidationError('WhatsApp QR connector is disabled')
-    url = settings.BAILEYS_URL or 'https://whatsbridge-gateway.onrender.com'
+    url = settings.BAILEYS_URL
     if not url.startswith('http://') and not url.startswith('https://'):
         url = 'https://' + url
     return url.rstrip('/') + '/sessions/' + str(connection.project.organization_id) + '/' + str(connection.project_id) + '/' + str(connection.id)
@@ -16,7 +16,7 @@ def endpoint(connection):
 def connector(connection,method='GET',action='',data=None):
     try:
         headers = {}
-        token = settings.BAILEYS_TOKEN or settings.GATEWAY_TOKEN
+        token = settings.BAILEYS_TOKEN
         if token:
             headers['Authorization'] = 'Bearer ' + token
         response=requests.request(method,endpoint(connection)+action,json=data,headers=headers,timeout=15)
@@ -31,7 +31,7 @@ def connector(connection,method='GET',action='',data=None):
             raise ValidationError(f'Gateway responded with {response.status_code}: {error_details}')
         return response.json()
     except requests.RequestException as e:
-        raise ValidationError(f'WhatsApp Gateway unreachable: {str(e)}')
+        raise ValidationError('WhatsApp QR service is unavailable. Start the isolated connector and retry.')
     except ValueError:
         raise ValidationError('Invalid response from WhatsApp Gateway')
 

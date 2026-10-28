@@ -7,7 +7,7 @@ a Node/TypeScript provider gateway, Redis, Celery/Beat, and Django Channels.
 feature-complete implementation of every item in the master prompt.** Read
 [the phase-by-phase status](docs/STATUS.md) before deploying. Sandbox events are
 simulated. Live Meta and Gemini functionality requires operator credentials and
-provider acceptance testing. Baileys is not installed or exposed.
+provider acceptance testing. An opt-in isolated experimental Baileys connector supports QR pairing and text messages; OTP is excluded. See [QR setup](docs/QR-SETUP.md).
 
 ## Start with Docker
 
@@ -71,7 +71,7 @@ suite does exercise the PostgreSQL data path; see STATUS for concurrency coverag
 backend/       Django API, tenant models, migrations, async jobs, tests
 frontend/      Next.js App Router, TypeScript, Tailwind, responsive dashboard
 gateway/       Private authenticated Node gateway, sandbox and Meta adapters
-experimental/  Explicitly disconnected Baileys research boundary
+experimental/  Opt-in isolated experimental Baileys connector
 nginx/         Development proxy and production TLS configuration
 scripts/       Environment generation and database backup/restore
 docs/          Architecture, API guide, SDK examples, OpenAPI, runbook, status
@@ -79,3 +79,5 @@ docs/          Architecture, API guide, SDK examples, OpenAPI, runbook, status
 
 Read [architecture](docs/ARCHITECTURE.md), [API guide](docs/API.md),
 [deployment runbook](docs/DEPLOYMENT.md), and [implementation status](docs/STATUS.md).
+
+Hosting troubleshooting: [Vercel and Render QR recovery](docs/HOSTING.md). The revised Render Blueprint proposes paid services; it has not been applied.

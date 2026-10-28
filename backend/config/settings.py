@@ -1,6 +1,7 @@
 import os
 from pathlib import Path
 from urllib.parse import urlparse
+from .environment import service_url, database_config
 BASE_DIR = Path(__file__).resolve().parent.parent
 DEBUG = os.getenv('DEBUG', '0') == '1'
 TESTING = os.getenv('TESTING', '0') == '1'
@@ -15,8 +16,7 @@ ASGI_APPLICATION = 'config.asgi.application'
 TEMPLATES = [{'BACKEND':'django.template.backends.django.DjangoTemplates','DIRS':[],'APP_DIRS':True,'OPTIONS':{'context_processors':['django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages']}}]
 AUTH_USER_MODEL = 'core.User'
 AUTH_PASSWORD_VALIDATORS = [{'NAME':'django.contrib.auth.password_validation.MinimumLengthValidator','OPTIONS':{'min_length':12}},{'NAME':'django.contrib.auth.password_validation.CommonPasswordValidator'},{'NAME':'django.contrib.auth.password_validation.NumericPasswordValidator'}]
-u = urlparse(os.getenv('DATABASE_URL','postgres://whatsbridge:whatsbridge@db:5432/whatsbridge'))
-DATABASES = {'default': {'ENGINE':'django.db.backends.postgresql','NAME':u.path[1:],'USER':u.username,'PASSWORD':u.password,'HOST':u.hostname,'PORT':u.port or 5432,'CONN_MAX_AGE':60}}
+DATABASES = {'default': database_config(os.getenv('DATABASE_URL','postgres://whatsbridge:whatsbridge@db:5432/whatsbridge'))}
 if TESTING:
     DATABASES = {'default': {'ENGINE':'django.db.backends.sqlite3','NAME':BASE_DIR/'test-dev.sqlite3'}}
 REDIS_URL = os.getenv('REDIS_URL', '')
@@ -61,7 +61,7 @@ EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD','')
 EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS','0') == '1'
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL','WhatsBridge <hello@localhost>')
 PUBLIC_URL = os.getenv('PUBLIC_URL','http://localhost:8080')
-GATEWAY_URL = os.getenv('GATEWAY_URL','http://gateway:4000')
+GATEWAY_URL = service_url(os.getenv('GATEWAY_URL','http://gateway:4000'))
 GATEWAY_TOKEN = os.getenv('GATEWAY_TOKEN','test-gateway' if TESTING else '')
 CREDENTIAL_KEY = os.getenv('CREDENTIAL_KEY','')
 META_GRAPH_VERSION = os.getenv('META_GRAPH_VERSION','')
@@ -83,7 +83,9 @@ if os.getenv('TRUST_PROXY','0') == '1':
 REST_FRAMEWORK['DEFAULT_PARSER_CLASSES'] = ['core.parsers.ObjectJSONParser']
 
 BAILEYS_ENABLED = os.getenv('BAILEYS_ENABLED','1') == '1'
-BAILEYS_URL = os.getenv('BAILEYS_URL','https://whatsbridge-gateway.onrender.com')
+BAILEYS_URL = service_url(os.getenv('BAILEYS_URL','https://whatsbridge-gateway.onrender.com' if not TESTING else 'http://127.0.0.1:14001'))
 BAILEYS_TOKEN = os.getenv('BAILEYS_TOKEN', os.getenv('GATEWAY_TOKEN', 'baileys_default_secret_token_1234567890_secure'))
 if TESTING and os.getenv('LOCAL_DB_PATH'):
     DATABASES['default'] = {'ENGINE':'django.db.backends.sqlite3','NAME':os.environ['LOCAL_DB_PATH']}
+
+EMAIL_FILE_PATH = os.getenv("EMAIL_FILE_PATH", "/tmp/whatsbridge-mail")

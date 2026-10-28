@@ -273,7 +273,7 @@ def test_experimental_qr_requires_session_admin(env,settings):
 
 def test_experimental_otp_forbidden(env,settings):
     settings.BAILEYS_ENABLED=True
-    client,_,_,p,c,_=env;p.sandbox=False;p.save();c.provider='baileys';c.save()
+    client,_,_,p,c,_=env;p.sandbox=False;p.save();c.provider='baileys';c.status='CONNECTED';c.save()
     assert otp_send(env).status_code==400
     assert OTPChallenge.objects.count()==0
     with pytest.raises(Exception):queue_message(p,send_data(c),'experimental-otp',otp=True)
@@ -302,3 +302,36 @@ def test_qr_does_not_cross_tenants(env,settings):
     with patch('core.experimental.requests.request') as post:
         assert client.get(f'/api/v1/connections/{c.id}/qr?project={p.id}').status_code==404
         post.assert_not_called()
+
+def test_new_user_to_project_key_and_qr_flow(settings):
+    settings.EMAIL_BACKEND='django.core.mail.backends.locmem.EmailBackend'
+    settings.BAILEYS_ENABLED=True;settings.BAILEYS_TOKEN='test-private-token'
+    client=APIClient(enforce_csrf_checks=True)
+    def headers():return {'HTTP_X_CSRFTOKEN':client.get('/api/auth/session').json()['csrfToken']}
+    credentials={'email':'onboarding@example.com','password':'onboarding-test-passphrase-123'}
+    assert client.post('/api/auth/register',{**credentials,'organization':'New tenant'},format='json',**headers()).status_code==201
+    token=mail.outbox[-1].body.split('?verify=')[1]
+    assert client.post('/api/auth/verify-email',{'token':token},format='json',**headers()).status_code==200
+    assert client.post('/api/auth/login',credentials,format='json',**headers()).status_code==200
+    org=client.get('/api/organizations').json()[0]['organization_id']
+    project=client.post('/api/projects',{'organization':org,'name':'Live','sandbox':False},format='json',**headers()).json()
+    query='?project='+project['id']
+    connection=client.post('/api/v1/connections'+query,{'name':'Phone','provider':'baileys'},format='json',**headers())
+    assert connection.status_code==201
+    path='/api/v1/connections/'+connection.json()['id']
+    response=Mock(ok=True,status_code=200);response.json.return_value={'status':'PAIRING','qr':'data:image/png;base64,test'}
+    with patch('core.experimental.requests.request',return_value=response):
+        assert client.post(path+'/pair'+query,{},format='json',**headers()).status_code==200
+        assert client.get(path+'/qr'+query).json()['qr'].startswith('data:image/png')
+    key=client.post('/api/v1/keys'+query,{'name':'Application','scopes':['messages:send','messages:read','connections:read']},format='json',**headers())
+    assert key.status_code==201
+    app=APIClient();app.credentials(HTTP_AUTHORIZATION='Bearer '+key.json()['secret'])
+    assert app.get(path+'/qr').status_code==403
+    assert app.post('/api/v1/messages',{'connection':connection.json()['id'],'phone':'+15551234567','kind':'text','payload':{'body':'Hello'}},format='json',HTTP_IDEMPOTENCY_KEY='unlinked').status_code==400
+
+def test_live_qr_creation_is_opt_in_and_not_sandbox(env,settings):
+    client,_,_,project,_,_=env
+    settings.BAILEYS_ENABLED=True
+    assert client.post('/api/v1/connections?project='+str(project.id),{'name':'Phone','provider':'baileys'},format='json').status_code==400
+    project.sandbox=False;project.save();settings.BAILEYS_ENABLED=False
+    assert client.post('/api/v1/connections?project='+str(project.id),{'name':'Phone','provider':'baileys'},format='json').status_code==400

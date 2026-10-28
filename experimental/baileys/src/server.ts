@@ -4,17 +4,10 @@ import makeWASocket,{DisconnectReason,Browsers,proto,type WASocket} from '@whisk
 import QRCode from 'qrcode';
 import pino from 'pino';
 import {SessionStore,scopeId,UUID,type Claim} from './store.js';
-const defaultToken = 'baileys_default_secret_token_1234567890_secure';
-const token = (process.env.BAILEYS_TOKEN && process.env.BAILEYS_TOKEN.length >= 24) ? process.env.BAILEYS_TOKEN : defaultToken;
-const defaultKey = Buffer.from('y7Yv8l2QzJ3n5k7P9s1V3x5Z7a9C1e3G5i7K9m1O3q4=', 'base64');
-let key = defaultKey;
-try {
-  if (process.env.BAILEYS_ENCRYPTION_KEY) {
-    const parsedKey = Buffer.from(process.env.BAILEYS_ENCRYPTION_KEY, 'base64');
-    if (parsedKey.length === 32) key = parsedKey;
-  }
-} catch {}
-const root = process.env.BAILEYS_SESSION_DIR || '/tmp/baileys_sessions';
+const token = process.env.BAILEYS_TOKEN || '';
+const key = Buffer.from(process.env.BAILEYS_ENCRYPTION_KEY || '', 'base64');
+const root = process.env.BAILEYS_SESSION_DIR;
+if(token.length < 32 || key.length !== 32 || !root) throw new Error('Configure private BAILEYS_TOKEN, 32-byte BAILEYS_ENCRYPTION_KEY and BAILEYS_SESSION_DIR');
 type Session={store:SessionStore,sock?:WASocket,status:string,qr?:string,qrExpires?:number,error?:string,restarts:number,stopped:boolean,starting?:Promise<void>,lastSend:number,epoch:number};
 const sessions=new Map<string,Session>();
 const loading=new Map<string,Promise<Session>>();
@@ -35,7 +28,7 @@ async function start(s:Session){
     if(code===DisconnectReason.loggedOut){s.status='REVOKED';s.stopped=true;await s.store.clearAuth();return;}
     // One protocol-required post-pairing restart; no endless reconnect or evasion.
     if(code===DisconnectReason.restartRequired&&s.restarts<1){s.restarts++;s.status='RECONNECTING';setTimeout(()=>{if(!s.stopped)start(s).catch(()=>{s.status='FAILED';});},1000);}
-    else{s.status='DISCONNECTED';s.error='Connection closed. Use reconnect explicitly.';}
+    else{s.status='DISCONNECTED';s.error=`WhatsApp connection closed (${code ?? 'network error'}). Check gateway internet access and retry pairing.`;}
    }
   });
   sock.ev.on('messages.update',updates=>{for(const update of updates){if(update.key.fromMe&&update.key.id&&update.update.status){const value=update.update.status;const status=value>=proto.WebMessageInfo.Status.READ?'read':value>=proto.WebMessageInfo.Status.DELIVERY_ACK?'delivered':value>=proto.WebMessageInfo.Status.SERVER_ACK?'sent':undefined;if(status){const old=s.store.data.receipts[update.key.id];const ranks:any={sent:1,delivered:2,read:3};if(!old||ranks[status]>ranks[old])s.store.data.receipts[update.key.id]=status;}}}s.store.save().catch(()=>{s.error='Receipt persistence failed';});});
@@ -48,7 +41,7 @@ app.use((req,res,next)=>{
  const auth=req.headers.authorization??'';
  if(!auth.startsWith('Bearer ')){res.sendStatus(401);return;}
  const sent=auth.slice(7);
- if(sent===token||sent===defaultToken||sent.length>=24){next();return;}
+ if(Buffer.byteLength(sent)===Buffer.byteLength(token)&&timingSafeEqual(Buffer.from(sent),Buffer.from(token))){next();return;}
  res.sendStatus(401);
 });
 app.use('/sessions/:org/:project/:connection',async(req,res,next)=>{try{res.locals.scope=scopeId(req.params.org,req.params.project,req.params.connection);res.locals.session=await load(res.locals.scope);next();}catch{res.status(400).json({error:'Invalid or unavailable session'});}});
@@ -70,4 +63,4 @@ app.post(route+'/send',async(req,res)=>{
 });
 app.get(route+'/receipts',(_req,res)=>{const s:Session=res.locals.session;res.json({receipts:s.store.data.receipts});});
 app.use((_e:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>res.status(503).json({error:'Experimental connector unavailable'}));
-app.listen(Number(process.env.PORT??14001),'0.0.0.0',()=>console.log('WhatsApp QR connector listening on 0.0.0.0'));
+app.listen(Number(process.env.PORT??14001),process.env.BAILEYS_HOST || '127.0.0.1',()=>console.log('Experimental WhatsApp QR connector ready; OTP disabled'));

@@ -28,7 +28,7 @@ def otp(request, action):
         if type(ttl) is not int or not 60<=ttl<=600: raise ValidationError('TTL must be 60–600 seconds')
         connection=WhatsAppConnection.objects.filter(pk=request.data.get('connection'),project=project,status='CONNECTED').first()
         if not connection: raise ValidationError('Connected transport required')
-        if connection.provider not in ('sandbox','meta','baileys'): raise ValidationError('Unsupported connection transport')
+        if connection.provider not in ('sandbox','meta'): raise ValidationError('OTP requires sandbox or an official Meta authentication template; experimental QR OTP is disabled')
         code=f'{secrets.randbelow(1000000):06d}'
         kind='text';payload={'body':f'Your verification code is {code}. Valid for {ttl//60} minutes.'}
         if connection.provider=='meta':

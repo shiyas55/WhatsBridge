@@ -6,3 +6,37 @@
 @media(max-width:680px){.sidebar{transform:translateX(-100%);width:236px;box-shadow:5px 0 30px #1a342320}.sidebar.open{transform:translateX(0)}.main{width:100%;margin:0}.topbar{height:58px;padding:0 18px}.mobile-menu{display:flex;border:0;padding:0}.breadcrumb{font-size:10px}.breadcrumb>span,.breadcrumb{gap:7px}.top-actions{gap:7px}.environment{font-size:8px}.main main{padding:24px 17px 0}.page-heading{margin-bottom:20px}h1{font-size:26px}.heading-actions{width:100%}.heading-actions select{flex:1;max-width:none;width:50%}.heading-actions .primary{font-size:10px;white-space:nowrap}.welcome{padding:24px 20px}.welcome h2{font-size:25px}.welcome .text-button{margin-left:0;font-size:10px}.stat-card>strong{font-size:25px}.stat-card>div{font-size:10px}.stat-card>small{font-size:8px}.card{padding:18px}.footer{font-size:8px;flex-wrap:wrap}.table-tools{align-items:flex-start;gap:15px;flex-direction:column}.modal{padding:20px}.workflow-toolbar input{width:100%}.nodes{padding:20px 0}.top-actions>button{padding:3px}.resource-banner small{line-height:1.8}}
 
 @keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(.9)}}
+
+/* Native top-layer dialog: independent of dashboard flex/grid and stacking contexts. */
+.wb-dialog{position:fixed;inset:0;margin:auto;width:min(520px,calc(100vw - 32px));max-width:calc(100vw - 32px);height:fit-content;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);padding:0;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--ink);box-shadow:0 24px 80px #081c3040;overflow:hidden}
+.wb-dialog[open]{display:flex;flex-direction:column}
+.wb-dialog::backdrop{background:#0e211bb3;backdrop-filter:blur(5px)}
+.wb-dialog-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;padding:24px 24px 20px;border-bottom:1px solid var(--line);flex:0 0 auto}
+.wb-dialog-header>div{min-width:0}
+.wb-dialog-header h2{font-size:21px;line-height:1.3;letter-spacing:-.5px;overflow-wrap:anywhere}
+.wb-dialog-header p{font-size:13px;line-height:1.6;margin-top:7px;color:var(--muted)}
+.wb-dialog-close{width:44px;height:44px;flex:0 0 44px;padding:0;border-radius:12px;background:var(--bg)}
+.wb-dialog button:focus-visible{outline:2px solid var(--green);outline-offset:3px}
+.wb-dialog-body{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:20px 24px 24px;scrollbar-gutter:stable}
+.wb-dialog-body>*{min-width:0;max-width:100%}
+.wb-qr{display:flex;flex-direction:column;gap:16px;width:100%}
+.wb-qr-status{display:flex;align-items:center;gap:9px;padding:11px 13px;background:var(--pale);border:1px solid var(--line);border-radius:10px;font-size:13px;font-weight:600;color:var(--green)}
+.wb-qr-status svg,.wb-qr-note svg{flex-shrink:0}
+.wb-qr-status.is-error{background:#fff2ee;color:#a14f3d}
+.wb-qr-code{display:grid;place-items:center;background:#fff;border:1px solid #e1e9e4;border-radius:14px;padding:16px;min-width:0;flex-shrink:0}
+.wb-qr-code img{display:block;width:min(280px,100%);max-width:100%;height:auto;aspect-ratio:1;object-fit:contain}
+.wb-qr-placeholder{width:min(280px,100%);aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;text-align:center;color:#6b8074;font-size:13px;line-height:1.6;padding:20px}
+.wb-qr-refresh{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.wb-qr-refresh small{font-size:11px;line-height:1.6;color:var(--muted);max-width:220px}
+.wb-qr-refresh button{min-height:40px;flex-shrink:0}
+.wb-qr-steps{padding:16px;background:var(--bg);border:1px solid var(--line);border-radius:12px}
+.wb-qr-steps h3{font-size:13px;margin:0 0 9px}
+.wb-qr-steps ol{margin:0;padding-left:20px;font-size:13px;line-height:1.8}
+.wb-qr-steps li+li{margin-top:5px}
+.wb-qr-note{display:flex;align-items:flex-start;gap:8px;font-size:11px;line-height:1.7;color:var(--muted)}
+.wb-qr-error{padding:12px;background:#fff2ee;border-radius:10px;color:#a14f3d;font-size:12px;line-height:1.6;overflow-wrap:anywhere}
+.wb-qr-success{font-size:14px;line-height:1.7}
+@keyframes wb-spin{to{transform:rotate(360deg)}}
+.wb-spin{animation:wb-spin 1.3s linear infinite}
+@media(prefers-reduced-motion:reduce){.wb-spin{animation:none}}
+@media(max-width:480px){.wb-dialog{width:calc(100vw - 20px);max-width:calc(100vw - 20px);max-height:calc(100dvh - 20px);border-radius:16px}.wb-dialog-header{padding:18px 16px 16px}.wb-dialog-header h2{font-size:19px}.wb-dialog-body{padding:16px}.wb-qr-code{padding:12px}.wb-qr-refresh{align-items:flex-start}.wb-qr-refresh small{max-width:160px}}

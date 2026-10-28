@@ -1,71 +1,279 @@
+# Review before syncing: this complete topology provisions paid services and a disk.
+# Existing secrets are retained; set new sync:false variables manually on existing services.
 services:
-  # ----------------------------------------------------
-  # WhatsBridge Django REST Backend (Free Tier)
-  # ----------------------------------------------------
-  - type: web
-    name: whatsbridge-backend
-    env: python
-    rootDir: backend
-    plan: free
-    buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
-    startCommand: "uvicorn config.asgi:application --host 0.0.0.0 --port $PORT --workers 2 --no-access-log"
-    envVars:
-      - key: DEBUG
-        value: "0"
-      - key: DJANGO_SECRET_KEY
-        generateValue: true
-      - key: CREDENTIAL_KEY
-        generateValue: true
-      - key: DATABASE_URL
-        sync: false # Set to your Neon PostgreSQL connection string
-      - key: BAILEYS_ENABLED
-        value: "1"
-      - key: BAILEYS_URL
-        fromService:
-          type: web
-          name: whatsbridge-gateway
-          property: host
-      - key: BAILEYS_TOKEN
-        fromService:
-          type: web
-          name: whatsbridge-gateway
-          envVarKey: BAILEYS_TOKEN
-      - key: GATEWAY_URL
-        fromService:
-          type: web
-          name: whatsbridge-gateway
-          property: host
-      - key: GATEWAY_TOKEN
-        generateValue: true
-      - key: WEBHOOK_ALLOWED_HOSTS
-        value: "example.com,webhook.site,httpbin.org"
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GEMINI_MODEL
-        value: "gemini-flash-lite-latest"
-      - key: ALLOWED_HOSTS
-        value: "localhost,127.0.0.1,backend,whatsbridge-backend.onrender.com,.onrender.com"
-      - key: CSRF_TRUSTED_ORIGINS
-        value: "http://localhost:3000,http://localhost:8080,https://whats-bridge.vercel.app,https://*.vercel.app,https://whatsbridge-backend.onrender.com"
-      - key: CORS_ALLOWED_ORIGINS
-        value: "http://localhost:3000,http://localhost:8080,https://whats-bridge.vercel.app"
-
-  # ----------------------------------------------------
-  # WhatsApp Baileys Node.js Gateway (Free Tier)
-  # ----------------------------------------------------
-  - type: web
-    name: whatsbridge-gateway
-    env: node
-    rootDir: experimental/baileys
-    plan: free
-    buildCommand: "npm install && npm run build"
-    startCommand: "node dist/server.js"
-    envVars:
-      - key: PORT
-        value: "10000"
-      - key: BAILEYS_TOKEN
-        generateValue: true
-      - key: BAILEYS_ENCRYPTION_KEY
-        value: "y7Yv8l2QzJ3n5k7P9s1V3x5Z7a9C1e3G5i7K9m1O3q4="
-      - key: BAILEYS_SESSION_DIR
-        value: "/tmp/baileys_sessions"
+- type: web
+  name: whatsbridge-backend
+  runtime: python
+  rootDir: backend
+  plan: starter
+  buildCommand: pip install -r requirements.txt && python manage.py collectstatic
+    --noinput
+  preDeployCommand: python manage.py migrate --noinput
+  startCommand: uvicorn config.asgi:application --host 0.0.0.0 --port $PORT --workers
+    2 --no-access-log
+  healthCheckPath: /health
+  envVars:
+  - &id001
+    key: DEBUG
+    value: '0'
+  - &id002
+    key: TESTING
+    value: '0'
+  - &id003
+    key: PUBLIC_URL
+    value: https://whats-bridge.vercel.app
+  - &id004
+    key: ALLOWED_HOSTS
+    value: whatsbridge-backend.onrender.com,whats-bridge.vercel.app,localhost,127.0.0.1
+  - &id005
+    key: CSRF_TRUSTED_ORIGINS
+    value: https://whats-bridge.vercel.app,https://whatsbridge-backend.onrender.com
+  - &id006
+    key: CORS_ALLOWED_ORIGINS
+    value: https://whats-bridge.vercel.app
+  - &id007
+    key: TRUST_PROXY
+    value: '1'
+  - &id008
+    key: BAILEYS_ENABLED
+    value: '1'
+  - &id009
+    key: REDIS_URL
+    fromService:
+      type: keyvalue
+      name: whatsbridge-redis
+      property: connectionString
+  - &id010
+    key: BAILEYS_URL
+    fromService:
+      type: web
+      name: whatsbridge-gateway
+      property: hostport
+  - &id011
+    key: BAILEYS_TOKEN
+    fromService:
+      type: web
+      name: whatsbridge-gateway
+      envVarKey: BAILEYS_TOKEN
+  - &id012
+    key: GATEWAY_URL
+    fromService:
+      type: pserv
+      name: whatsbridge-meta-gateway
+      property: hostport
+  - &id013
+    key: GATEWAY_TOKEN
+    fromService:
+      type: pserv
+      name: whatsbridge-meta-gateway
+      envVarKey: GATEWAY_TOKEN
+  - key: DJANGO_SECRET_KEY
+    generateValue: true
+  - key: DATABASE_URL
+    sync: false
+  - key: CREDENTIAL_KEY
+    sync: false
+  - key: EMAIL_HOST
+    sync: false
+  - key: EMAIL_HOST_USER
+    sync: false
+  - key: EMAIL_HOST_PASSWORD
+    sync: false
+  - key: DEFAULT_FROM_EMAIL
+    sync: false
+  - key: META_GRAPH_VERSION
+    sync: false
+  - key: OTP_TEMPLATE_NAMES
+    sync: false
+  - key: EMAIL_PORT
+    value: '587'
+  - key: EMAIL_USE_TLS
+    value: '1'
+- type: worker
+  name: whatsbridge-worker
+  runtime: python
+  rootDir: backend
+  plan: starter
+  buildCommand: pip install -r requirements.txt
+  startCommand: celery -A config worker -l warning --concurrency=2
+  envVars:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - *id007
+  - *id008
+  - *id009
+  - *id010
+  - *id011
+  - *id012
+  - *id013
+  - key: DATABASE_URL
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: DATABASE_URL
+  - key: CREDENTIAL_KEY
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: CREDENTIAL_KEY
+  - key: EMAIL_HOST
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: EMAIL_HOST
+  - key: EMAIL_HOST_USER
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: EMAIL_HOST_USER
+  - key: EMAIL_HOST_PASSWORD
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: EMAIL_HOST_PASSWORD
+  - key: DEFAULT_FROM_EMAIL
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: DEFAULT_FROM_EMAIL
+  - key: META_GRAPH_VERSION
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: META_GRAPH_VERSION
+  - key: OTP_TEMPLATE_NAMES
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: OTP_TEMPLATE_NAMES
+  - key: DJANGO_SECRET_KEY
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: DJANGO_SECRET_KEY
+  - key: EMAIL_PORT
+    value: '587'
+  - key: EMAIL_USE_TLS
+    value: '1'
+- type: worker
+  name: whatsbridge-beat
+  runtime: python
+  rootDir: backend
+  plan: starter
+  buildCommand: pip install -r requirements.txt
+  startCommand: celery -A config beat -l warning --schedule=/tmp/celerybeat-schedule
+  envVars:
+  - *id001
+  - *id002
+  - *id003
+  - *id004
+  - *id005
+  - *id006
+  - *id007
+  - *id008
+  - *id009
+  - *id010
+  - *id011
+  - *id012
+  - *id013
+  - key: DATABASE_URL
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: DATABASE_URL
+  - key: CREDENTIAL_KEY
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: CREDENTIAL_KEY
+  - key: EMAIL_HOST
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: EMAIL_HOST
+  - key: EMAIL_HOST_USER
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: EMAIL_HOST_USER
+  - key: EMAIL_HOST_PASSWORD
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: EMAIL_HOST_PASSWORD
+  - key: DEFAULT_FROM_EMAIL
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: DEFAULT_FROM_EMAIL
+  - key: META_GRAPH_VERSION
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: META_GRAPH_VERSION
+  - key: OTP_TEMPLATE_NAMES
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: OTP_TEMPLATE_NAMES
+  - key: DJANGO_SECRET_KEY
+    fromService:
+      type: web
+      name: whatsbridge-backend
+      envVarKey: DJANGO_SECRET_KEY
+  - key: EMAIL_PORT
+    value: '587'
+  - key: EMAIL_USE_TLS
+    value: '1'
+- type: pserv
+  name: whatsbridge-meta-gateway
+  runtime: node
+  rootDir: providers/meta
+  plan: starter
+  buildCommand: npm ci && npm run build
+  startCommand: npm start
+  envVars:
+  - key: PORT
+    value: '4000'
+  - key: GATEWAY_TOKEN
+    generateValue: true
+  - key: REDIS_URL
+    fromService:
+      type: keyvalue
+      name: whatsbridge-redis
+      property: connectionString
+  - key: META_GRAPH_VERSION
+    sync: false
+- type: web
+  name: whatsbridge-gateway
+  runtime: node
+  rootDir: experimental/baileys
+  plan: starter
+  numInstances: 1
+  buildCommand: npm ci && npm run build
+  startCommand: npm start
+  healthCheckPath: /health
+  disk:
+    name: whatsapp-sessions
+    mountPath: /var/data/whatsbridge
+    sizeGB: 1
+  envVars:
+  - key: PORT
+    value: '10000'
+  - key: BAILEYS_HOST
+    value: 0.0.0.0
+  - key: BAILEYS_TOKEN
+    generateValue: true
+  - key: BAILEYS_ENCRYPTION_KEY
+    sync: false
+  - key: BAILEYS_SESSION_DIR
+    value: /var/data/whatsbridge/sessions
+- type: keyvalue
+  name: whatsbridge-redis
+  plan: starter
+  ipAllowList: []
+  maxmemoryPolicy: noeviction

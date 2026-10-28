@@ -48,7 +48,7 @@ def send_message(message_id):
             if not settings.BAILEYS_ENABLED:
                 Message.objects.filter(pk=msg.pk).update(status='failed',error='WhatsApp connector is disabled');return
             from .experimental import endpoint
-            url=endpoint(msg.connection)+'/send';service_token=settings.BAILEYS_TOKEN
+            url=endpoint(msg.connection)+'/send';service_token=settings.BAILEYS_TOKEN or settings.GATEWAY_TOKEN or ''
         response = requests.post(url,json={'id':str(msg.id),'provider':msg.connection.provider,'phone':msg.phone,'kind':msg.kind,'payload':payload,'phone_number_id':msg.connection.phone_number_id,'credentials':credentials},headers={'Authorization':'Bearer '+service_token},timeout=30)
         result = response.json()
         if response.status_code == 429 or (response.status_code >= 500 and result.get('safe_to_retry') is True):

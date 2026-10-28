@@ -61,12 +61,11 @@ def queue_message(project, data, key, otp=False):
     except (WhatsAppConnection.DoesNotExist,ValueError): raise ValidationError('Connected transport in this project required')
     if connection.provider=='baileys':
         from django.conf import settings
-        if not settings.BAILEYS_ENABLED or data.get('kind','text')!='text': raise ValidationError('WhatsApp Web connector supports text only')
+        if not settings.BAILEYS_ENABLED or otp or data.get('kind','text')!='text': raise ValidationError('WhatsApp Web connector supports text only')
     phone = phone_number(data.get('phone'))
     consent = consent_for(project,phone,'otp' if otp else 'messaging')
     if not consent or not consent.granted:
-        contact, _ = Contact.objects.get_or_create(project=project, phone=phone, defaults={'name': phone})
-        consent = ContactConsent.objects.create(contact=contact, purpose='otp' if otp else 'messaging', granted=True, basis='Direct send consent')
+        raise ValidationError('Recipient consent required before sending')
     kind = data.get('kind','text'); payload = data.get('payload',{})
     validate_payload(kind,payload)
     if connection.provider == 'meta' and kind != 'template':
