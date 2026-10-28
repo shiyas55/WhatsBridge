@@ -1,7 +1,7 @@
 'use client';
 import QRPairing from './QRPairing';
 import Modal from './Modal';
-import { useEffect, useState, useCallback, FormEvent } from 'react';
+import { useEffect, useState, useCallback, useRef, FormEvent } from 'react';
 import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDown, Code2, Contact, Copy, Globe, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Mail, MessageCircle, MoreHorizontal, Plus, Search, Send, Settings, ShieldCheck, Sparkles, Sun, Users, Webhook, Workflow, Zap, Menu, Trash2, GripVertical, Play, Clock, GitBranch } from 'lucide-react';
 
 type Row=Record<string,any>;
@@ -13,9 +13,11 @@ function Badge({children}:{children:React.ReactNode}){return <span className={'b
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
 function Empty({text='No records yet. Create your first one to get started.'}:{text?:string}){return <div className="empty"><MessageCircle size={30}/><h3>A clean slate</h3><p>{text}</p></div>}
 export default function Home(){
- const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null),[createdKey,setCreatedKey]=useState<Row|null>(null),[selectedKey,setSelectedKey]=useState<Row|null>(null),[copiedText,setCopiedText]=useState(''),[testPhone,setTestPhone]=useState('+919567334117'),[testBody,setTestBody]=useState('Hello from WhatsBridge API! 👋'),[testKeyInput,setTestKeyInput]=useState(''),[testRunning,setTestRunning]=useState(false),[testResult,setTestResult]=useState<any>(null);
+ const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[syncing,setSyncing]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null),[createdKey,setCreatedKey]=useState<Row|null>(null),[selectedKey,setSelectedKey]=useState<Row|null>(null),[copiedText,setCopiedText]=useState(''),[testPhone,setTestPhone]=useState('+919567334117'),[testBody,setTestBody]=useState('Hello from WhatsBridge API! 👋'),[testKeyInput,setTestKeyInput]=useState(''),[testRunning,setTestRunning]=useState(false),[testResult,setTestResult]=useState<any>(null);
+ const rowsRef=useRef<Row[]>([]);
+ useEffect(()=>{rowsRef.current=rows},[rows]);
  const copyText=(txt:string,label:string)=>{try{navigator.clipboard.writeText(txt)}catch(e){const el=document.createElement('textarea');el.value=txt;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}setCopiedText(label);setTimeout(()=>setCopiedText(''),2500);};
- const runApiTest=async(apiKeySecret:string,connectionId?:string)=>{setTestRunning(true);setTestResult(null);try{const conn=connectionId||connections.find(c=>c.status==='CONNECTED')?.id||connections[0]?.id;const res=await fetch('/api/v1/messages?project='+project,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKeySecret.trim(),'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({...(conn?{connection:conn}:{}),phone:testPhone,kind:'text',payload:{body:testBody}})});const data=await res.json();if(!res.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));setTestResult(data);setNotice('Test message successfully sent via API key!');await refresh();}catch(err:any){setTestResult({error:err.message});}finally{setTestRunning(false);}};
+ const runApiTest=async(apiKeySecret:string,connectionId?:string)=>{setTestRunning(true);setTestResult(null);try{const conn=connectionId||connections.find(c=>c.status==='CONNECTED')?.id||connections[0]?.id;const res=await fetch('/api/v1/messages?project='+project,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKeySecret.trim(),'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({...(conn?{connection:conn}:{}),phone:testPhone,kind:'text',payload:{body:testBody}})});const data=await res.json();if(!res.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));setTestResult(data);setNotice('Test message successfully sent via API key!');await refresh(true);}catch(err:any){setTestResult({error:err.message});}finally{setTestRunning(false);}};
  const active=projects.find(p=>p.id===project);
  const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=r.status===204?null:await r.json();if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
  const act=async(fn:()=>Promise<void>)=>{setError('');try{await fn()}catch(e){setError((e as Error).message)}};
@@ -24,10 +26,76 @@ export default function Home(){
  useEffect(()=>{loadSession().catch(()=>{setError('Cannot reach the backend. Check that the services are running.');setReady(true)})},[]);
  const refreshProjects=useCallback(async()=>{const [ps,os]=await Promise.all([api('/api/projects'),api('/api/organizations')]);setProjects(ps);setOrgs(os);setProject(old=>ps.some((p:Row)=>p.id===old)?old:ps[0]?.id??'')},[api]);
  useEffect(()=>{if(user)refreshProjects().catch(e=>setError(e.message))},[user,refreshProjects]);
- const refresh=useCallback(async()=>{if(!project)return;setBusy(true);try{const query='?project='+project;const map:Record<string,string>={'Connections':'connections','API Keys':'keys','Inbox':'messages','Contacts':'contacts','Workflow Builder':'workflows','Webhooks':'webhooks','Templates':'templates'};const [s,c]=await Promise.all([api('/api/overview'+query),api('/api/v1/connections'+query)]);setStats(s);setConnections(c.results);if(map[page]){const d=await api('/api/v1/'+map[page]+query);setRows(d.results)}else if(page==='Team Members')setRows(await api('/api/team'+query));else if(page==='Admin')setResult(await api('/api/platform'));else setRows([])}finally{setBusy(false)}},[project,page,api]);
+ const refresh=useCallback(async(background=false)=>{
+   if(!project)return;
+   if(background || rowsRef.current.length > 0){
+     setSyncing(true);
+   }else{
+     setBusy(true);
+   }
+   try{
+     const query='?project='+project;
+     const map:Record<string,string>={'Connections':'connections','API Keys':'keys','Inbox':'messages','Contacts':'contacts','Workflow Builder':'workflows','Webhooks':'webhooks','Templates':'templates'};
+     const [s,c]=await Promise.all([api('/api/overview'+query),api('/api/v1/connections'+query)]);
+     setStats(s);
+     setConnections(c.results || []);
+     if(map[page]){
+       const d=await api('/api/v1/'+map[page]+query);
+       setRows(d.results || []);
+     }else if(page==='Team Members'){
+       const d=await api('/api/team'+query);
+       setRows(d || []);
+     }else if(page==='Admin'){
+       const d=await api('/api/platform');
+       setResult(d);
+     }else{
+       setRows([]);
+     }
+   }finally{
+     setBusy(false);
+     setSyncing(false);
+   }
+ },[project,page,api]);
  useEffect(()=>{setResult(null);setSearch('');refresh().catch(e=>setError(e.message))},[refresh]);
- useEffect(()=>{if(!project||!user)return;let stopped=false;let poll:ReturnType<typeof setInterval>|undefined;const fallback=()=>{if(!stopped&&!poll)poll=setInterval(()=>{if(document.visibilityState==='visible')refresh().catch(()=>{})},10000)};const socket=new WebSocket(`${location.protocol==='https:'?'wss':'ws'}://${location.host}/ws/projects/${project}`);socket.onmessage=e=>{const event=JSON.parse(e.data);setNotice(event.type.replaceAll('.',' · '));refresh().catch(()=>{})};socket.onerror=fallback;socket.onclose=fallback;return()=>{stopped=true;clearInterval(poll);socket.close()}},[project,user,refresh]);
- const mutate=async(path:string,data:Row,method='POST')=>{await api(path+'?project='+project,method,{...data,project});setNotice('Saved successfully');setModal('');await refresh();};
+ useEffect(()=>{
+   if(!project||!user)return;
+   let stopped=false;
+   let poll:ReturnType<typeof setInterval>|undefined;
+   const fallback=()=>{
+     if(!stopped&&!poll){
+       poll=setInterval(()=>{
+         if(document.visibilityState==='visible')refresh(true).catch(()=>{});
+       },8000);
+     }
+   };
+   let socket:WebSocket|null=null;
+   try{
+     const isVercel=typeof window!=='undefined'&&window.location.hostname.endsWith('vercel.app');
+     const wsHost=isVercel?'whatsbridge-backend.onrender.com':window.location.host;
+     const wsProto=(typeof window!=='undefined'&&window.location.protocol==='https:')||wsHost.includes('render.com')?'wss:':'ws:';
+     const wsUrl=`${wsProto}//${wsHost}/ws/projects/${project}?uid=${user.id||''}`;
+     socket=new WebSocket(wsUrl);
+     socket.onmessage=e=>{
+       try{
+         refresh(true).catch(()=>{});
+       }catch(err){}
+     };
+     socket.onerror=fallback;
+     socket.onclose=fallback;
+   }catch(err){
+     fallback();
+   }
+   const bgPoll=setInterval(()=>{
+     if(document.visibilityState==='visible')refresh(true).catch(()=>{});
+   },10000);
+   return()=>{
+     stopped=true;
+     if(poll)clearInterval(poll);
+     clearInterval(bgPoll);
+     if(socket)socket.close();
+   };
+ },[project,user,refresh]);
+ const mutate=async(path:string,data:Row,method='POST')=>{await api(path+'?project='+project,method,{...data,project});setNotice('Saved successfully');setModal('');await refresh(true);};
  const fieldsForConnection:Field[]=[{name:'name',label:'Connection name',value:'My WhatsApp'},{name:'provider',label:'Provider',options:[{value:'baileys',label:'WhatsApp Web · QR code linking (Recommended)'},{value:'meta',label:'Official Meta Cloud API'}]}];
  const linkWhatsApp=()=>act(async()=>{
    if(!active)throw new Error('Select a project first');
@@ -48,7 +116,7 @@ export default function Home(){
  <div className="auth-links"><button onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create an account':'Back to sign in'}</button><button onClick={()=>setAuthMode('forgot-password')}>Forgot password?</button></div><p className="fine">Development email links arrive in <a href="http://localhost:8025" target="_blank" rel="noreferrer">Mailpit</a>. Production uses your configured email provider.</p></div></section></div>;
  return (
   <>
-  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage('Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span></a><div className="workspace"><span className="avatar">{(active?.name??'W').slice(0,1)}</span><div><strong>{active?.name??'Your workspace'}</strong><small>Production workspace</small></div><ChevronDown size={14}/></div><nav>{nav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.filter(n=>n!=='Admin'||(user?.is_staff||user?.is_superuser)).map(n=>{const Icon=icons[n];return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{setPage(n);setMobile(false);setError('')}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div><button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||'Developer'}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
+  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage('Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span></a><div className="workspace"><span className="avatar">{(active?.name??'W').slice(0,1)}</span><div><strong>{active?.name??'Your workspace'}</strong><small>Production workspace</small></div><ChevronDown size={14}/></div><nav>{nav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.filter(n=>n!=='Admin'||(user?.is_staff||user?.is_superuser)).map(n=>{const Icon=icons[n];return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{if(page!==n){setRows([]);setBusy(true);}setPage(n);setMobile(false);setError('');}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div><button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||'Developer'}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
  <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span><strong>{page}</strong></div><div className="top-actions"><span className="environment"><i/>Production Live</span><button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={()=>act(async()=>{await api('/api/auth/logout','POST',{});await loadSession()})}><LogOut size={17}/></button></div></header>
  <main><div className="page-heading"><div><span className="eyebrow">{page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE'}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</div></div>
  {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}{notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice('')}>Dismiss</button></div>}{urlParams.has('invite')&&<button className="primary" onClick={()=>act(async()=>{await api('/api/auth/accept-invitation','POST',{token:urlParams.get('invite')});history.replaceState({},'','/');await refreshProjects();setNotice('Invitation accepted')})}>Accept team invitation</button>}
@@ -125,14 +193,34 @@ await whatsbridge.messages.create({
                     </div>
                   )}
                   <div className="table-tools">
-                    <h2>{page === 'Inbox' ? 'Conversation activity' : page}</h2>
+                    <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                      <h2>{page === 'Inbox' ? 'Conversation activity' : page}</h2>
+                      {syncing && (
+                        <span style={{fontSize:'10px',display:'inline-flex',alignItems:'center',gap:'5px',background:'var(--pale)',color:'var(--green)',padding:'2px 8px',borderRadius:'12px',fontWeight:600}}>
+                          <span style={{width:'5px',height:'5px',borderRadius:'50%',background:'var(--green)',display:'inline-block',animation:'pulse 1s infinite'}}/>
+                          Live syncing
+                        </span>
+                      )}
+                    </div>
                     <div className="search">
                       <Search size={16} />
                       <input aria-label="Search records" placeholder="Search records…" value={search} onChange={e => setSearch(e.target.value)} />
                     </div>
                   </div>
-                  {busy ? <p className="loading">Loading records…</p> : !filtered.length ? <Empty /> : (
-                    <div className="table-scroll">
+                  {syncing && (
+                    <div style={{height:'2px',width:'100%',background:'linear-gradient(90deg, #18865a, #4ade80, #18865a)',backgroundSize:'200% 100%',animation:'wb-shimmer 1.5s infinite linear',borderRadius:'2px',marginBottom:'12px'}}/>
+                  )}
+                  {busy && !rows.length ? (
+                    <div className="table-skeleton">
+                      <div className="skeleton-row" style={{height:'36px',opacity:0.6}}/>
+                      <div className="skeleton-row"/>
+                      <div className="skeleton-row" style={{opacity:0.85}}/>
+                      <div className="skeleton-row" style={{opacity:0.7}}/>
+                    </div>
+                  ) : !filtered.length ? (
+                    <Empty />
+                  ) : (
+                    <div className="table-scroll" style={{transition:'opacity .15s ease',opacity:syncing?0.85:1}}>
                       <table>
                         <thead>
                           <tr>
