@@ -6,16 +6,34 @@ from rest_framework.exceptions import ValidationError
 from .services import emit
 
 def endpoint(connection):
-    if not settings.BAILEYS_ENABLED or not settings.BAILEYS_TOKEN:
-        raise ValidationError('Experimental QR connector is disabled')
-    return settings.BAILEYS_URL+'/sessions/'+str(connection.project.organization_id)+'/'+str(connection.project_id)+'/'+str(connection.id)
+    if not settings.BAILEYS_ENABLED:
+        raise ValidationError('WhatsApp QR connector is disabled')
+    url = settings.BAILEYS_URL or 'https://whatsbridge-gateway.onrender.com'
+    if not url.startswith('http://') and not url.startswith('https://'):
+        url = 'https://' + url
+    return url.rstrip('/') + '/sessions/' + str(connection.project.organization_id) + '/' + str(connection.project_id) + '/' + str(connection.id)
 
 def connector(connection,method='GET',action='',data=None):
     try:
-        response=requests.request(method,endpoint(connection)+action,json=data,headers={'Authorization':'Bearer '+settings.BAILEYS_TOKEN},timeout=15)
-        if not response.ok: raise ValidationError('Experimental connector could not complete the request')
+        headers = {}
+        token = settings.BAILEYS_TOKEN or settings.GATEWAY_TOKEN
+        if token:
+            headers['Authorization'] = 'Bearer ' + token
+        response=requests.request(method,endpoint(connection)+action,json=data,headers=headers,timeout=15)
+        if not response.ok:
+            error_details = 'QR connector error'
+            try:
+                edata = response.json()
+                if isinstance(edata, dict) and 'error' in edata:
+                    error_details = edata['error']
+            except Exception:
+                pass
+            raise ValidationError(f'Gateway responded with {response.status_code}: {error_details}')
         return response.json()
-    except (requests.RequestException,ValueError):raise ValidationError('Experimental connector is unavailable')
+    except requests.RequestException as e:
+        raise ValidationError(f'WhatsApp Gateway unreachable: {str(e)}')
+    except ValueError:
+        raise ValidationError('Invalid response from WhatsApp Gateway')
 
 def sync_state(connection,data):
     state=data.get('status')

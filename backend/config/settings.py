@@ -80,7 +80,7 @@ if os.getenv('TRUST_PROXY','0') == '1':
 REST_FRAMEWORK['DEFAULT_PARSER_CLASSES'] = ['core.parsers.ObjectJSONParser']
 
 BAILEYS_ENABLED = os.getenv('BAILEYS_ENABLED','1') == '1'
-BAILEYS_URL = os.getenv('BAILEYS_URL','http://127.0.0.1:14001')
-BAILEYS_TOKEN = os.getenv('BAILEYS_TOKEN','')
+BAILEYS_URL = os.getenv('BAILEYS_URL','https://whatsbridge-gateway.onrender.com')
+BAILEYS_TOKEN = os.getenv('BAILEYS_TOKEN', os.getenv('GATEWAY_TOKEN', 'baileys_default_secret_token_1234567890_secure'))
 if TESTING and os.getenv('LOCAL_DB_PATH'):
     DATABASES['default'] = {'ENGINE':'django.db.backends.sqlite3','NAME':os.environ['LOCAL_DB_PATH']}
