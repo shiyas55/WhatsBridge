@@ -1,16 +1,18 @@
-import type { NextConfig } from "next";
-const rawBackendUrl = process.env.BACKEND_URL ?? "http://backend:8000";
-const backendUrl = rawBackendUrl.replace(/\/+$/, "");
-
-const config: NextConfig = {
-  output: "standalone",
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   async rewrites() {
     return [
       {
-        source: "/api/:path*",
-        destination: `${backendUrl}/api/:path*`,
+        source: '/api/v1/:path*',
+        destination: 'https://whatsbridge-backend.onrender.com/api/v1/:path*',
+      },
+      {
+        source: '/api/:path*',
+        destination: 'https://whatsbridge-backend.onrender.com/api/:path*',
       },
     ];
   },
 };
-export default config;
+
+module.exports = nextConfig;
+// (If your file has "export default", change the last line to: export default nextConfig;)
