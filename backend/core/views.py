@@ -357,11 +357,33 @@ def overview(request):
 @api_view(['GET','POST'])
 def platform(request):
     session_only(request)
-    if not request.user.is_superuser: raise PermissionDenied('Platform administrator required')
+    if not (request.user.is_superuser or request.user.is_staff): raise PermissionDenied('Platform administrator required')
     if request.method=='POST':
+        action = request.data.get('action')
+        if action == 'toggle_staff':
+            u = User.objects.get(pk=request.data.get('user_id'))
+            u.is_staff = not u.is_staff
+            u.save(update_fields=['is_staff'])
+            return Response({'detail': f'Updated staff status for {u.email}'})
+        if action == 'toggle_verify':
+            u = User.objects.get(pk=request.data.get('user_id'))
+            u.email_verified = not u.email_verified
+            u.save(update_fields=['email_verified'])
+            return Response({'detail': f'Updated verified status for {u.email}'})
+        if action == 'reset_user_password':
+            u = User.objects.get(pk=request.data.get('user_id'))
+            pw = request.data.get('password', 'Password123!@#')
+            u.set_password(pw)
+            u.save()
+            return Response({'detail': f'Reset password for {u.email} to {pw}'})
+        if action == 'toggle_active':
+            u = User.objects.get(pk=request.data.get('user_id'))
+            u.is_active = not u.is_active
+            u.save(update_fields=['is_active'])
+            return Response({'detail': f'Updated active status for {u.email}'})
         if request.data.get('key'):
             APIKey.objects.filter(pk=request.data['key']).update(revoked_at=timezone.now());audit(request,'platform.key.disable',target=request.data['key'])
-        else:
+        elif request.data.get('organization'):
             org=Organization.objects.get(pk=request.data.get('organization'))
             if 'suspended' in request.data:
                 if type(request.data['suspended']) is not bool: raise ValidationError('suspended must be boolean')
@@ -373,7 +395,19 @@ def platform(request):
             org.save();audit(request,'platform.organization.update',org,org.id)
         return Response({'detail':'Updated'})
     from django.core.cache import cache
-    return Response({'worker_last_dispatch':cache.get('worker:last_dispatch'),'organizations':list(Organization.objects.values('id','name','suspended','monthly_limit')),'users':User.objects.filter(is_active=True).count(),'projects':Project.objects.count(),'connections':WhatsAppConnection.objects.filter(status='CONNECTED').count(),'failures':Message.objects.filter(status__in=['failed','unknown']).count(),'queue':Message.objects.filter(status='queued').count(),'webhook_dead_letters':WebhookDelivery.objects.filter(status='dead').count()})
+    return Response({
+        'worker_last_dispatch':cache.get('worker:last_dispatch'),
+        'organizations':list(Organization.objects.values('id','name','suspended','monthly_limit')),
+        'users_count':User.objects.count(),
+        'projects_count':Project.objects.count(),
+        'connections_count':WhatsAppConnection.objects.filter(status='CONNECTED').count(),
+        'failures':Message.objects.filter(status__in=['failed','unknown']).count(),
+        'queue':Message.objects.filter(status='queued').count(),
+        'webhook_dead_letters':WebhookDelivery.objects.filter(status='dead').count(),
+        'users':list(User.objects.values('id','email','first_name','is_staff','is_active','email_verified','date_joined').order_by('-date_joined')[:100]),
+        'projects':list(Project.objects.values('id','name','organization__name','sandbox','created_at').order_by('-created_at')[:100]),
+        'connections':list(WhatsAppConnection.objects.values('id','name','provider','status','project__name','last_connected_at','created_at').order_by('-created_at')[:100]),
+    })
 
 class TemplateViewSet(TenantViewSet):
     queryset=MessageTemplate.objects.all();serializer_class=TemplateSerializer

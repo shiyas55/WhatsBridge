@@ -13,7 +13,7 @@ function Badge({children}:{children:React.ReactNode}){return <span className={'b
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
 function Empty({text='No records yet. Create your first one to get started.'}:{text?:string}){return <div className="empty"><MessageCircle size={30}/><h3>A clean slate</h3><p>{text}</p></div>}
 export default function Home(){
- const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl');
+ const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'overview'|'users'|'projects'|'connections'>('overview'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null);
  const active=projects.find(p=>p.id===project);
  const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=r.status===204?null:await r.json();if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
  const act=async(fn:()=>Promise<void>)=>{setError('');try{await fn()}catch(e){setError((e as Error).message)}};
@@ -42,7 +42,7 @@ export default function Home(){
  const filtered=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(search.toLowerCase()));
  const urlParams=typeof window!=='undefined'?new URLSearchParams(window.location.search):new URLSearchParams();
  if(!ready)return <div className="boot"><div className="logo-mark"><MessageCircle/></div><p>Starting WhatsBridge…</p></div>;
- if(!user)return <div className="auth-layout"><section className="auth-story"><div className="brand"><span className="logo-mark"><MessageCircle/></span>WhatsBridge<span className="brand-dot">.</span></div><div><span className="eyebrow">BUILT FOR DEVELOPERS</span><h1>Good conversations.<br/><em>Great infrastructure.</em></h1><p>One place to build, test, and manage messaging.<br/>From your first sandbox message to official WhatsApp integrations.</p><div className="auth-points"><span><Check size={16}/> Tenant-isolated projects</span><span><Check size={16}/> Official Meta transport</span><span><Check size={16}/> A sandbox to build with confidence</span></div></div><small>YOUR CODE. YOUR CUSTOMERS. CONNECTED.</small></section><section className="auth-form"><div className="auth-box"><span className="eyebrow">WELCOME TO WHATSBRIDGE</span><h2>{authMode==='register'?'Create your workspace':authMode==='forgot-password'?'Reset your password':'Welcome back'}</h2><p className="muted">{authMode==='register'?'Start building with a free sandbox project.':'Sign in to your developer workspace.'}</p>{error&&<div role="alert" className="error">{error}</div>}{notice&&<div role="status" className="notice">{notice}</div>}{urlParams.has('verify')&&<button className="primary" onClick={()=>act(async()=>{const d=await api('/api/auth/verify-email','POST',{token:urlParams.get('verify')});setNotice(d.detail);history.replaceState({},'','/');})}>Verify email</button>}{urlParams.has('reset')?<Form fields={[{name:'password',label:'New password (12+ characters)',type:'password'}]} submit={d=>act(async()=>{const r=await api('/api/auth/reset-password','POST',{...d,token:urlParams.get('reset'),uid:urlParams.get('uid')});setNotice(r.detail);history.replaceState({},'','/');setAuthMode('login');})} label="Reset password"/>:<Form key={authMode} fields={[{name:'email',label:'Email address',type:'email'},...(authMode!=='forgot-password'?[{name:'password',label:'Password',type:'password'}]:[]),...(authMode==='register'?[{name:'organization',label:'Organization name'}]:authMode==='login'?[{name:'code',label:'Two-factor code (if enabled)',required:false}]:[])]} submit={d=>act(async()=>{const r=await api('/api/auth/'+authMode,'POST',d);if(authMode==='forgot-password'&&r?.token&&r?.uid){history.replaceState({},'',`/?reset=${r.token}&uid=${r.uid}`);setNotice('Account verified! Enter your new password below.');return;}setNotice(r.detail);if(authMode==='login')await loadSession()})} label={authMode==='register'?'Create account':authMode==='forgot-password'?'Send reset link':'Sign in'} />}
+  if(!user)return <div className="auth-layout"><section className="auth-story"><div className="brand"><span className="logo-mark"><MessageCircle/></span>WhatsBridge<span className="brand-dot">.</span></div><div><span className="eyebrow">BUILT FOR DEVELOPERS</span><h1>Good conversations.<br/><em>Great infrastructure.</em></h1><p>One place to build, test, and manage messaging.<br/>From your first sandbox message to official WhatsApp integrations.</p><div className="auth-points"><span><Check size={16}/> Tenant-isolated projects</span><span><Check size={16}/> Official Meta transport</span><span><Check size={16}/> A sandbox to build with confidence</span></div></div><small>YOUR CODE. YOUR CUSTOMERS. CONNECTED.</small></section><section className="auth-form"><div className="auth-box"><span className="eyebrow">WELCOME TO WHATSBRIDGE</span><h2>{authMode==='register'?'Create your workspace':authMode==='forgot-password'?'Reset your password':'Welcome back'}</h2><p className="muted">{authMode==='register'?'Start building with a free sandbox project.':'Sign in to your developer workspace.'}</p>{error&&<div role="alert" className="error">{error}</div>}{notice&&<div role="status" className="notice">{notice}</div>}{urlParams.has('verify')&&<button className="primary" onClick={()=>act(async()=>{const d=await api('/api/auth/verify-email','POST',{token:urlParams.get('verify')});setNotice(d.detail);history.replaceState({},'','/');})}>Verify email</button>}{authMode==='forgot-password'&&<div style={{display:'flex',gap:'8px',marginBottom:'16px'}}><button type="button" className={!waOtpReset?'primary':''} onClick={()=>{setWaOtpReset(false);setWaStep(1)}} style={{padding:'7px 11px',fontSize:'11px'}}>Reset with Email</button><button type="button" className={waOtpReset?'primary':''} onClick={()=>{setWaOtpReset(true);setWaStep(1)}} style={{padding:'7px 11px',fontSize:'11px'}}>Reset via WhatsApp OTP</button></div>}{urlParams.has('reset')?<Form fields={[{name:'password',label:'New password (12+ characters)',type:'password'}]} submit={d=>act(async()=>{const r=await api('/api/auth/reset-password','POST',{...d,token:urlParams.get('reset'),uid:urlParams.get('uid')});setNotice(r.detail);history.replaceState({},'','/');setAuthMode('login');})} label="Reset password"/>:authMode==='forgot-password'&&waOtpReset?(waStep===1?<Form fields={[{name:'phone',label:'WhatsApp Phone Number (e.g. +919567334117)',value:'+91'}]} label="Send WhatsApp OTP" submit={d=>act(async()=>{const r=await api('/api/auth/whatsapp-otp-send','POST',d);setWaChallenge(r.challenge_id);setWaUid(r.user_id);setWaStep(2);setNotice(r.detail);})}/>:<Form fields={[{name:'code',label:'6-Digit WhatsApp Code'},{name:'password',label:'New Password (12+ characters)',type:'password'}]} label="Verify & Reset Password" submit={d=>act(async()=>{const r=await api('/api/auth/whatsapp-otp-verify','POST',{...d,challenge_id:waChallenge,user_id:waUid});setNotice(r.detail);await loadSession();})}/>):<Form key={authMode} fields={[{name:'email',label:'Email address',type:'email'},...(authMode!=='forgot-password'?[{name:'password',label:'Password',type:'password'}]:[]),...(authMode==='register'?[{name:'organization',label:'Organization name'}]:authMode==='login'?[{name:'code',label:'Two-factor code (if enabled)',required:false}]:[])]} submit={d=>act(async()=>{const r=await api('/api/auth/'+authMode,'POST',d);if(authMode==='forgot-password'&&r?.token&&r?.uid){history.replaceState({},'',`/?reset=${r.token}&uid=${r.uid}`);setNotice('Account verified! Enter your new password below.');return;}setNotice(r.detail);if(authMode==='login')await loadSession()})} label={authMode==='register'?'Create account':authMode==='forgot-password'?'Send reset link':'Sign in'} />}
  <div className="auth-links"><button onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create an account':'Back to sign in'}</button><button onClick={()=>setAuthMode('forgot-password')}>Forgot password?</button></div><p className="fine">Development email links arrive in <a href="http://localhost:8025" target="_blank" rel="noreferrer">Mailpit</a>. Production uses your configured email provider.</p></div></section></div>;
  return (
   <>
@@ -91,7 +91,199 @@ await whatsbridge.messages.create({
               {page === 'AI Assistant' && <section className="card narrow"><span className="pill"><Sparkles size={13} /> HUMAN REVIEW REQUIRED</span><h2>A thoughtful first draft</h2><p className="muted">Gemini must be configured by your platform administrator and enabled in project settings. Generated replies are suggestions.</p><Form fields={[{ name: 'mode', label: 'Task', options: ['reply', 'summary', 'intent', 'workflow'].map(v => ({ value: v, label: v })) }, { name: 'prompt', label: 'Customer question or conversation · English / Malayalam', type: 'textarea' }]} label="Generate suggestion" submit={d => act(async () => setResult(await api('/api/ai?project=' + project, 'POST', { ...d, project })))} /></section>}
               {['Analytics', 'Usage & Billing'].includes(page) && <div className="two-col"><section className="card"><h2>{page === 'Analytics' ? 'Message status' : 'Usage accounting'}</h2>{(page === 'Analytics' ? stats.by_status : stats.usage)?.map((r: Row) => <div className="usage-row" key={r.status || r.kind}><span>{r.status || r.kind}</span><strong>{r.count ?? r.quantity}</strong><div className="meter"><i style={{ width: `${Math.min(100, 100 * (r.count ?? r.quantity) / Math.max(stats.messages ?? 1, 1))}%` }} /></div></div>)}</section><section className="card"><h2>{stats.subscription?.plan ?? 'Sandbox'} plan</h2><p className="metric">{stats.subscription?.monthly_limit?.toLocaleString()}</p><p className="muted">Monthly organization-wide message reservations. Accepted sends are tracked separately. Payment collection is not connected.</p></section></div>}
               {page === 'Settings' && <div className="two-col"><section className="card"><h2>Your account</h2><Form fields={[{ name: 'first_name', label: 'Display name', value: user.first_name, required: false }]} submit={d => act(async () => { await api('/api/auth/profile', 'POST', d); await loadSession(); setNotice('Profile saved') })} /><hr /><h3>Two-factor authentication</h3><p className="muted">{user.totp_enabled ? 'Enabled' : 'Protect sign-in with an authenticator app.'}</p>{!user.totp_enabled && <><button onClick={() => act(async () => setResult(await api('/api/auth/2fa-setup', 'POST', {})))}>Generate authenticator secret</button><Form fields={[{ name: 'code', label: 'Authenticator code' }]} label="Enable two-factor" submit={d => act(async () => { await api('/api/auth/2fa-enable', 'POST', d); await loadSession() })} /></>}</section><section className="card"><h2>Project settings</h2><Form key={project} fields={[{ name: 'name', label: 'Project name', value: active?.name }, { name: 'ai_enabled', label: 'AI suggestions', value: String(active?.ai_enabled), options: [{ value: 'false', label: 'Disabled' }, { value: 'true', label: 'Enabled' }] }, { name: 'faq', label: 'Private FAQ knowledge base', type: 'textarea', value: active?.faq, required: false }]} submit={d => act(async () => { await api('/api/projects?project=' + project, 'PATCH', { ...d, ai_enabled: d.ai_enabled === 'true', project }); await refreshProjects(); setNotice('Settings saved') })} /></section></div>}
-              {page === 'Admin' && <section className="card"><h2>Organization controls</h2><p className="muted">All changes are audited. Detailed records are available in Django administration.</p><Form fields={[{ name: 'organization', label: 'Organization', options: (result?.organizations ?? []).map((o: Row) => ({ value: o.id, label: o.name })) }, { name: 'suspended', label: 'Access', options: [{ value: 'false', label: 'Active' }, { value: 'true', label: 'Suspended' }] }, { name: 'monthly_limit', label: 'Monthly message limit', type: 'number', value: '10000' }]} submit={d => act(async () => { await api('/api/platform', 'POST', { ...d, suspended: d.suspended === 'true', monthly_limit: Number(d.monthly_limit) }); await refresh() })} /><a href="/admin/" target="_blank" rel="noreferrer">Open Django administration ↗</a></section>}
+              {page === 'Admin' && (
+                <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
+                  <div className="stat-grid">
+                    {[['Platform Users', result?.users_count ?? result?.users?.length ?? 0, Users],
+                      ['Total Projects', result?.projects_count ?? result?.projects?.length ?? 0, Blocks],
+                      ['Active Transports', result?.connections_count ?? result?.connections?.length ?? 0, MessageCircle],
+                      ['Queued Messages', result?.queue ?? 0, Send]].map(([label, value, Icon]: any) => (
+                      <div className="stat-card" key={label}>
+                        <div><span>{label}</span><Icon size={17} /></div>
+                        <strong>{Number(value).toLocaleString()}</strong>
+                        <small>Platform-wide administrator metric</small>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{display:'flex',gap:'8px',borderBottom:'1px solid var(--line)',paddingBottom:'10px'}}>
+                    {[
+                      ['overview','Overview & Quotas'],
+                      ['users','All Platform Users'],
+                      ['projects','All Projects'],
+                      ['connections','All Transports']
+                    ].map(([k,label])=>(
+                      <button key={k} type="button" className={adminTab===k?'primary':''} onClick={()=>setAdminTab(k as any)} style={{padding:'7px 14px',fontSize:'12px'}}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {adminTab === 'overview' && (
+                    <section className="card">
+                      <div className="section-heading">
+                        <div>
+                          <h2>Organization & Quota Controls</h2>
+                          <p>Suspend tenants or scale monthly message capacities across the platform.</p>
+                        </div>
+                        <a href="/admin/" target="_blank" rel="noreferrer" style={{fontSize:'12px',fontWeight:600}}>
+                          Open Django administration ↗
+                        </a>
+                      </div>
+                      <Form fields={[
+                        { name: 'organization', label: 'Organization', options: (result?.organizations ?? []).map((o: Row) => ({ value: o.id, label: o.name })) },
+                        { name: 'suspended', label: 'Access Status', options: [{ value: 'false', label: 'Active · Normal Access' }, { value: 'true', label: 'Suspended · Block API & Sending' }] },
+                        { name: 'monthly_limit', label: 'Monthly Message Limit', type: 'number', value: '50000' }
+                      ]} label="Update Organization Settings" submit={d => act(async () => {
+                        await api('/api/platform', 'POST', { ...d, suspended: d.suspended === 'true', monthly_limit: Number(d.monthly_limit) });
+                        await refresh();
+                        setNotice('Organization settings updated successfully');
+                      })} />
+                    </section>
+                  )}
+
+                  {adminTab === 'users' && (
+                    <section className="card">
+                      <div className="section-heading">
+                        <div>
+                          <h2>All Registered Platform Users</h2>
+                          <p>Super-admin controls to manage roles, email verification, and credentials.</p>
+                        </div>
+                      </div>
+                      <div className="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>User / Email</th>
+                              <th>Role & Access</th>
+                              <th>Status</th>
+                              <th>Joined</th>
+                              <th>Admin Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(result?.users ?? []).map((u: Row) => (
+                              <tr key={u.id}>
+                                <td>
+                                  <strong>{u.email}</strong>
+                                  <small>ID: {u.id} · {u.first_name || 'No display name'}</small>
+                                </td>
+                                <td>
+                                  <Badge>{u.is_staff ? 'Super Admin / Staff' : 'Standard Developer'}</Badge>
+                                </td>
+                                <td>
+                                  <Badge>{u.email_verified ? 'Verified' : 'Unverified'}</Badge>
+                                </td>
+                                <td>
+                                  <small>{new Date(u.date_joined).toLocaleDateString()}</small>
+                                </td>
+                                <td>
+                                  <div className="row-actions">
+                                    <button type="button" onClick={() => act(async () => {
+                                      const r = await api('/api/platform', 'POST', { action: 'toggle_staff', user_id: u.id });
+                                      setNotice(r.detail);
+                                      await refresh();
+                                    })}>
+                                      {u.is_staff ? 'Revoke Staff' : 'Make Super Admin'}
+                                    </button>
+                                    <button type="button" onClick={() => act(async () => {
+                                      const r = await api('/api/platform', 'POST', { action: 'toggle_verify', user_id: u.id });
+                                      setNotice(r.detail);
+                                      await refresh();
+                                    })}>
+                                      {u.email_verified ? 'Unverify' : 'Mark Verified'}
+                                    </button>
+                                    <button type="button" onClick={() => act(async () => {
+                                      const r = await api('/api/platform', 'POST', { action: 'reset_user_password', user_id: u.id, password: 'Password123!@#' });
+                                      setNotice(r.detail);
+                                    })}>
+                                      Reset PW
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+
+                  {adminTab === 'projects' && (
+                    <section className="card">
+                      <div className="section-heading">
+                        <div>
+                          <h2>All Platform Projects</h2>
+                          <p>Every tenant project provisioned across the platform.</p>
+                        </div>
+                      </div>
+                      <div className="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Project Name</th>
+                              <th>Organization</th>
+                              <th>Environment</th>
+                              <th>Created</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(result?.projects ?? []).map((p: Row) => (
+                              <tr key={p.id}>
+                                <td>
+                                  <strong>{p.name}</strong>
+                                  <small>{p.id}</small>
+                                </td>
+                                <td>{p['organization__name'] || 'Organization'}</td>
+                                <td><Badge>{p.sandbox ? 'Sandbox' : 'Live'}</Badge></td>
+                                <td><small>{new Date(p.created_at).toLocaleDateString()}</small></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+
+                  {adminTab === 'connections' && (
+                    <section className="card">
+                      <div className="section-heading">
+                        <div>
+                          <h2>All WhatsApp & Gateway Connections</h2>
+                          <p>Every linked QR phone and Meta Cloud API transport across all projects.</p>
+                        </div>
+                      </div>
+                      <div className="table-scroll">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Transport Name</th>
+                              <th>Provider</th>
+                              <th>Status</th>
+                              <th>Project</th>
+                              <th>Last Active</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(result?.connections ?? []).map((c: Row) => (
+                              <tr key={c.id}>
+                                <td>
+                                  <strong>{c.name}</strong>
+                                  <small>{c.id}</small>
+                                </td>
+                                <td>{c.provider === 'baileys' ? 'WhatsApp QR' : c.provider === 'meta' ? 'Meta Cloud API' : 'Sandbox'}</td>
+                                <td><Badge>{c.status}</Badge></td>
+                                <td>{c['project__name'] || 'Project'}</td>
+                                <td><small>{c.last_connected_at ? new Date(c.last_connected_at).toLocaleString() : 'Never'}</small></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </section>
+                  )}
+                </div>
+              )}
               {page === 'API Playground' && <section className="card"><h2>Session-authenticated request</h2><p className="muted">No API key is stored in the browser. Your backend integrations should use a scoped Bearer key.</p><Form fields={[{ name: 'method', label: 'Method', options: ['GET', 'POST'].map(v => ({ value: v, label: v })) }, { name: 'path', label: 'API path', value: '/api/v1/messages' }, { name: 'body', label: 'JSON request body', type: 'textarea', value: '{}' }]} label="Run request" submit={d => act(async () => { if (!d.path.startsWith('/api/v1/')) throw new Error('Use a /api/v1/ path'); setResult(await api(d.path + '?project=' + project, d.method, d.method === 'POST' ? { ...JSON.parse(d.body), project } : undefined, { 'Idempotency-Key': crypto.randomUUID() })) })} /></section>}
               {page === 'API Documentation' && (() => {
                 const connId = connections.find(c => c.status === 'CONNECTED')?.id || (connections[0]?.id ?? 'YOUR_CONNECTION_ID');

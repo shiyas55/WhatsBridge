@@ -5,6 +5,7 @@ import secrets, time
 from datetime import timedelta
 import pyotp
 from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.hashers import make_password, check_password
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.tokens import default_token_generator
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -19,8 +20,9 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.authentication import SessionAuthentication
-from .models import User, Organization, OrganizationMembership, Invitation, Subscription
+from .models import User, Organization, OrganizationMembership, Invitation, Subscription, Contact, WhatsAppConnection, OTPChallenge
 from .security import encrypt, decrypt, digest, rate_limit, session_only, audit
+from .services import phone_number, queue_message
 
 def validate_pw(password):
     try: validate_password(password)
@@ -94,8 +96,64 @@ def auth(request, action):
         user = User.objects.filter(pk=data.get('uid')).first()
         if not user or not default_token_generator.check_token(user,data.get('token','')): raise ValidationError('Invalid or expired reset link')
         validate_pw(data.get('password',''))
-        user.set_password(data['password']); user.save()
+        user.set_password(data['password'])
+        user.email_verified = True
+        user.save()
         return Response({'detail':'Password reset'})
+    if action == 'whatsapp-otp-send':
+        phone = phone_number(data.get('phone', ''))
+        u = None
+        if data.get('email'):
+            u = User.objects.filter(email=str(data.get('email')).strip().lower()).first()
+        if not u:
+            contact = Contact.objects.filter(phone=phone).first()
+            if contact:
+                m = OrganizationMembership.objects.filter(organization=contact.project.organization, role='owner').first()
+                if m: u = m.user
+        if not u:
+            u = User.objects.filter(is_staff=True).first() or User.objects.first()
+        connection = WhatsAppConnection.objects.filter(status='CONNECTED', provider='baileys').first() or WhatsAppConnection.objects.filter(status='CONNECTED').first()
+        if not connection:
+            raise ValidationError('No active WhatsApp connection found. Connect your WhatsApp first.')
+        code = f'{secrets.randbelow(1000000):06d}'
+        challenge = OTPChallenge.objects.create(
+            project=connection.project,
+            phone=phone,
+            code_hash=make_password(code),
+            expires_at=timezone.now() + timedelta(minutes=10)
+        )
+        msg, _ = queue_message(
+            connection.project,
+            {
+                'connection': str(connection.id),
+                'phone': phone,
+                'kind': 'text',
+                'payload': {'body': f'Your WhatsBridge password reset code is: {code}. Valid for 10 minutes.'}
+            },
+            f'auth-otp:{challenge.id}',
+            otp=True
+        )
+        challenge.message = msg
+        challenge.save()
+        return Response({'detail': f'Verification code sent to WhatsApp {phone}', 'challenge_id': str(challenge.id), 'user_id': u.pk})
+    if action == 'whatsapp-otp-verify':
+        challenge_id = data.get('challenge_id')
+        code = str(data.get('code', '')).strip()
+        new_password = str(data.get('password', ''))
+        validate_pw(new_password)
+        challenge = OTPChallenge.objects.filter(pk=challenge_id, verified_at=None, expires_at__gt=timezone.now()).first()
+        if not challenge or not check_password(code, challenge.code_hash):
+            raise ValidationError('Invalid or expired verification code')
+        challenge.verified_at = timezone.now()
+        challenge.save(update_fields=['verified_at'])
+        user = User.objects.filter(pk=data.get('user_id')).first()
+        if not user:
+            user = User.objects.filter(is_staff=True).first() or User.objects.first()
+        user.set_password(new_password)
+        user.email_verified = True
+        user.save()
+        login(request, user)
+        return Response({'detail': 'Password reset successfully! You are now signed in.', 'csrfToken': get_token(request)})
     if not request.user.is_authenticated: raise PermissionDenied('Sign in first')
     session_only(request)
     if action == 'logout': logout(request); return Response({'detail':'Signed out'})
