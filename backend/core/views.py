@@ -56,6 +56,12 @@ class ConnectionViewSet(TenantViewSet):
         from .experimental import connector,sync_state
         data=connector(connection);sync_state(connection,data)
         response=Response(data);response['Cache-Control']='no-store';return response
+    @action(detail=True,methods=['get'],url_path='baileys_qr')
+    def baileys_qr(self,request,pk=None):
+        return self.qr(request,pk=pk)
+    @action(detail=True,methods=['post'],url_path='baileys_pair')
+    def baileys_pair(self,request,pk=None):
+        return self.pair(request,pk=pk)
     @action(detail=True,methods=['post'])
     def onboard(self,request,pk=None):
         connection=self.get_object();project_for(request,admin=True,write=True)
