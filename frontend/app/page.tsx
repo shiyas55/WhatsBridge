@@ -57,8 +57,49 @@ await whatsbridge.messages.create({
   kind: "text",
   payload: { body: "Hello, world" }
 });`}</pre><footer><i /> Server-side integration · see API documentation</footer></div></section><div className="stat-grid">{[['Messages queued', stats.messages ?? 0, Send], ['Active connections', stats.connections ?? 0, MessageCircle], ['Contacts', stats.contacts ?? 0, Contact], ['Monthly limit', stats.subscription?.monthly_limit ?? 0, Activity]].map(([label, value, Icon]: any) => <div className="stat-card" key={label}><div><span>{label}</span><Icon size={17} /></div><strong>{Number(value).toLocaleString()}</strong><small>{label === 'Monthly limit' ? 'Organization-wide message reservations' : 'From your project records'}</small></div>)}</div><div className="overview-grid"><section className="card"><div className="section-heading"><div><h2>Your connections</h2><p>Messaging transports for this project</p></div><button className="text-button" onClick={() => setPage('Connections')}>View all <ArrowUpRight size={14} /></button></div>{connections.length ? connections.slice(0, 4).map(c => <div className="connection-row" key={c.id}><span className="connection-icon"><MessageCircle size={22} /></span><div><strong>{c.name}</strong><small>{c.provider === 'sandbox' ? 'Sandbox · simulated events' : c.provider === 'baileys' ? 'WhatsApp Web · experimental' : 'Meta WhatsApp Cloud API'}</small></div><Badge>{c.status}</Badge></div>) : <Empty text="Add a sandbox connection to start sending test messages." />}<button className="dashed-button" onClick={() => setModal('connection')}><Plus size={16} /> Add a connection</button></section><section className="card"><div className="section-heading"><div><h2>Get your integration going</h2><p>Three steps from setup to send</p></div><span className="step-count">{[connections.length > 0, (stats.contacts ?? 0) > 0, (stats.messages ?? 0) > 0].filter(Boolean).length}/3</span></div>{[['Connect a transport', 'Choose sandbox or official Meta.', 'Connections', connections.length > 0], ['Add a consenting contact', 'Record permission before sending.', 'Contacts', (stats.contacts ?? 0) > 0], ['Send your first message', 'Try your integration end to end.', 'Send Message', (stats.messages ?? 0) > 0]].map(([title, desc, target, done], i) => <button className="checklist" key={String(title)} onClick={() => setPage(String(target))}><span className={done ? 'step done' : 'step'}>{done ? <Check size={14} /> : i + 1}</span><span><strong>{title}</strong><small>{desc}</small></span><ArrowRight size={16} /></button>)}</section></div><section className="resource-banner"><div><Code2 size={23} /><span><strong>Designed for the way you build.</strong><small>REST API, signed webhooks, and integration examples in your stack.</small></span></div><button onClick={() => setPage('API Documentation')}>Open developer docs <ArrowUpRight size={16} /></button></section></>}
-              {page === 'Projects' && <div className="project-grid">{projects.map(p => <button className="card project-card" key={p.id} onClick={() => { setProject(p.id); setPage('Overview') }}><Blocks /><h2>{p.name}</h2><Badge>{p.sandbox ? 'Sandbox' : 'Live'}</Badge><code>{p.id}</code><span>Open project <ArrowRight size={15} /></span></button>)}<button className="card project-card" onClick={() => setModal('organization')}><Plus /><h2>New organization</h2><p>Create a separate workspace and team.</p></button></div>}
-              {['Connections', 'API Keys', 'Inbox', 'Contacts', 'Team Members'].includes(page) && <section className="card"><div className="table-tools"><h2>{page === 'Inbox' ? 'Conversation activity' : page}</h2><div className="search"><Search size={16} /><input aria-label="Search records" placeholder="Search records…" value={search} onChange={e => setSearch(e.target.value)} /></div></div>{busy ? <p className="loading">Loading records…</p> : !filtered.length ? <Empty /> : <div className="table-scroll"><table><thead><tr><th>{page === 'Inbox' ? 'Recipient' : 'Name'}</th><th>Details</th><th>Status / role</th><th>Actions</th></tr></thead><tbody>{filtered.map(r => <tr key={r.id}><td><strong>{r.name || r.phone || r.user__email}</strong><small>{r.id}</small></td><td>{r.language || r.provider || r.prefix || r.direction || r.phone || 'Team member'}{page === 'Inbox' && <small>{r.payload?.body || r.kind}</small>}</td><td><Badge>{r.status || r.role || (page === 'API Keys' ? (r.revoked_at ? 'revoked' : 'active') : page === 'Contacts' ? (r.consent?.[0]?.granted ? 'consent recorded' : 'no consent') : 'enabled')}</Badge></td><td><div className="row-actions">{page === 'Connections' && <>{r.provider === 'baileys' && <button onClick={() => { setSelected(r); setModal('qr') }}>Show QR / status</button>}<button onClick={() => { setSelected(r); setModal('onboard') }} disabled={r.provider !== 'meta'}>Onboard</button><button onClick={() => r.provider === 'baileys' && r.status !== 'CONNECTED' ? (setSelected(r), setModal('qr')) : act(() => mutate('/api/v1/connections/' + r.id + '/' + (r.status === 'CONNECTED' ? 'disconnect' : 'reconnect'), {}))}>{r.status === 'CONNECTED' ? 'Disconnect' : 'Reconnect'}</button></>}{page === 'API Keys' && <><button disabled={!!r.revoked_at} onClick={() => act(async () => { setResult(await api('/api/v1/keys/' + r.id + '/rotate?project=' + project, 'POST', { project })); await refresh() })}>Rotate</button><button disabled={!!r.revoked_at} onClick={() => act(() => mutate('/api/v1/keys/' + r.id, {}, 'DELETE'))}>Revoke</button></>}{page === 'Contacts' && <button onClick={() => { setSelected(r); setModal('consent') }}>Consent</button>}{page === 'Team Members' && r.role !== 'owner' && <button onClick={() => act(() => mutate('/api/team', { membership: r.id }, 'DELETE'))}>Remove</button>}{page === 'Inbox' && <button onClick={() => setResult(r)}>Inspect</button>}</div></td></tr>)}</tbody></table></div>}<p className="fine">Showing up to 50 records. The REST API supports pagination.</p></section>}
+              {page === 'Projects' && (
+                <div className="project-grid">
+                  {projects.map(p => (
+                    <div className="card project-card" key={p.id} style={{display:'flex',flexDirection:'column',justifyContent:'space-between',textAlign:'left'}}>
+                      <div onClick={() => { setProject(p.id); setPage('Overview') }} style={{cursor:'pointer',width:'100%'}}>
+                        <Blocks />
+                        <h2>{p.name}</h2>
+                        <Badge>{p.sandbox ? 'Sandbox' : 'Live'}</Badge>
+                        <code>{p.id}</code>
+                      </div>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',width:'100%',marginTop:'14px',paddingTop:'12px',borderTop:'1px solid var(--border)'}}>
+                        <button className="text-button" style={{padding:0,fontSize:'13px'}} onClick={() => { setProject(p.id); setPage('Overview') }}>
+                          Open project <ArrowRight size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className="text-button"
+                          style={{color:'var(--red, #ef4444)',padding:'4px 8px',fontSize:'12px',display:'inline-flex',alignItems:'center',gap:'4px'}}
+                          title="Delete this project"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (projects.length <= 1) {
+                              alert('Cannot delete the last remaining project in your organization.');
+                              return;
+                            }
+                            if (confirm(`Are you sure you want to permanently delete project "${p.name}"? This action will remove all its connections, API keys, and message history.`)) {
+                              act(async () => {
+                                await api('/api/projects?project=' + p.id, 'DELETE', {});
+                                await refreshProjects();
+                                setNotice(`Project "${p.name}" deleted successfully.`);
+                              });
+                            }
+                          }}
+                        >
+                          <Trash2 size={13} /> Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  <button className="card project-card" onClick={() => setModal('organization')}><Plus /><h2>New organization</h2><p>Create a separate workspace and team.</p></button>
+                </div>
+              )}
+              {['Connections', 'API Keys', 'Inbox', 'Contacts', 'Team Members'].includes(page) && <section className="card"><div className="table-tools"><h2>{page === 'Inbox' ? 'Conversation activity' : page}</h2><div className="search"><Search size={16} /><input aria-label="Search records" placeholder="Search records…" value={search} onChange={e => setSearch(e.target.value)} /></div></div>{busy ? <p className="loading">Loading records…</p> : !filtered.length ? <Empty /> : <div className="table-scroll"><table><thead><tr><th>{page === 'Inbox' ? 'Recipient' : 'Name'}</th><th>Details</th><th>Status / role</th><th>Actions</th></tr></thead><tbody>{filtered.map(r => <tr key={r.id}><td><strong>{r.name || r.phone || r.user__email}</strong><small>{r.id}</small></td><td>{r.language || r.provider || r.prefix || r.direction || r.phone || 'Team member'}{page === 'Inbox' && <small>{r.payload?.body || r.kind}</small>}</td><td><Badge>{r.status || r.role || (page === 'API Keys' ? (r.revoked_at ? 'revoked' : 'active') : page === 'Contacts' ? (r.consent?.[0]?.granted ? 'consent recorded' : 'no consent') : 'enabled')}</Badge></td><td><div className="row-actions">{page === 'Connections' && <>{r.provider === 'baileys' && <button onClick={() => { setSelected(r); setModal('qr') }}>Show QR / status</button>}<button onClick={() => { setSelected(r); setModal('onboard') }} disabled={r.provider !== 'meta'}>Onboard</button><button onClick={() => r.provider === 'baileys' && r.status !== 'CONNECTED' ? (setSelected(r), setModal('qr')) : act(() => mutate('/api/v1/connections/' + r.id + '/' + (r.status === 'CONNECTED' ? 'disconnect' : 'reconnect'), {}))}>{r.status === 'CONNECTED' ? 'Disconnect' : 'Reconnect'}</button>{r.status !== 'REVOKED' && <button onClick={() => { if (confirm(`Revoke connection "${r.name}"? Credentials will be erased.`)) act(() => mutate('/api/v1/connections/' + r.id + '/revoke', {})); }}>Revoke</button>}<button style={{color:'var(--red, #ef4444)'}} onClick={() => { if (confirm(`Permanently delete connection "${r.name}"?`)) act(() => mutate('/api/v1/connections/' + r.id + '?hard=true', {}, 'DELETE')); }}>Delete</button></>}{page === 'API Keys' && <><button disabled={!!r.revoked_at} onClick={() => act(async () => { setResult(await api('/api/v1/keys/' + r.id + '/rotate?project=' + project, 'POST', { project })); await refresh() })}>Rotate</button><button disabled={!!r.revoked_at} onClick={() => { if (confirm(`Revoke API key "${r.name}"? It will no longer authenticate requests.`)) act(() => mutate('/api/v1/keys/' + r.id + '/revoke', {})); }}>Revoke</button><button style={{color:'var(--red, #ef4444)'}} onClick={() => { if (confirm(`Permanently delete API key "${r.name}"?`)) act(() => mutate('/api/v1/keys/' + r.id + '?hard=true', {}, 'DELETE')); }}>Delete</button></>}{page === 'Contacts' && <button onClick={() => { setSelected(r); setModal('consent') }}>Consent</button>}{page === 'Team Members' && r.role !== 'owner' && <button onClick={() => act(() => mutate('/api/team', { membership: r.id }, 'DELETE'))}>Remove</button>}{page === 'Inbox' && <button onClick={() => setResult(r)}>Inspect</button>}</div></td></tr>)}</tbody></table></div>}<p className="fine">Showing up to 50 records. The REST API supports pagination.</p></section>}
               {page === 'Send Message' && <section className="card narrow"><h2>Create a message</h2><p className="muted">Send a text message directly through your connected WhatsApp or sandbox transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phone', label: 'Recipient · E.164', value: '+15551234567' }, { name: 'body', label: 'Message', type: 'textarea', value: 'Hello from WhatsBridge 👋' }]} label="Queue message" submit={d => act(async () => { const r = await api('/api/v1/messages?project=' + project, 'POST', { project, connection: d.connection, phone: d.phone, kind: 'text', payload: { body: d.body } }, { 'Idempotency-Key': crypto.randomUUID() }); setResult(r); setNotice('Message dispatched successfully! Check Inbox for delivery.'); await refresh() })} /><p className="fine">Use the API Playground for templates, media, and scheduled messages.</p></section>}
               {page === 'Bulk Messaging' && <section className="card narrow"><h2>Bulk Broadcast Messaging</h2><p className="muted">Broadcast WhatsApp messages to multiple recipients at once. Messages are automatically scheduled with a safe 5-second interval to avoid anti-spam limits.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phones', label: 'Recipient Numbers (one per line or comma-separated E.164, e.g. +15551234567)', type: 'textarea', value: '+15551234567\n+15559876543' }, { name: 'body', label: 'Message Body', type: 'textarea', value: 'Hello! This is a message from WhatsBridge.' }]} label="Dispatch Bulk Campaign" submit={d => act(async () => { const r = await api('/api/v1/messages/bulk?project=' + project, 'POST', { project, connection: d.connection, phones: d.phones, body: d.body }); setResult(r); setNotice(`Bulk campaign queued for ${r.total} recipient(s)!`); await refresh() })} /><p className="fine">Works directly with your linked WhatsApp account or official provider.</p></section>}
               {page === 'OTP Verification' && <div className="two-col"><section className="card"><h2>1. Create a challenge</h2><p className="muted">Generate and deliver a real 6-digit verification code directly to WhatsApp via your connected transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connections.filter(c=>c.status==='CONNECTED').map(c=>({value:c.id,label:c.name + (c.provider==='baileys'?' · WhatsApp QR':c.provider==='meta'?' · Meta API':' · Sandbox')})) }, { name: 'phone', label: 'Phone number (e.g. +919567334117)', value: '+91' }, { name: 'template', label: 'Meta Template Name (only required for official Meta API; leave blank for WhatsApp QR)', required: false }]} label="Send OTP" submit={d => act(async () => { const r = await api('/api/v1/otp/send?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('Verification code dispatched to WhatsApp! Enter it below.'); })} /></section><section className="card"><h2>2. Verify the code</h2><Form key={result?.challenge_id} fields={[{ name: 'challenge_id', label: 'Challenge ID', value: result?.challenge_id }, { name: 'code', label: 'Six-digit code' }]} label="Verify code" submit={d => act(async () => { const r = await api('/api/v1/otp/verify?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('OTP verified successfully!'); })} /></section></div>}
@@ -90,7 +131,7 @@ await whatsbridge.messages.create({
               )}
               {page === 'AI Assistant' && <section className="card narrow"><span className="pill"><Sparkles size={13} /> HUMAN REVIEW REQUIRED</span><h2>A thoughtful first draft</h2><p className="muted">Gemini must be configured by your platform administrator and enabled in project settings. Generated replies are suggestions.</p><Form fields={[{ name: 'mode', label: 'Task', options: ['reply', 'summary', 'intent', 'workflow'].map(v => ({ value: v, label: v })) }, { name: 'prompt', label: 'Customer question or conversation · English / Malayalam', type: 'textarea' }]} label="Generate suggestion" submit={d => act(async () => setResult(await api('/api/ai?project=' + project, 'POST', { ...d, project })))} /></section>}
               {['Analytics', 'Usage & Billing'].includes(page) && <div className="two-col"><section className="card"><h2>{page === 'Analytics' ? 'Message status' : 'Usage accounting'}</h2>{(page === 'Analytics' ? stats.by_status : stats.usage)?.map((r: Row) => <div className="usage-row" key={r.status || r.kind}><span>{r.status || r.kind}</span><strong>{r.count ?? r.quantity}</strong><div className="meter"><i style={{ width: `${Math.min(100, 100 * (r.count ?? r.quantity) / Math.max(stats.messages ?? 1, 1))}%` }} /></div></div>)}</section><section className="card"><h2>{stats.subscription?.plan ?? 'Sandbox'} plan</h2><p className="metric">{stats.subscription?.monthly_limit?.toLocaleString()}</p><p className="muted">Monthly organization-wide message reservations. Accepted sends are tracked separately. Payment collection is not connected.</p></section></div>}
-              {page === 'Settings' && <div className="two-col"><section className="card"><h2>Your account</h2><Form fields={[{ name: 'first_name', label: 'Display name', value: user.first_name, required: false }]} submit={d => act(async () => { await api('/api/auth/profile', 'POST', d); await loadSession(); setNotice('Profile saved') })} /><hr /><h3>Two-factor authentication</h3><p className="muted">{user.totp_enabled ? 'Enabled' : 'Protect sign-in with an authenticator app.'}</p>{!user.totp_enabled && <><button onClick={() => act(async () => setResult(await api('/api/auth/2fa-setup', 'POST', {})))}>Generate authenticator secret</button><Form fields={[{ name: 'code', label: 'Authenticator code' }]} label="Enable two-factor" submit={d => act(async () => { await api('/api/auth/2fa-enable', 'POST', d); await loadSession() })} /></>}</section><section className="card"><h2>Project settings</h2><Form key={project} fields={[{ name: 'name', label: 'Project name', value: active?.name }, { name: 'ai_enabled', label: 'AI suggestions', value: String(active?.ai_enabled), options: [{ value: 'false', label: 'Disabled' }, { value: 'true', label: 'Enabled' }] }, { name: 'faq', label: 'Private FAQ knowledge base', type: 'textarea', value: active?.faq, required: false }]} submit={d => act(async () => { await api('/api/projects?project=' + project, 'PATCH', { ...d, ai_enabled: d.ai_enabled === 'true', project }); await refreshProjects(); setNotice('Settings saved') })} /></section></div>}
+              {page === 'Settings' && <div className="two-col"><section className="card"><h2>Your account</h2><Form fields={[{ name: 'first_name', label: 'Display name', value: user.first_name, required: false }]} submit={d => act(async () => { await api('/api/auth/profile', 'POST', d); await loadSession(); setNotice('Profile saved') })} /><hr /><h3>Two-factor authentication</h3><p className="muted">{user.totp_enabled ? 'Enabled' : 'Protect sign-in with an authenticator app.'}</p>{!user.totp_enabled && <><button onClick={() => act(async () => setResult(await api('/api/auth/2fa-setup', 'POST', {})))}>Generate authenticator secret</button><Form fields={[{ name: 'code', label: 'Authenticator code' }]} label="Enable two-factor" submit={d => act(async () => { await api('/api/auth/2fa-enable', 'POST', d); await loadSession() })} /></>}</section><section className="card"><h2>Project settings</h2><Form key={project} fields={[{ name: 'name', label: 'Project name', value: active?.name }, { name: 'ai_enabled', label: 'AI suggestions', value: String(active?.ai_enabled), options: [{ value: 'false', label: 'Disabled' }, { value: 'true', label: 'Enabled' }] }, { name: 'faq', label: 'Private FAQ knowledge base', type: 'textarea', value: active?.faq, required: false }]} submit={d => act(async () => { await api('/api/projects?project=' + project, 'PATCH', { ...d, ai_enabled: d.ai_enabled === 'true', project }); await refreshProjects(); setNotice('Settings saved') })} /><hr style={{margin:'20px 0'}}/><div style={{border:'1px solid rgba(239,68,68,0.25)',background:'rgba(239,68,68,0.03)',borderRadius:'8px',padding:'16px'}}><h3 style={{color:'var(--red, #ef4444)',margin:0,fontSize:'14px',display:'flex',alignItems:'center',gap:'6px'}}><Trash2 size={15}/> Danger Zone</h3><p className="muted" style={{fontSize:'12px',margin:'6px 0 12px'}}>Permanently delete this project, along with all associated credentials, connections, API keys, and messages.</p><button type="button" style={{background:'var(--red, #ef4444)',color:'#fff',border:'none',padding:'8px 14px',borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer'}} onClick={()=>{if(projects.length<=1){alert('Cannot delete the last remaining project in your organization.');return;}if(confirm(`Are you sure you want to permanently delete project "${active?.name}"? This action cannot be undone.`)){act(async()=>{await api('/api/projects?project='+project,'DELETE',{});await refreshProjects();setPage('Overview');setNotice(`Project "${active?.name}" deleted.`);});}}}>Delete Project</button></div></section></div>}
               {page === 'Admin' && (
                 <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
                   <div className="stat-grid">
@@ -225,6 +266,7 @@ await whatsbridge.messages.create({
                               <th>Organization</th>
                               <th>Environment</th>
                               <th>Created</th>
+                              <th>Admin Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -237,6 +279,26 @@ await whatsbridge.messages.create({
                                 <td>{p['organization__name'] || 'Organization'}</td>
                                 <td><Badge>{p.sandbox ? 'Sandbox' : 'Live'}</Badge></td>
                                 <td><small>{new Date(p.created_at).toLocaleDateString()}</small></td>
+                                <td>
+                                  <div className="row-actions">
+                                    <button
+                                      type="button"
+                                      style={{color:'var(--red, #ef4444)'}}
+                                      onClick={() => {
+                                        if (confirm(`Permanently delete project "${p.name}" (${p.id})? This will delete all its connections and keys.`)) {
+                                          act(async () => {
+                                            const r = await api('/api/platform', 'POST', { action: 'delete_project', project_id: p.id });
+                                            setNotice(r.detail);
+                                            await refresh();
+                                            await refreshProjects();
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      Delete Project
+                                    </button>
+                                  </div>
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -262,6 +324,7 @@ await whatsbridge.messages.create({
                               <th>Status</th>
                               <th>Project</th>
                               <th>Last Active</th>
+                              <th>Admin Actions</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -275,6 +338,25 @@ await whatsbridge.messages.create({
                                 <td><Badge>{c.status}</Badge></td>
                                 <td>{c['project__name'] || 'Project'}</td>
                                 <td><small>{c.last_connected_at ? new Date(c.last_connected_at).toLocaleString() : 'Never'}</small></td>
+                                <td>
+                                  <div className="row-actions">
+                                    <button
+                                      type="button"
+                                      style={{color:'var(--red, #ef4444)'}}
+                                      onClick={() => {
+                                        if (confirm(`Permanently delete connection "${c.name}" (${c.id})?`)) {
+                                          act(async () => {
+                                            const r = await api('/api/platform', 'POST', { action: 'delete_connection', connection_id: c.id });
+                                            setNotice(r.detail);
+                                            await refresh();
+                                          });
+                                        }
+                                      }}
+                                    >
+                                      Delete Connection
+                                    </button>
+                                  </div>
+                                </td>
                               </tr>
                             ))}
                           </tbody>

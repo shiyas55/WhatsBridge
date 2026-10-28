@@ -105,14 +105,38 @@ class ConnectionViewSet(TenantViewSet):
         if connection.provider != 'sandbox': raise ValidationError('Re-onboard Meta credentials to reconnect')
         connection.status='CONNECTED';connection.last_connected_at=timezone.now();connection.save()
         return Response(self.get_serializer(connection).data)
+    @action(detail=True,methods=['post'])
+    def revoke(self,request,pk=None):
+        connection=self.get_object()
+        if connection.provider=='baileys':
+            try:
+                project_for(request,admin=True,write=True)
+                from .experimental import connector
+                connector(connection,'POST','/disconnect',{})
+            except Exception:
+                pass
+        connection.status='REVOKED';connection.save();ProviderCredential.objects.filter(connection=connection).delete()
+        audit(request,'connection.revoke',connection.project.organization,connection.id)
+        return Response(self.get_serializer(connection).data)
     def perform_destroy(self,instance):
         # Preserve message foreign keys; revoke and erase credentials.
         if instance.provider=='baileys':
-            project_for(self.request,admin=True,write=True)
-            from .experimental import connector
-            connector(instance,'POST','/disconnect',{})
-        instance.status='REVOKED';instance.save();ProviderCredential.objects.filter(connection=instance).delete()
-        audit(self.request,'connection.revoke',instance.project.organization,instance.id)
+            try:
+                project_for(self.request,admin=True,write=True)
+                from .experimental import connector
+                connector(instance,'POST','/disconnect',{})
+            except Exception:
+                pass
+        hard = self.request.query_params.get('hard') in ('true', '1') or self.request.data.get('hard') is True
+        if hard or (instance.status == 'REVOKED' and not self.request.query_params.get('revoke_only')):
+            if instance.message_set.exists():
+                instance.message_set.all().delete()
+            ProviderCredential.objects.filter(connection=instance).delete()
+            audit(self.request,'connection.delete',instance.project.organization,instance.id)
+            instance.delete()
+        else:
+            instance.status='REVOKED';instance.save();ProviderCredential.objects.filter(connection=instance).delete()
+            audit(self.request,'connection.revoke',instance.project.organization,instance.id)
 
 class MessageViewSet(TenantViewSet):
     queryset=Message.objects.all();serializer_class=MessageSerializer;http_method_names=['get','post','head','options']
@@ -196,7 +220,19 @@ class KeyViewSet(TenantViewSet):
         audit(request,'apikey.create',project.organization,key.id)
         return Response({**self.get_serializer(key).data,'secret':secret},status=201)
     def perform_destroy(self,instance):
-        instance.revoked_at=timezone.now();instance.save();audit(self.request,'apikey.revoke',instance.project.organization,instance.id)
+        hard = self.request.query_params.get('hard') in ('true', '1') or self.request.data.get('hard') is True
+        if hard or (instance.revoked_at is not None and not self.request.query_params.get('revoke_only')):
+            audit(self.request,'apikey.delete',instance.project.organization,instance.id)
+            instance.delete()
+        else:
+            instance.revoked_at=timezone.now();instance.save();audit(self.request,'apikey.revoke',instance.project.organization,instance.id)
+    @action(detail=True,methods=['post'])
+    def revoke(self,request,pk=None):
+        key=self.get_object()
+        key.revoked_at=timezone.now()
+        key.save()
+        audit(request,'apikey.revoke',key.project.organization,key.id)
+        return Response(self.get_serializer(key).data)
     @action(detail=True,methods=['post'])
     def rotate(self,request,pk=None):
         key=self.get_object()
@@ -309,11 +345,27 @@ def organizations(request):
     return Response({'id':str(org.id),'name':org.name},status=201)
 
 @extend_schema(request=OpenApiTypes.OBJECT,responses=OpenApiTypes.OBJECT)
-@api_view(['GET','POST','PATCH'])
+@api_view(['GET','POST','PATCH','DELETE'])
 def projects(request):
     session_only(request)
     if request.method=='GET':
         return Response(ProjectSerializer(Project.objects.filter(organization__organizationmembership__user=request.user,organization__suspended=False).order_by('created_at'),many=True).data)
+    if request.method=='DELETE':
+        project=project_for(request,write=True,admin=True)
+        org=project.organization
+        if org.project_set.count() <= 1:
+            raise ValidationError('Cannot delete the last remaining project in an organization')
+        for conn in WhatsAppConnection.objects.filter(project=project, provider='baileys'):
+            try:
+                from .experimental import connector
+                connector(conn, 'POST', '/disconnect', {})
+            except Exception:
+                pass
+        Message.objects.filter(project=project).delete()
+        pid=str(project.id)
+        project.delete()
+        audit(request,'project.delete',org,pid)
+        return Response({'detail':'Project deleted successfully'},status=200)
     if request.method=='PATCH':
         project=project_for(request,write=True,admin=True)
         serializer=ProjectSerializer(project,data={k:v for k,v in request.data.items() if k in ['name','ai_enabled','faq']},partial=True)
@@ -381,6 +433,35 @@ def platform(request):
             u.is_active = not u.is_active
             u.save(update_fields=['is_active'])
             return Response({'detail': f'Updated active status for {u.email}'})
+        if action == 'delete_project':
+            pid = request.data.get('project_id')
+            p = Project.objects.get(pk=pid)
+            if p.organization.project_set.count() <= 1:
+                raise ValidationError('Cannot delete the last remaining project in an organization')
+            for conn in WhatsAppConnection.objects.filter(project=p, provider='baileys'):
+                try:
+                    from .experimental import connector
+                    connector(conn, 'POST', '/disconnect', {})
+                except Exception:
+                    pass
+            Message.objects.filter(project=p).delete()
+            p.delete()
+            audit(request, 'platform.project.delete', target=pid)
+            return Response({'detail': f'Project {pid} deleted'})
+        if action == 'delete_connection':
+            cid = request.data.get('connection_id')
+            c = WhatsAppConnection.objects.get(pk=cid)
+            if c.provider == 'baileys':
+                try:
+                    from .experimental import connector
+                    connector(c, 'POST', '/disconnect', {})
+                except Exception:
+                    pass
+            c.message_set.all().delete()
+            ProviderCredential.objects.filter(connection=c).delete()
+            c.delete()
+            audit(request, 'platform.connection.delete', target=cid)
+            return Response({'detail': f'Connection {cid} deleted'})
         if request.data.get('key'):
             APIKey.objects.filter(pk=request.data['key']).update(revoked_at=timezone.now());audit(request,'platform.key.disable',target=request.data['key'])
         elif request.data.get('organization'):

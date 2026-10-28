@@ -366,3 +366,48 @@ def test_disable_experimental_otp_before_dispatch(env,settings):
     with patch('core.tasks.requests.post') as send:
         send_message(str(challenge.message_id));send.assert_not_called()
     challenge.message.refresh_from_db();assert challenge.message.status=='failed'
+
+def test_project_delete_and_lifecycle(env):
+    client,user,org,p,c,_=env
+    # Single project cannot be deleted
+    assert client.delete(f'/api/projects?project={p.id}').status_code==400
+    # Create second project
+    p2 = Project.objects.create(organization=org, name='Second Project', sandbox=True)
+    assert org.project_set.count() == 2
+    res = client.delete(f'/api/projects?project={p2.id}')
+    assert res.status_code == 200
+    assert not Project.objects.filter(pk=p2.id).exists()
+
+def test_api_key_revoke_and_delete(env):
+    client,_,_,p,_,_ = env
+    r = client.post(f'/api/v1/keys?project={p.id}', {'name': 'Test Key', 'scopes': ['messages:send']}, format='json')
+    assert r.status_code == 201
+    key_id = r.json()['id']
+    key = APIKey.objects.get(pk=key_id)
+    assert key.revoked_at is None
+
+    # Revoke key via POST
+    rev = client.post(f'/api/v1/keys/{key_id}/revoke?project={p.id}', {}, format='json')
+    assert rev.status_code == 200
+    key.refresh_from_db()
+    assert key.revoked_at is not None
+
+    # Hard delete key
+    dele = client.delete(f'/api/v1/keys/{key_id}?project={p.id}&hard=true')
+    assert dele.status_code == 204
+    assert not APIKey.objects.filter(pk=key_id).exists()
+
+def test_connection_delete_and_revoke(env):
+    client,_,_,p,_,_ = env
+    c2 = WhatsAppConnection.objects.create(project=p, name='Conn 2', provider='sandbox', status='CONNECTED')
+    # Revoke connection via action
+    rev = client.post(f'/api/v1/connections/{c2.id}/revoke?project={p.id}', {}, format='json')
+    assert rev.status_code == 200
+    c2.refresh_from_db()
+    assert c2.status == 'REVOKED'
+
+    # Hard delete connection
+    dele = client.delete(f'/api/v1/connections/{c2.id}?project={p.id}&hard=true')
+    assert dele.status_code == 204
+    assert not WhatsAppConnection.objects.filter(pk=c2.id).exists()
+
