@@ -36,36 +36,51 @@ export default function Home(){
    try{
      const query='?project='+project;
      const map:Record<string,string>={'Connections':'connections','API Keys':'keys','Inbox':'messages','Contacts':'contacts','Workflow Builder':'workflows','Webhooks':'webhooks','Templates':'templates'};
-     const [s,c]=await Promise.all([api('/api/overview'+query),api('/api/v1/connections'+query)]);
-     setStats(s);
-     setConnections(c.results || []);
-     if(map[page]){
-       const d=await api('/api/v1/'+map[page]+query);
-       setRows(d.results || []);
-     }else if(page==='Team Members'){
-       const d=await api('/api/team'+query);
-       setRows(d || []);
-     }else if(page==='Admin'){
-       const d=await api('/api/platform');
-       setResult(d);
-     }else{
-       setRows([]);
-     }
+     
+     // 1. Immediately fetch the current active page data so user sees records in milliseconds!
+     const pageTask = (async () => {
+       if(map[page]){
+         const d = await api('/api/v1/'+map[page]+query);
+         setRows(d.results || []);
+         if(page === 'Connections'){
+           setConnections(d.results || []);
+         }
+       }else if(page==='Team Members'){
+         const d = await api('/api/team'+query);
+         setRows(d || []);
+       }else if(page==='Admin'){
+         const d = await api('/api/platform');
+         setResult(d);
+       }else{
+         setRows([]);
+       }
+     })();
+
+     // 2. Fetch overview statistics ONLY on pages that actually render them
+     const needsStats = ['Overview','Analytics','Usage & Billing'].includes(page);
+     const statsTask = needsStats ? api('/api/overview'+query).then(s => setStats(s)).catch(()=>{}) : Promise.resolve();
+
+     // 3. Fetch connections only if not already loaded or on screens that configure them
+     const needsConn = connections.length === 0 || ['Overview','Workflow Builder','Send Message','API Keys'].includes(page);
+     const connTask = (needsConn && page !== 'Connections') ? api('/api/v1/connections'+query).then(c => setConnections(c.results || [])).catch(()=>{}) : Promise.resolve();
+
+     await Promise.all([pageTask, statsTask, connTask]);
    }finally{
      setBusy(false);
      setSyncing(false);
    }
- },[project,page,api]);
+ },[project,page,api,connections.length]);
  useEffect(()=>{setResult(null);setSearch('');refresh().catch(e=>setError(e.message))},[refresh]);
  useEffect(()=>{
    if(!project||!user)return;
    let stopped=false;
    let poll:ReturnType<typeof setInterval>|undefined;
+   let wsActive = false;
    const fallback=()=>{
-     if(!stopped&&!poll){
+     if(!stopped&&!poll&&!wsActive){
        poll=setInterval(()=>{
          if(document.visibilityState==='visible')refresh(true).catch(()=>{});
-       },8000);
+       },10000);
      }
    };
    let socket:WebSocket|null=null;
@@ -75,19 +90,24 @@ export default function Home(){
      const wsProto=(typeof window!=='undefined'&&window.location.protocol==='https:')||wsHost.includes('render.com')?'wss:':'ws:';
      const wsUrl=`${wsProto}//${wsHost}/ws/projects/${project}?uid=${user.id||''}`;
      socket=new WebSocket(wsUrl);
+     socket.onopen=()=>{
+       wsActive=true;
+       if(poll){ clearInterval(poll); poll=undefined; }
+     };
      socket.onmessage=e=>{
        try{
          refresh(true).catch(()=>{});
        }catch(err){}
      };
-     socket.onerror=fallback;
-     socket.onclose=fallback;
+     socket.onerror=()=>{ wsActive=false; fallback(); };
+     socket.onclose=()=>{ wsActive=false; fallback(); };
    }catch(err){
      fallback();
    }
+   // Gentle 15-second background sync to guarantee state consistency without overloading backend
    const bgPoll=setInterval(()=>{
      if(document.visibilityState==='visible')refresh(true).catch(()=>{});
-   },10000);
+   },15000);
    return()=>{
      stopped=true;
      if(poll)clearInterval(poll);

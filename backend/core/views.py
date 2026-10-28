@@ -139,7 +139,7 @@ class ConnectionViewSet(TenantViewSet):
             audit(self.request,'connection.revoke',instance.project.organization,instance.id)
 
 class MessageViewSet(TenantViewSet):
-    queryset=Message.objects.all();serializer_class=MessageSerializer;http_method_names=['get','post','head','options']
+    queryset=Message.objects.select_related('otpchallenge').all();serializer_class=MessageSerializer;http_method_names=['get','post','head','options']
     def project(self): return project_for(self.request,'messages:send' if self.request.method=='POST' else 'messages:read',write=self.request.method=='POST')
     def get_queryset(self):
         qs=super().get_queryset()
@@ -255,7 +255,7 @@ class KeyViewSet(TenantViewSet):
         })
 
 class ContactViewSet(TenantViewSet):
-    queryset=Contact.objects.all();serializer_class=ContactSerializer
+    queryset=Contact.objects.prefetch_related('consents').all();serializer_class=ContactSerializer
     def project(self): session_only(self.request);return super().project()
     def create(self,request,*args,**kwargs):
         project=self.project()

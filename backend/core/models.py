@@ -95,7 +95,7 @@ class Message(ProjectRecord):
     scheduled_at = models.DateTimeField(default=timezone.now,db_index=True)
     attempts = models.PositiveIntegerField(default=0)
     error = models.CharField(max_length=250,blank=True)
-    class Meta: constraints = [models.UniqueConstraint(fields=['project','idempotency_key'],name='message_idempotency')]
+    class Meta: constraints = [models.UniqueConstraint(fields=['project','idempotency_key'],name='message_idempotency')]; indexes = [models.Index(fields=['project','-created_at'])]
 
 class MessageEvent(Record):
     message = models.ForeignKey(Message,on_delete=models.CASCADE,related_name='events')
