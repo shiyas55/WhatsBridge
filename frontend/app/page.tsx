@@ -13,7 +13,9 @@ function Badge({children}:{children:React.ReactNode}){return <span className={'b
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
 function Empty({text='No records yet. Create your first one to get started.'}:{text?:string}){return <div className="empty"><MessageCircle size={30}/><h3>A clean slate</h3><p>{text}</p></div>}
 export default function Home(){
- const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null);
+ const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null),[createdKey,setCreatedKey]=useState<Row|null>(null),[selectedKey,setSelectedKey]=useState<Row|null>(null),[copiedText,setCopiedText]=useState(''),[testPhone,setTestPhone]=useState('+919567334117'),[testBody,setTestBody]=useState('Hello from WhatsBridge API! 👋'),[testKeyInput,setTestKeyInput]=useState(''),[testRunning,setTestRunning]=useState(false),[testResult,setTestResult]=useState<any>(null);
+ const copyText=(txt:string,label:string)=>{try{navigator.clipboard.writeText(txt)}catch(e){const el=document.createElement('textarea');el.value=txt;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}setCopiedText(label);setTimeout(()=>setCopiedText(''),2500);};
+ const runApiTest=async(apiKeySecret:string,connectionId?:string)=>{setTestRunning(true);setTestResult(null);try{const conn=connectionId||connections.find(c=>c.status==='CONNECTED')?.id||connections[0]?.id;const res=await fetch('/api/v1/messages?project='+project,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKeySecret.trim(),'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({...(conn?{connection:conn}:{}),phone:testPhone,kind:'text',payload:{body:testBody}})});const data=await res.json();if(!res.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));setTestResult(data);setNotice('Test message successfully sent via API key!');await refresh();}catch(err:any){setTestResult({error:err.message});}finally{setTestRunning(false);}};
  const active=projects.find(p=>p.id===project);
  const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=r.status===204?null:await r.json();if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
  const act=async(fn:()=>Promise<void>)=>{setError('');try{await fn()}catch(e){setError((e as Error).message)}};
@@ -99,7 +101,160 @@ await whatsbridge.messages.create({
                   <button className="card project-card" onClick={() => setModal('organization')}><Plus /><h2>New organization</h2><p>Create a separate workspace and team.</p></button>
                 </div>
               )}
-              {['Connections', 'API Keys', 'Inbox', 'Contacts', 'Team Members'].includes(page) && <section className="card"><div className="table-tools"><h2>{page === 'Inbox' ? 'Conversation activity' : page}</h2><div className="search"><Search size={16} /><input aria-label="Search records" placeholder="Search records…" value={search} onChange={e => setSearch(e.target.value)} /></div></div>{busy ? <p className="loading">Loading records…</p> : !filtered.length ? <Empty /> : <div className="table-scroll"><table><thead><tr><th>{page === 'Inbox' ? 'Recipient' : 'Name'}</th><th>Details</th><th>Status / role</th><th>Actions</th></tr></thead><tbody>{filtered.map(r => <tr key={r.id}><td><strong>{r.name || r.phone || r.user__email}</strong><small>{r.id}</small></td><td>{r.language || r.provider || r.prefix || r.direction || r.phone || 'Team member'}{page === 'Inbox' && <small>{r.payload?.body || r.kind}</small>}</td><td><Badge>{r.status || r.role || (page === 'API Keys' ? (r.revoked_at ? 'revoked' : 'active') : page === 'Contacts' ? (r.consent?.[0]?.granted ? 'consent recorded' : 'no consent') : 'enabled')}</Badge></td><td><div className="row-actions">{page === 'Connections' && <>{r.provider === 'baileys' && <button onClick={() => { setSelected(r); setModal('qr') }}>Show QR / status</button>}<button onClick={() => { setSelected(r); setModal('onboard') }} disabled={r.provider !== 'meta'}>Onboard</button><button onClick={() => r.provider === 'baileys' && r.status !== 'CONNECTED' ? (setSelected(r), setModal('qr')) : act(() => mutate('/api/v1/connections/' + r.id + '/' + (r.status === 'CONNECTED' ? 'disconnect' : 'reconnect'), {}))}>{r.status === 'CONNECTED' ? 'Disconnect' : 'Reconnect'}</button>{r.status !== 'REVOKED' && <button onClick={() => { if (confirm(`Revoke connection "${r.name}"? Credentials will be erased.`)) act(() => mutate('/api/v1/connections/' + r.id + '/revoke', {})); }}>Revoke</button>}<button style={{color:'var(--red, #ef4444)'}} onClick={() => { if (confirm(`Permanently delete connection "${r.name}"?`)) act(() => mutate('/api/v1/connections/' + r.id + '?hard=true', {}, 'DELETE')); }}>Delete</button></>}{page === 'API Keys' && <><button disabled={!!r.revoked_at} onClick={() => act(async () => { setResult(await api('/api/v1/keys/' + r.id + '/rotate?project=' + project, 'POST', { project })); await refresh() })}>Rotate</button><button disabled={!!r.revoked_at} onClick={() => { if (confirm(`Revoke API key "${r.name}"? It will no longer authenticate requests.`)) act(() => mutate('/api/v1/keys/' + r.id + '/revoke', {})); }}>Revoke</button><button style={{color:'var(--red, #ef4444)'}} onClick={() => { if (confirm(`Permanently delete API key "${r.name}"?`)) act(() => mutate('/api/v1/keys/' + r.id + '?hard=true', {}, 'DELETE')); }}>Delete</button></>}{page === 'Contacts' && <button onClick={() => { setSelected(r); setModal('consent') }}>Consent</button>}{page === 'Team Members' && r.role !== 'owner' && <button onClick={() => act(() => mutate('/api/team', { membership: r.id }, 'DELETE'))}>Remove</button>}{page === 'Inbox' && <button onClick={() => setResult(r)}>Inspect</button>}</div></td></tr>)}</tbody></table></div>}<p className="fine">Showing up to 50 records. The REST API supports pagination.</p></section>}
+              {['Connections', 'API Keys', 'Inbox', 'Contacts', 'Team Members'].includes(page) && (
+                <section className="card">
+                  {page === 'API Keys' && (
+                    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',background:'var(--pale)',padding:'12px 18px',borderRadius:'10px',marginBottom:'16px',border:'1px solid var(--border)'}}>
+                      <div style={{display:'flex',alignItems:'center',gap:'10px'}}>
+                        <KeyRound size={20} color="var(--green)" />
+                        <div>
+                          <strong style={{fontSize:'13px'}}>Ready to integrate with your stack or AI agent?</strong>
+                          <p className="muted" style={{fontSize:'12px',margin:0}}>
+                            Every API key works directly with cURL, Python, Node.js, and WhatsApp dispatch.
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{display:'flex',gap:'8px'}}>
+                        <button className="text-button" onClick={() => setPage('API Documentation')} style={{fontSize:'12px'}}>
+                          Code Snippets <ArrowRight size={13} />
+                        </button>
+                        <button className="primary" onClick={() => { setTestKeyInput(''); setTestResult(null); setModal('test-key'); }} style={{fontSize:'12px',padding:'6px 14px'}}>
+                          <Play size={13} /> Live Test API Key
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  <div className="table-tools">
+                    <h2>{page === 'Inbox' ? 'Conversation activity' : page}</h2>
+                    <div className="search">
+                      <Search size={16} />
+                      <input aria-label="Search records" placeholder="Search records…" value={search} onChange={e => setSearch(e.target.value)} />
+                    </div>
+                  </div>
+                  {busy ? <p className="loading">Loading records…</p> : !filtered.length ? <Empty /> : (
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>{page === 'Inbox' ? 'Recipient' : 'Name'}</th>
+                            <th>Details</th>
+                            <th>Status / role</th>
+                            <th>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {filtered.map(r => (
+                            <tr key={r.id}>
+                              <td>
+                                <strong>{r.name || r.phone || r.user__email}</strong>
+                                <small>{r.id}</small>
+                              </td>
+                              <td>
+                                {page === 'API Keys' ? (
+                                  <div style={{display:'flex',flexDirection:'column',gap:'4px'}}>
+                                    <span style={{display:'inline-flex',alignItems:'center',gap:'6px'}}>
+                                      <code>{r.prefix}…</code>
+                                      <button
+                                        type="button"
+                                        className="text-button"
+                                        style={{padding:'2px 4px'}}
+                                        title="Copy Key Prefix"
+                                        onClick={() => copyText(r.prefix, 'pref-' + r.id)}
+                                      >
+                                        {copiedText === 'pref-' + r.id ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
+                                      </button>
+                                    </span>
+                                    <small style={{color:'var(--muted)'}}>Bearer Authentication</small>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {r.language || r.provider || r.prefix || r.direction || r.phone || 'Team member'}
+                                    {page === 'Inbox' && <small>{r.payload?.body || r.kind}</small>}
+                                  </>
+                                )}
+                              </td>
+                              <td>
+                                <Badge>{r.status || r.role || (page === 'API Keys' ? (r.revoked_at ? 'revoked' : 'active') : page === 'Contacts' ? (r.consent?.[0]?.granted ? 'consent recorded' : 'no consent') : 'enabled')}</Badge>
+                              </td>
+                              <td>
+                                <div className="row-actions">
+                                  {page === 'Connections' && (
+                                    <>
+                                      {r.provider === 'baileys' && <button onClick={() => { setSelected(r); setModal('qr') }}>Show QR / status</button>}
+                                      <button onClick={() => { setSelected(r); setModal('onboard') }} disabled={r.provider !== 'meta'}>Onboard</button>
+                                      <button onClick={() => r.provider === 'baileys' && r.status !== 'CONNECTED' ? (setSelected(r), setModal('qr')) : act(() => mutate('/api/v1/connections/' + r.id + '/' + (r.status === 'CONNECTED' ? 'disconnect' : 'reconnect'), {}))}>
+                                        {r.status === 'CONNECTED' ? 'Disconnect' : 'Reconnect'}
+                                      </button>
+                                      {r.status !== 'REVOKED' && (
+                                        <button onClick={() => { if (confirm(`Revoke connection "${r.name}"? Credentials will be erased.`)) act(() => mutate('/api/v1/connections/' + r.id + '/revoke', {})); }}>
+                                          Revoke
+                                        </button>
+                                      )}
+                                      <button style={{color:'var(--red, #ef4444)'}} onClick={() => { if (confirm(`Permanently delete connection "${r.name}"?`)) act(() => mutate('/api/v1/connections/' + r.id + '?hard=true', {}, 'DELETE')); }}>
+                                        Delete
+                                      </button>
+                                    </>
+                                  )}
+                                  {page === 'API Keys' && (
+                                    <>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedKey(r);
+                                          setTestKeyInput('');
+                                          setTestResult(null);
+                                          setModal('test-key');
+                                        }}
+                                      >
+                                        <Play size={12} style={{marginRight:'3px'}} /> Test API
+                                      </button>
+                                      <button
+                                        disabled={!!r.revoked_at}
+                                        onClick={() => act(async () => {
+                                          const res = await api('/api/v1/keys/' + r.id + '/rotate?project=' + project, 'POST', { project });
+                                          await refresh();
+                                          setCreatedKey(res);
+                                          setModal('created-key');
+                                        })}
+                                      >
+                                        Rotate
+                                      </button>
+                                      <button
+                                        disabled={!!r.revoked_at}
+                                        onClick={() => {
+                                          if (confirm(`Revoke API key "${r.name}"? It will no longer authenticate requests.`)) {
+                                            act(() => mutate('/api/v1/keys/' + r.id + '/revoke', {}));
+                                          }
+                                        }}
+                                      >
+                                        Revoke
+                                      </button>
+                                      <button
+                                        style={{color:'var(--red, #ef4444)'}}
+                                        onClick={() => {
+                                          if (confirm(`Permanently delete API key "${r.name}"?`)) {
+                                            act(() => mutate('/api/v1/keys/' + r.id + '?hard=true', {}, 'DELETE'));
+                                          }
+                                        }}
+                                      >
+                                        Delete
+                                      </button>
+                                    </>
+                                  )}
+                                  {page === 'Contacts' && <button onClick={() => { setSelected(r); setModal('consent') }}>Consent</button>}
+                                  {page === 'Team Members' && r.role !== 'owner' && <button onClick={() => act(() => mutate('/api/team', { membership: r.id }, 'DELETE'))}>Remove</button>}
+                                  {page === 'Inbox' && <button onClick={() => setResult(r)}>Inspect</button>}
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  <p className="fine">Showing up to 50 records. The REST API supports pagination.</p>
+                </section>
+              )}
               {page === 'Send Message' && <section className="card narrow"><h2>Create a message</h2><p className="muted">Send a text message directly through your connected WhatsApp or sandbox transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phone', label: 'Recipient · E.164', value: '+15551234567' }, { name: 'body', label: 'Message', type: 'textarea', value: 'Hello from WhatsBridge 👋' }]} label="Queue message" submit={d => act(async () => { const r = await api('/api/v1/messages?project=' + project, 'POST', { project, connection: d.connection, phone: d.phone, kind: 'text', payload: { body: d.body } }, { 'Idempotency-Key': crypto.randomUUID() }); setResult(r); setNotice('Message dispatched successfully! Check Inbox for delivery.'); await refresh() })} /><p className="fine">Use the API Playground for templates, media, and scheduled messages.</p></section>}
               {page === 'Bulk Messaging' && <section className="card narrow"><h2>Bulk Broadcast Messaging</h2><p className="muted">Broadcast WhatsApp messages to multiple recipients at once. Messages are automatically scheduled with a safe 5-second interval to avoid anti-spam limits.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phones', label: 'Recipient Numbers (one per line or comma-separated E.164, e.g. +15551234567)', type: 'textarea', value: '+15551234567\n+15559876543' }, { name: 'body', label: 'Message Body', type: 'textarea', value: 'Hello! This is a message from WhatsBridge.' }]} label="Dispatch Bulk Campaign" submit={d => act(async () => { const r = await api('/api/v1/messages/bulk?project=' + project, 'POST', { project, connection: d.connection, phones: d.phones, body: d.body }); setResult(r); setNotice(`Bulk campaign queued for ${r.total} recipient(s)!`); await refresh() })} /><p className="fine">Works directly with your linked WhatsApp account or official provider.</p></section>}
               {page === 'OTP Verification' && <div className="two-col"><section className="card"><h2>1. Create a challenge</h2><p className="muted">Generate and deliver a real 6-digit verification code directly to WhatsApp via your connected transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connections.filter(c=>c.status==='CONNECTED').map(c=>({value:c.id,label:c.name + (c.provider==='baileys'?' · WhatsApp QR':c.provider==='meta'?' · Meta API':' · Sandbox')})) }, { name: 'phone', label: 'Phone number (e.g. +919567334117)', value: '+91' }, { name: 'template', label: 'Meta Template Name (only required for official Meta API; leave blank for WhatsApp QR)', required: false }]} label="Send OTP" submit={d => act(async () => { const r = await api('/api/v1/otp/send?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('Verification code dispatched to WhatsApp! Enter it below.'); })} /></section><section className="card"><h2>2. Verify the code</h2><Form key={result?.challenge_id} fields={[{ name: 'challenge_id', label: 'Challenge ID', value: result?.challenge_id }, { name: 'code', label: 'Six-digit code' }]} label="Verify code" submit={d => act(async () => { const r = await api('/api/v1/otp/verify?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('OTP verified successfully!'); })} /></section></div>}
@@ -526,12 +681,296 @@ await whatsbridge.messages.create({
  </>}
  <footer className="footer"><span>WhatsBridge <span>·</span> Production Platform</span><span><i/> Production transport · provider rules apply</span></footer></main></div>
  </div>
- {modal&&<Modal onClose={()=>setModal('')} title={modal==='qr'?'Link your WhatsApp':modal==='key'?'Create an API key':modal==='onboard'?'Official Meta onboarding':modal==='consent'?'Record recipient consent':modal==='connection'?'Add connection':modal==='project'?'Create project':'Create '+modal} description={modal==='qr'?'Connect your phone by scanning the QR code below.':modal==='connection'?'Choose a messaging transport for this project.':modal==='project'?'Set up an isolated environment for your application.':undefined}>
+ {modal&&<Modal onClose={()=>setModal('')} title={modal==='qr'?'Link your WhatsApp':modal==='key'?'Create an API key':modal==='created-key'?'API Key Created · Live & Ready':modal==='test-key'?'Live WhatsApp API Tester':modal==='onboard'?'Official Meta onboarding':modal==='consent'?'Record recipient consent':modal==='connection'?'Add connection':modal==='project'?'Create project':'Create '+modal} description={modal==='qr'?'Connect your phone by scanning the QR code below.':modal==='key'?'Generate a scoped API key linked to your WhatsApp transport.':modal==='created-key'?'Copy your secret key now. It is shown once and cannot be retrieved later.':modal==='test-key'?'Send a live test message using your Bearer API key.':modal==='connection'?'Choose a messaging transport for this project.':modal==='project'?'Set up an isolated environment for your application.':undefined}>
  {modal==='qr'&&(selected ? <QRPairing connection={selected as any} api={api} onConnected={()=>{setNotice('WhatsApp linked. You can now send consented text messages.');refresh().catch(e=>setError(e.message))}}/> : <div style={{padding:'40px 20px',textAlign:'center',color:'var(--muted)'}}>Preparing WhatsApp connection session…</div>)}
  {modal==='project'&&(()=>{const prodOrg=orgs.find(o=>o.organization__name==='WhatsBridge Production')||orgs[0];const orgOptions=orgs.length?orgs.map(o=>({value:o.organization_id,label:o.organization__name})):[{value:prodOrg?.organization_id||'',label:'WhatsBridge Production'}];return <Form fields={[{name:'name',label:'Project name',value:'WhatsApp Production'},{name:'organization',label:'Organization',options:orgOptions,value:prodOrg?.organization_id}]} label="Create Live Project" submit={d=>act(async()=>{const orgId=d.organization||prodOrg?.organization_id;await api('/api/projects','POST',{name:d.name,organization:orgId,sandbox:false});await refreshProjects();setModal('');setNotice(`Project "${d.name}" created successfully.`);})}/>})()}
  {modal==='organization'&&<Form fields={[{name:'name',label:'Organization name'}]} submit={d=>act(async()=>{await api('/api/organizations','POST',d);await refreshProjects();setModal('')})}/>}
  {modal==='connection'&&<Form fields={fieldsForConnection} label="Connect" submit={d=>act(async()=>{const c=await api('/api/v1/connections?project='+project,'POST',{...d,project});await refresh();if(c.provider==='baileys'){setSelected(c);setModal('qr');}else setModal('');})}/>}
- {modal==='key'&&<Form fields={[{name:'name',label:'Key name',value:'Production API Key'},{name:'scopes',label:'Permissions',options:[{value:'messages:send,messages:read,connections:read,otp:send,otp:verify',label:'Full Access · Send & Read Messages, Connections (Recommended)'},{value:'messages:send,connections:read',label:'Send Messages Only'},{value:'messages:read,connections:read',label:'Read-Only Access'}]},{name:'expires',label:'Expiration',options:[{value:'never',label:'Never expires (Recommended)'},{value:'30d',label:'30 days'},{value:'90d',label:'90 days'},{value:'1y',label:'1 year'}]}]} label="Create Key" submit={d=>act(async()=>{let expires_at:string|undefined=undefined;if(d.expires==='30d'){const dt=new Date();dt.setDate(dt.getDate()+30);expires_at=dt.toISOString();}else if(d.expires==='90d'){const dt=new Date();dt.setDate(dt.getDate()+90);expires_at=dt.toISOString();}else if(d.expires==='1y'){const dt=new Date();dt.setFullYear(dt.getFullYear()+1);expires_at=dt.toISOString();}const body={name:d.name,scopes:d.scopes.split(',').map((s:string)=>s.trim()),...(expires_at?{expires_at}:{})};const r=await api('/api/v1/keys?project='+project,'POST',{...body,project});await refresh();setResult(r);setModal('');})}/>}
+ {modal==='key'&&(()=>{
+  const connOpts = connections.length
+    ? connections.map(c => ({
+        value: c.id,
+        label: `${c.name} (${c.status === 'CONNECTED' ? '🟢 Connected' : c.status})`
+      }))
+    : [{ value: '', label: 'Default (Auto-select active connection)' }];
+  const defaultConn = connections.find(c => c.status === 'CONNECTED')?.id || connections[0]?.id || '';
+  return (
+    <Form
+      fields={[
+        { name: 'name', label: 'Key name', value: 'Production API Key' },
+        {
+          name: 'connection',
+          label: 'Linked WhatsApp Connection',
+          options: connOpts,
+          value: defaultConn
+        },
+        {
+          name: 'scopes',
+          label: 'Permissions',
+          options: [
+            { value: 'messages:send,messages:read,connections:read,otp:send,otp:verify', label: 'Full Access · Send & Read Messages, Connections (Recommended)' },
+            { value: 'messages:send,connections:read', label: 'Send Messages Only' },
+            { value: 'messages:read,connections:read', label: 'Read-Only Access' }
+          ]
+        },
+        {
+          name: 'expires',
+          label: 'Expiration',
+          options: [
+            { value: 'never', label: 'Never expires (Recommended)' },
+            { value: '30d', label: '30 days' },
+            { value: '90d', label: '90 days' },
+            { value: '1y', label: '1 year' }
+          ]
+        }
+      ]}
+      label="Create Key"
+      submit={d => act(async () => {
+        let expires_at: string | undefined = undefined;
+        if (d.expires === '30d') {
+          const dt = new Date(); dt.setDate(dt.getDate() + 30); expires_at = dt.toISOString();
+        } else if (d.expires === '90d') {
+          const dt = new Date(); dt.setDate(dt.getDate() + 90); expires_at = dt.toISOString();
+        } else if (d.expires === '1y') {
+          const dt = new Date(); dt.setFullYear(dt.getFullYear() + 1); expires_at = dt.toISOString();
+        }
+        const body = {
+          name: d.name,
+          scopes: d.scopes.split(',').map((s: string) => s.trim()),
+          ...(expires_at ? { expires_at } : {})
+        };
+        const r = await api('/api/v1/keys?project=' + project, 'POST', { ...body, project });
+        await refresh();
+        const linkedConn = connections.find(c => c.id === d.connection) || connections.find(c => c.status === 'CONNECTED') || connections[0];
+        setCreatedKey({
+          ...r,
+          connection_id: linkedConn?.id || r.connection_id,
+          connection_name: linkedConn?.name || r.connection_name,
+        });
+        setTestResult(null);
+        setModal('created-key');
+      })}
+    />
+  );
+})()}
+{modal==='created-key'&&createdKey&&(
+  <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+    <div style={{background:'rgba(16,185,129,0.1)',border:'1px solid rgba(16,185,129,0.3)',borderRadius:'8px',padding:'12px 14px',display:'flex',alignItems:'center',gap:'10px'}}>
+      <Check size={20} color="var(--green)" style={{flexShrink:0}}/>
+      <div>
+        <strong style={{color:'var(--text)',fontSize:'13px'}}>API key generated successfully!</strong>
+        <p style={{margin:0,fontSize:'12px',color:'var(--muted)'}}>Copy your API key now. For your security, the secret cannot be displayed again after closing this window.</p>
+      </div>
+    </div>
+
+    <div>
+      <label style={{fontSize:'12px',fontWeight:600,color:'var(--muted)',display:'block',marginBottom:'6px'}}>API SECRET KEY</label>
+      <div style={{display:'flex',gap:'8px'}}>
+        <input
+          readOnly
+          type="text"
+          value={createdKey.secret || ''}
+          style={{fontFamily:'monospace',fontSize:'13px',fontWeight:600,background:'var(--bg-muted,#18181b)',color:'var(--accent,#22c55e)',border:'1px solid var(--border)',borderRadius:'6px',padding:'10px 12px',flex:1}}
+        />
+        <button
+          type="button"
+          className="primary"
+          style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'10px 16px',whiteSpace:'nowrap'}}
+          onClick={() => copyText(createdKey.secret, 'secret-btn')}
+        >
+          {copiedText === 'secret-btn' ? <><Check size={16}/> Copied!</> : <><Copy size={16}/> Copy Key</>}
+        </button>
+      </div>
+    </div>
+
+    {createdKey.connection_id && (
+      <div>
+        <label style={{fontSize:'12px',fontWeight:600,color:'var(--muted)',display:'block',marginBottom:'6px'}}>LINKED WHATSAPP CONNECTION</label>
+        <div style={{display:'flex',gap:'8px',alignItems:'center'}}>
+          <div style={{background:'var(--bg-muted,#18181b)',border:'1px solid var(--border)',borderRadius:'6px',padding:'8px 12px',flex:1,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <span style={{fontSize:'13px',fontWeight:500}}>{createdKey.connection_name || 'Active WhatsApp Transport'}</span>
+            <code style={{fontSize:'11px',color:'var(--muted)'}}>{createdKey.connection_id}</code>
+          </div>
+          <button
+            type="button"
+            style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'8px 12px',whiteSpace:'nowrap'}}
+            onClick={() => copyText(createdKey.connection_id, 'conn-btn')}
+          >
+            {copiedText === 'conn-btn' ? <><Check size={14}/> Copied!</> : <><Copy size={14}/> Copy ID</>}
+          </button>
+        </div>
+      </div>
+    )}
+
+    <div style={{background:'rgba(255,255,255,0.03)',border:'1px solid var(--border)',borderRadius:'8px',padding:'16px'}}>
+      <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:'12px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:'8px'}}>
+          <Play size={16} color="var(--accent,#22c55e)"/>
+          <strong style={{fontSize:'14px'}}>Test Full API Dispatch Now</strong>
+        </div>
+        <span style={{fontSize:'11px',color:'var(--muted)'}}>Sends real live WhatsApp message</span>
+      </div>
+
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px',marginBottom:'10px'}}>
+        <div>
+          <label style={{fontSize:'11px',color:'var(--muted)',display:'block',marginBottom:'4px'}}>Recipient Phone (+country code)</label>
+          <input
+            type="tel"
+            value={testPhone}
+            onChange={e => setTestPhone(e.target.value)}
+            placeholder="+919567334117"
+            style={{width:'100%',padding:'8px 10px',borderRadius:'6px',border:'1px solid var(--border)',fontSize:'13px'}}
+          />
+        </div>
+        <div>
+          <label style={{fontSize:'11px',color:'var(--muted)',display:'block',marginBottom:'4px'}}>Message Text</label>
+          <input
+            type="text"
+            value={testBody}
+            onChange={e => setTestBody(e.target.value)}
+            placeholder="Hello from WhatsBridge API!"
+            style={{width:'100%',padding:'8px 10px',borderRadius:'6px',border:'1px solid var(--border)',fontSize:'13px'}}
+          />
+        </div>
+      </div>
+
+      <button
+        type="button"
+        className="primary"
+        disabled={testRunning}
+        style={{width:'100%',padding:'10px',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}
+        onClick={() => runApiTest(createdKey.secret, createdKey.connection_id)}
+      >
+        <Send size={15}/> {testRunning ? 'Dispatching to WhatsApp...' : 'Send Test Message via API'}
+      </button>
+
+      {testResult && (
+        <div style={{marginTop:'12px',padding:'10px 12px',borderRadius:'6px',fontSize:'12px',background:testResult.error?'rgba(239,68,68,0.1)':'rgba(16,185,129,0.1)',border:`1px solid ${testResult.error?'rgba(239,68,68,0.3)':'rgba(16,185,129,0.3)'}`,color:testResult.error?'var(--red,#ef4444)':'var(--green,#10b981)'}}>
+          {testResult.error ? (
+            <div><strong>Dispatch Error:</strong> {testResult.error}</div>
+          ) : (
+            <div>
+              <strong>✓ API Success:</strong> Message queued successfully! ID: <code>{testResult.id || testResult.result?.id}</code> · Status: <code>{testResult.status || 'QUEUED'}</code>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+
+    <div>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'6px'}}>
+        <label style={{fontSize:'12px',fontWeight:600,color:'var(--muted)'}}>cURL COMMAND</label>
+        <button
+          type="button"
+          className="text-button"
+          style={{fontSize:'12px'}}
+          onClick={() => {
+            const cmd = `curl -X POST https://whats-bridge.vercel.app/api/v1/messages?project=${project} \\\n  -H "Authorization: Bearer ${createdKey.secret}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"phone": "${testPhone}", "kind": "text", "payload": {"body": "Hello from WhatsBridge API!"}${createdKey.connection_id ? `, "connection": "${createdKey.connection_id}"` : ''}}'`;
+            copyText(cmd, 'curl-btn');
+          }}
+        >
+          {copiedText === 'curl-btn' ? 'Copied!' : 'Copy cURL'}
+        </button>
+      </div>
+      <pre style={{fontSize:'11px',padding:'10px',overflowX:'auto',borderRadius:'6px',background:'var(--bg-muted,#18181b)',color:'var(--text)',border:'1px solid var(--border)'}}>
+{`curl -X POST https://whats-bridge.vercel.app/api/v1/messages?project=${project} \\
+  -H "Authorization: Bearer ${createdKey.secret}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"phone": "${testPhone}", "kind": "text", "payload": {"body": "Hello from WhatsBridge API!"}${createdKey.connection_id ? `, "connection": "${createdKey.connection_id}"` : ''}}'`}
+      </pre>
+    </div>
+
+    <div style={{display:'flex',justifyContent:'flex-end',gap:'10px',marginTop:'10px'}}>
+      <button type="button" className="primary" onClick={() => { setCreatedKey(null); setModal(''); }}>
+        I have copied my key · Done
+      </button>
+    </div>
+  </div>
+)}
+{modal==='test-key'&&(
+  <div style={{display:'flex',flexDirection:'column',gap:'16px'}}>
+    <p style={{fontSize:'13px',color:'var(--muted)',margin:0}}>
+      Test live WhatsApp message delivery using your API Key for project <strong>{active?.name || project}</strong>.
+    </p>
+
+    <div>
+      <label style={{fontSize:'12px',fontWeight:600,color:'var(--muted)',display:'block',marginBottom:'6px'}}>API KEY SECRET</label>
+      <input
+        type="password"
+        placeholder="wb_live_..."
+        value={testKeyInput}
+        onChange={e => setTestKeyInput(e.target.value)}
+        style={{width:'100%',fontFamily:'monospace',fontSize:'13px',padding:'10px 12px',borderRadius:'6px',border:'1px solid var(--border)'}}
+      />
+      <small style={{color:'var(--muted)',fontSize:'11px',marginTop:'4px',display:'block'}}>
+        Enter the secret key for prefix <code>{selectedKey?.prefix || 'wb_...'}</code>
+      </small>
+    </div>
+
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'10px'}}>
+      <div>
+        <label style={{fontSize:'11px',color:'var(--muted)',display:'block',marginBottom:'4px'}}>Recipient Phone</label>
+        <input
+          type="tel"
+          value={testPhone}
+          onChange={e => setTestPhone(e.target.value)}
+          placeholder="+919567334117"
+          style={{width:'100%',padding:'8px 10px',borderRadius:'6px',border:'1px solid var(--border)',fontSize:'13px'}}
+        />
+      </div>
+      <div>
+        <label style={{fontSize:'11px',color:'var(--muted)',display:'block',marginBottom:'4px'}}>WhatsApp Connection</label>
+        <select
+          value={selectedKey?.connection_id || ''}
+          onChange={e => setSelectedKey(prev => prev ? ({ ...prev, connection_id: e.target.value }) : null)}
+          style={{width:'100%',padding:'8px 10px',borderRadius:'6px',border:'1px solid var(--border)',fontSize:'13px'}}
+        >
+          {connections.map(c => (
+            <option key={c.id} value={c.id}>{c.name} ({c.status})</option>
+          ))}
+          {connections.length === 0 && <option value="">Auto-select connected transport</option>}
+        </select>
+      </div>
+    </div>
+
+    <div>
+      <label style={{fontSize:'11px',color:'var(--muted)',display:'block',marginBottom:'4px'}}>Message Body</label>
+      <input
+        type="text"
+        value={testBody}
+        onChange={e => setTestBody(e.target.value)}
+        placeholder="Hello from WhatsBridge API!"
+        style={{width:'100%',padding:'8px 10px',borderRadius:'6px',border:'1px solid var(--border)',fontSize:'13px'}}
+      />
+    </div>
+
+    <button
+      type="button"
+      className="primary"
+      disabled={testRunning || !testKeyInput.trim()}
+      style={{padding:'10px',display:'flex',alignItems:'center',justifyContent:'center',gap:'8px'}}
+      onClick={() => runApiTest(testKeyInput, selectedKey?.connection_id)}
+    >
+      <Send size={15}/> {testRunning ? 'Sending...' : 'Send Live Test Message'}
+    </button>
+
+    {testResult && (
+      <div style={{padding:'10px 12px',borderRadius:'6px',fontSize:'12px',background:testResult.error?'rgba(239,68,68,0.1)':'rgba(16,185,129,0.1)',border:`1px solid ${testResult.error?'rgba(239,68,68,0.3)':'rgba(16,185,129,0.3)'}`,color:testResult.error?'var(--red,#ef4444)':'var(--green,#10b981)'}}>
+        {testResult.error ? (
+          <div><strong>Test Failed:</strong> {testResult.error}</div>
+        ) : (
+          <div>
+            <strong>✓ Message Dispatched:</strong> ID: <code>{testResult.id || testResult.result?.id}</code> · Status: <code>{testResult.status || 'QUEUED'}</code>
+          </div>
+        )}
+      </div>
+    )}
+
+    <div style={{display:'flex',justifyContent:'flex-end'}}>
+      <button type="button" onClick={() => setModal('')}>Close</button>
+    </div>
+  </div>
+)}
  {modal==='template'&&<Form fields={[{name:'name',label:'Template name (lowercase and underscores)'},{name:'language',label:'Language',value:'en_US'},{name:'category',label:'Category',options:['utility','authentication','marketing'].map(v=>({value:v,label:v}))},{name:'components',label:'Meta components JSON',type:'textarea',value:'[]'}]} submit={d=>act(()=>mutate('/api/v1/templates',{...d,components:JSON.parse(d.components)}))}><p className="fine">Saved as a local draft. This does not submit to Meta or confer provider approval.</p></Form>}
  {modal==='contact'&&<Form fields={[{name:'name',label:'Contact name',value:'Customer'},{name:'phone',label:'Phone number (e.g. +919567334117)',value:'+91'}]} label="Add contact" submit={d=>act(()=>mutate('/api/v1/contacts',d))}/>}
  {modal==='consent'&&<Form fields={[{name:'purpose',label:'Purpose',options:[{value:'messaging',label:'Messaging'},{value:'otp',label:'Verification OTP'}]},{name:'granted',label:'Permission',options:[{value:'true',label:'Granted'},{value:'false',label:'Revoked'}]},{name:'basis',label:'Source / evidence of authorization',type:'textarea'}]} submit={d=>act(()=>mutate('/api/v1/contacts/'+selected?.id+'/consent',{...d,granted:d.granted==='true'}))}/>}

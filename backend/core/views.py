@@ -218,7 +218,13 @@ class KeyViewSet(TenantViewSet):
         secret=('wb_test_' if project.sandbox else 'wb_live_')+secrets.token_urlsafe(32)
         key=serializer.save(project=project,prefix=secret[:16],digest=digest(secret))
         audit(request,'apikey.create',project.organization,key.id)
-        return Response({**self.get_serializer(key).data,'secret':secret},status=201)
+        conn = WhatsAppConnection.objects.filter(project=project, status='CONNECTED').first()
+        return Response({
+            **self.get_serializer(key).data,
+            'secret': secret,
+            'connection_id': str(conn.id) if conn else None,
+            'connection_name': conn.name if conn else None,
+        }, status=201)
     def perform_destroy(self,instance):
         hard = self.request.query_params.get('hard') in ('true', '1') or self.request.data.get('hard') is True
         if hard or (instance.revoked_at is not None and not self.request.query_params.get('revoke_only')):
@@ -240,7 +246,13 @@ class KeyViewSet(TenantViewSet):
         with transaction.atomic():
             self.perform_destroy(key)
             new=APIKey.objects.create(project=key.project,name=key.name,scopes=key.scopes,ip_allowlist=key.ip_allowlist,expires_at=key.expires_at,prefix=secret[:16],digest=digest(secret))
-        return Response({**self.get_serializer(new).data,'secret':secret})
+        conn = WhatsAppConnection.objects.filter(project=key.project, status='CONNECTED').first()
+        return Response({
+            **self.get_serializer(new).data,
+            'secret': secret,
+            'connection_id': str(conn.id) if conn else None,
+            'connection_name': conn.name if conn else None,
+        })
 
 class ContactViewSet(TenantViewSet):
     queryset=Contact.objects.all();serializer_class=ContactSerializer

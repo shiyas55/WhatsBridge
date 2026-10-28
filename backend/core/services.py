@@ -72,8 +72,13 @@ def queue_message(project, data, key, otp=False):
     if existing:
         if existing.request_digest != request_digest: raise ValidationError('Idempotency key reused with different request data')
         return existing, False
-    try: connection = WhatsAppConnection.objects.get(pk=data.get('connection'),project=project,status='CONNECTED')
-    except (WhatsAppConnection.DoesNotExist,ValueError): raise ValidationError('Connected transport in this project required')
+    conn_id = data.get('connection')
+    if conn_id:
+        try: connection = WhatsAppConnection.objects.get(pk=conn_id,project=project,status='CONNECTED')
+        except (WhatsAppConnection.DoesNotExist,ValueError): raise ValidationError('Connected transport in this project required')
+    else:
+        connection = WhatsAppConnection.objects.filter(project=project,status='CONNECTED').first()
+        if not connection: raise ValidationError('No active connected transport in this project. Link WhatsApp QR or Meta first.')
     if connection.provider=='baileys':
         from django.conf import settings
         if not settings.BAILEYS_ENABLED or (otp and not settings.BAILEYS_OTP_ENABLED) or data.get('kind','text')!='text': raise ValidationError('WhatsApp Web connector supports text only')

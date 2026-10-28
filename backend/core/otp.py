@@ -28,7 +28,11 @@ def otp(request, action):
         rate_limit('otp-cooldown:'+str(project.id)+phone,1,60)
         ttl=request.data.get('ttl_seconds',300)
         if type(ttl) is not int or not 60<=ttl<=600: raise ValidationError('TTL must be 60–600 seconds')
-        connection=WhatsAppConnection.objects.filter(pk=request.data.get('connection'),project=project,status='CONNECTED').first()
+        conn_id = request.data.get('connection')
+        if conn_id:
+            connection=WhatsAppConnection.objects.filter(pk=conn_id,project=project,status='CONNECTED').first()
+        else:
+            connection=WhatsAppConnection.objects.filter(project=project,status='CONNECTED').first()
         if not connection: raise ValidationError('Connected transport required')
         experimental = connection.provider == 'baileys'
         if experimental and not (settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED):
