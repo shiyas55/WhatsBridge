@@ -61,9 +61,21 @@ app.post(route+'/send',async(req,res)=>{
  const claims=s.store.data.claims as Record<string,Claim>;
  if(claims[b.id]){if(claims[b.id].fingerprint!==fingerprint){res.sendStatus(409);return;}res.status(claims[b.id].status==='unknown'?202:200).json(claims[b.id]);return;}
  if(s.status!=='CONNECTED'||!s.sock){res.status(409).json({error:'Scan QR and connect your WhatsApp first'});return;}
- if(Date.now()-s.lastSend<5000){res.status(429).json({safe_to_retry:true,error:'Experimental per-connection cooldown'});return;}
+ if(Date.now()-s.lastSend<1000){res.status(429).json({safe_to_retry:true,error:'Experimental per-connection cooldown'});return;}
  s.lastSend=Date.now();claims[b.id]={fingerprint,status:'unknown',created:Date.now()};await s.store.save();
- try{const sent=await s.sock.sendMessage(b.phone.slice(1)+'@s.whatsapp.net',{text:b.payload.body});if(!sent?.key.id)throw new Error('No provider id');claims[b.id]={fingerprint,status:'accepted',provider_id:sent.key.id,created:Date.now()};await s.store.save();res.json(claims[b.id]);}
+ try{
+  const jid=b.phone.slice(1)+'@s.whatsapp.net';
+  try {
+    await s.sock.sendPresenceUpdate('composing', jid);
+    await new Promise(r => setTimeout(r, 450));
+  } catch {}
+  const sent=await s.sock.sendMessage(jid,{text:b.payload.body});
+  try { await s.sock.sendPresenceUpdate('paused', jid); } catch {}
+  if(!sent?.key.id)throw new Error('No provider id');
+  claims[b.id]={fingerprint,status:'accepted',provider_id:sent.key.id,created:Date.now()};
+  await s.store.save();
+  res.json(claims[b.id]);
+ }
  catch{res.status(202).json({status:'unknown'});}
 });
 app.get(route+'/receipts',(_req,res)=>{const s:Session=res.locals.session;res.json({receipts:s.store.data.receipts});});

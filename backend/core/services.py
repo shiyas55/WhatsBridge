@@ -84,7 +84,7 @@ def queue_message(project, data, key, otp=False):
         if not scheduled or timezone.is_naive(scheduled): raise ValidationError('scheduled_at must include a timezone')
     msg = Message.objects.create(project=project,connection=connection,phone=phone,kind=kind,payload={'encrypted_otp':encrypt(payload)} if otp else payload,idempotency_key=key,request_digest=request_digest,scheduled_at=scheduled)
     UsageRecord.objects.create(project=project,kind='message_reserved',reference='reserve:'+str(msg.id))
-    if scheduled <= timezone.now():
+    if scheduled <= timezone.now() and not str(key).startswith('bulk-'):
         def dispatch():
             try:
                 from .tasks import send_message

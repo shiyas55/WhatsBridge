@@ -150,7 +150,7 @@ app.post(route + '/send', async (req, res) => {
         res.status(409).json({ error: 'Scan QR and connect your WhatsApp first' });
         return;
     }
-    if (Date.now() - s.lastSend < 5000) {
+    if (Date.now() - s.lastSend < 1000) {
         res.status(429).json({ safe_to_retry: true, error: 'Experimental per-connection cooldown' });
         return;
     }
@@ -158,7 +158,17 @@ app.post(route + '/send', async (req, res) => {
     claims[b.id] = { fingerprint, status: 'unknown', created: Date.now() };
     await s.store.save();
     try {
-        const sent = await s.sock.sendMessage(b.phone.slice(1) + '@s.whatsapp.net', { text: b.payload.body });
+        const jid = b.phone.slice(1) + '@s.whatsapp.net';
+        try {
+            await s.sock.sendPresenceUpdate('composing', jid);
+            await new Promise(r => setTimeout(r, 450));
+        }
+        catch { }
+        const sent = await s.sock.sendMessage(jid, { text: b.payload.body });
+        try {
+            await s.sock.sendPresenceUpdate('paused', jid);
+        }
+        catch { }
         if (!sent?.key.id)
             throw new Error('No provider id');
         claims[b.id] = { fingerprint, status: 'accepted', provider_id: sent.key.id, created: Date.now() };

@@ -143,14 +143,13 @@ class MessageViewSet(TenantViewSet):
         if not body:
             raise ValidationError({'body': 'Message body is required'})
         results = []
-        base_time = timezone.now()
+        msg_ids = []
         for idx, raw_phone in enumerate(phones):
             try:
                 clean_phone = phone_number(raw_phone)
             except Exception:
                 continue
             key = f"bulk-{uuid.uuid4().hex[:12]}-{idx}"
-            scheduled_at = base_time + timedelta(seconds=idx * 5)
             msg, _ = queue_message(
                 project,
                 {
@@ -158,11 +157,30 @@ class MessageViewSet(TenantViewSet):
                     'phone': clean_phone,
                     'kind': 'text',
                     'payload': {'body': body},
-                    'scheduled_at': scheduled_at.isoformat()
+                    'scheduled_at': timezone.now().isoformat()
                 },
                 key
             )
-            results.append({'id': str(msg.id), 'phone': clean_phone, 'status': msg.status, 'scheduled_at': scheduled_at.isoformat()})
+            msg_ids.append(str(msg.id))
+            results.append({'id': str(msg.id), 'phone': clean_phone, 'status': msg.status})
+
+        def dispatch_bulk():
+            import time, random
+            from django.db import close_old_connections
+            from .tasks import send_message
+            for mid in msg_ids:
+                close_old_connections()
+                try:
+                    send_message(mid)
+                except Exception:
+                    pass
+                time.sleep(random.uniform(1.8, 3.5))
+            close_old_connections()
+
+        if msg_ids:
+            import threading
+            threading.Thread(target=dispatch_bulk, daemon=True).start()
+
         audit(request, 'message.bulk_enqueue', project.organization, len(results))
         return Response({'total': len(results), 'queued': results}, status=202)
 
