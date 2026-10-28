@@ -1,1 +1,23 @@
-{"name":"whatsbridge-gateway","version":"0.1.0","private":true,"type":"module","scripts":{"build":"tsc","start":"node dist/server.js","test":"tsx --test src/*.test.ts","dev":"tsx src/server.ts"},"dependencies":{"express":"^5.1.0","redis":"^5.0.0","zod":"^4.0.0"},"devDependencies":{"@types/express":"^5.0.0","@types/node":"^24.0.0","typescript":"^5.9.0","tsx":"^4.20.0"}}
+{
+  "name": "whatsbridge-gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "node --test dist/store.test.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "express": "^5.1.0",
+    "pino": "^9.0.0",
+    "qrcode": "^1.5.4"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^24.0.0",
+    "@types/qrcode": "^1.5.5",
+    "typescript": "^5.9.0"
+  }
+}

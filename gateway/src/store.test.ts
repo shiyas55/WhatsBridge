@@ -1,0 +1,3 @@
+import {test} from 'node:test';import assert from 'node:assert/strict';import {randomBytes} from 'node:crypto';import {seal,unseal,scopeId} from './store.js';
+test('session ciphertext is authenticated and tenant-bound',()=>{const key=randomBytes(32);const blob=seal({secret:'session-key'},key,'tenant-a');assert(!blob.includes(Buffer.from('session-key')));assert.deepEqual(unseal(blob,key,'tenant-a'),{secret:'session-key'});assert.throws(()=>unseal(blob,key,'tenant-b'));blob[30]^=1;assert.throws(()=>unseal(blob,key,'tenant-a'));});
+test('scope rejects traversal and malformed tenant IDs',()=>{assert.throws(()=>scopeId('../secrets','a','b'));const id='11111111-1111-4111-8111-111111111111';assert.equal(scopeId(id,id,id),`${id}_${id}_${id}`);});

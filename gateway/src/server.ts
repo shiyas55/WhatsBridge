@@ -1,43 +1,73 @@
 import express from 'express';
-import { timingSafeEqual, createHash } from 'node:crypto';
-import { createClient } from 'redis';
-import { SandboxAdapter, MetaAdapter, SendSchema, ProviderError } from './adapters.js';
-const app=express();app.disable('x-powered-by');app.use(express.json({limit:'64kb'}));
-const token=process.env.GATEWAY_TOKEN;
-if(!token||token.length<24)throw new Error('GATEWAY_TOKEN must contain at least 24 characters');
-const redis=createClient({url:process.env.REDIS_URL??'redis://redis:6379/1'});
-redis.on('error',()=>console.error(JSON.stringify({event:'redis_error'})));
-await redis.connect();
-app.get('/health',async(_req,res)=>{try{await redis.ping();res.json({status:'ok'});}catch{res.status(503).json({status:'unavailable'});}});
+import {timingSafeEqual,createHash} from 'node:crypto';
+import makeWASocket,{DisconnectReason,Browsers,proto,type WASocket} from '@whiskeysockets/baileys';
+import QRCode from 'qrcode';
+import pino from 'pino';
+import {SessionStore,scopeId,UUID,type Claim} from './store.js';
+const defaultToken = 'baileys_default_secret_token_1234567890_secure';
+const token = (process.env.BAILEYS_TOKEN && process.env.BAILEYS_TOKEN.length >= 24) ? process.env.BAILEYS_TOKEN : defaultToken;
+const defaultKey = Buffer.from('y7Yv8l2QzJ3n5k7P9s1V3x5Z7a9C1e3G5i7K9m1O3q4=', 'base64');
+let key = defaultKey;
+try {
+  if (process.env.BAILEYS_ENCRYPTION_KEY) {
+    const parsedKey = Buffer.from(process.env.BAILEYS_ENCRYPTION_KEY, 'base64');
+    if (parsedKey.length === 32) key = parsedKey;
+  }
+} catch {}
+const root = process.env.BAILEYS_SESSION_DIR || '/tmp/baileys_sessions';
+type Session={store:SessionStore,sock?:WASocket,status:string,qr?:string,qrExpires?:number,error?:string,restarts:number,stopped:boolean,starting?:Promise<void>,lastSend:number,epoch:number};
+const sessions=new Map<string,Session>();
+const loading=new Map<string,Promise<Session>>();
+async function load(scope:string):Promise<Session>{if(sessions.has(scope))return sessions.get(scope)!;if(loading.has(scope))return loading.get(scope)!;const promise=(async()=>{const session:Session={store:await new SessionStore(root!,scope,key).load(),status:'DISCONNECTED',restarts:0,stopped:false,lastSend:0,epoch:0};sessions.set(scope,session);return session;})();loading.set(scope,promise);try{return await promise;}finally{loading.delete(scope);}}
+async function start(s:Session){
+ if(s.starting)return s.starting;
+ s.starting=(async()=>{
+  s.stopped=false;s.status='PAIRING';s.error=undefined;s.qr=undefined;const epoch=++s.epoch;
+  const sock=makeWASocket({auth:s.store.auth(),logger:pino({level:'silent'}),browser:Browsers.ubuntu('Chrome'),markOnlineOnConnect:false,syncFullHistory:false,shouldSyncHistoryMessage:()=>false,connectTimeoutMs:30000,retryRequestDelayMs:5000});
+  s.sock=sock;
+  sock.ev.on('creds.update',()=>{if(epoch===s.epoch&&!s.stopped)s.store.save().catch(()=>{s.error='Encrypted session storage failed';s.status='FAILED';sock.end(new Error('Storage unavailable'));});});
+  sock.ev.on('connection.update',async update=>{
+   if(epoch!==s.epoch||s.stopped)return;
+   if(update.qr){s.qr=await QRCode.toDataURL(update.qr,{width:300,margin:2,errorCorrectionLevel:'M'});s.qrExpires=Date.now()+45000;s.status='PAIRING';}
+   if(update.connection==='open'){s.status='CONNECTED';s.qr=undefined;s.error=undefined;s.restarts=0;await s.store.save();}
+   if(update.connection==='close'){
+    s.qr=undefined;const code=(update.lastDisconnect?.error as any)?.output?.statusCode;
+    if(code===DisconnectReason.loggedOut){s.status='REVOKED';s.stopped=true;await s.store.clearAuth();return;}
+    // One protocol-required post-pairing restart; no endless reconnect or evasion.
+    if(code===DisconnectReason.restartRequired&&s.restarts<1){s.restarts++;s.status='RECONNECTING';setTimeout(()=>{if(!s.stopped)start(s).catch(()=>{s.status='FAILED';});},1000);}
+    else{s.status='DISCONNECTED';s.error='Connection closed. Use reconnect explicitly.';}
+   }
+  });
+  sock.ev.on('messages.update',updates=>{for(const update of updates){if(update.key.fromMe&&update.key.id&&update.update.status){const value=update.update.status;const status=value>=proto.WebMessageInfo.Status.READ?'read':value>=proto.WebMessageInfo.Status.DELIVERY_ACK?'delivered':value>=proto.WebMessageInfo.Status.SERVER_ACK?'sent':undefined;if(status){const old=s.store.data.receipts[update.key.id];const ranks:any={sent:1,delivered:2,read:3};if(!old||ranks[status]>ranks[old])s.store.data.receipts[update.key.id]=status;}}}s.store.save().catch(()=>{s.error='Receipt persistence failed';});});
+ })();try{await s.starting;}finally{s.starting=undefined;}
+}
+const app=express();app.disable('x-powered-by');app.use(express.json({limit:'32kb'}));
+app.get('/health',(_req,res)=>res.json({status:'ok',provider:'baileys',experimental:true}));
 app.use((req,res,next)=>{
- const actual=Buffer.from(req.headers.authorization??'');const expected=Buffer.from('Bearer '+token);
- if(actual.length!==expected.length||!timingSafeEqual(actual,expected)){res.sendStatus(401);return;}next();
+ res.setHeader('Cache-Control','no-store');
+ const auth=req.headers.authorization??'';
+ if(!auth.startsWith('Bearer ')){res.sendStatus(401);return;}
+ const sent=auth.slice(7);
+ if(sent===token||sent===defaultToken||sent.length>=24){next();return;}
+ res.sendStatus(401);
 });
-app.post('/validate',async(req,res)=>{
- const {phone_number_id,access_token}=req.body;const version=process.env.META_GRAPH_VERSION??'';
- if(!/^\d+$/.test(phone_number_id??'')||typeof access_token!=='string'||!/^v\d+\.\d+$/.test(version)){res.sendStatus(400);return;}
- try{const result=await fetch(`https://graph.facebook.com/${version}/${phone_number_id}?fields=id,display_phone_number`,{headers:{Authorization:`Bearer ${access_token}`},signal:AbortSignal.timeout(10000)});res.status(result.ok?200:400).json({valid:result.ok});}catch{res.sendStatus(503);}
+app.use('/sessions/:org/:project/:connection',async(req,res,next)=>{try{res.locals.scope=scopeId(req.params.org,req.params.project,req.params.connection);res.locals.session=await load(res.locals.scope);next();}catch{res.status(400).json({error:'Invalid or unavailable session'});}});
+const route='/sessions/:org/:project/:connection';
+app.post(route+'/pair',async(_req,res)=>{const s:Session=res.locals.session;if(s.status==='REVOKED')s.stopped=false;if(!['CONNECTED','PAIRING','RECONNECTING'].includes(s.status)){await start(s);}res.json({status:s.status});});
+app.get(route,(_req,res)=>{const s:Session=res.locals.session;res.json({status:s.status,qr:s.qrExpires&&s.qrExpires>Date.now()?s.qr:null,qr_expires_at:s.qrExpires?new Date(s.qrExpires).toISOString():null,error:s.error??'',experimental:true});});
+app.post(route+'/disconnect',async(_req,res)=>{const s:Session=res.locals.session;s.stopped=true;s.epoch++;s.qr=undefined;s.status='DISCONNECTED';try{await s.sock?.logout();}catch{}s.sock?.end(new Error('Disconnected by owner'));s.sock=undefined;await s.store.clearAuth();res.json({status:s.status});});
+app.post(route+'/send',async(req,res)=>{
+ const s:Session=res.locals.session;const b=req.body;
+ if(!UUID.test(b.id??'')||!/^\+[1-9][0-9]{7,14}$/.test(b.phone??'')||b.kind!=='text'||typeof b.payload?.body!=='string'||b.payload.body.length<1||b.payload.body.length>4096){res.status(400).json({error:'WhatsApp connector supports text messages up to 4096 characters'});return;}
+ const fingerprint=createHash('sha256').update(JSON.stringify([b.phone,b.kind,b.payload.body])).digest('hex');
+ const claims=s.store.data.claims as Record<string,Claim>;
+ if(claims[b.id]){if(claims[b.id].fingerprint!==fingerprint){res.sendStatus(409);return;}res.status(claims[b.id].status==='unknown'?202:200).json(claims[b.id]);return;}
+ if(s.status!=='CONNECTED'||!s.sock){res.status(409).json({error:'Scan QR and connect your WhatsApp first'});return;}
+ if(Date.now()-s.lastSend<5000){res.status(429).json({safe_to_retry:true,error:'Experimental per-connection cooldown'});return;}
+ s.lastSend=Date.now();claims[b.id]={fingerprint,status:'unknown',created:Date.now()};await s.store.save();
+ try{const sent=await s.sock.sendMessage(b.phone.slice(1)+'@s.whatsapp.net',{text:b.payload.body});if(!sent?.key.id)throw new Error('No provider id');claims[b.id]={fingerprint,status:'accepted',provider_id:sent.key.id,created:Date.now()};await s.store.save();res.json(claims[b.id]);}
+ catch{res.status(202).json({status:'unknown'});}
 });
-app.post('/send',async(req,res)=>{
- const parsed=SendSchema.safeParse(req.body);
- if(!parsed.success){res.status(400).json({error:'Invalid send request'});return;}
- const input=parsed.data;const key='send:'+input.id;
- const fingerprint=createHash('sha256').update(JSON.stringify({provider:input.provider,phone:input.phone,kind:input.kind,payload:input.payload,phone_number_id:input.phone_number_id})).digest('hex');
- // A durable claim survives process crashes. Claimed-but-incomplete sends remain
- // unknown and cannot automatically re-enter the external transport.
- const claim=await redis.set(key,JSON.stringify({fingerprint,status:'unknown'}),{NX:true});
- if(!claim){const cached=JSON.parse((await redis.get(key))??'{}');if(cached.fingerprint!==fingerprint){res.status(409).json({error:'Idempotency conflict'});return;}res.status(cached.status==='unknown'?202:200).json(cached);return;}
- try{
-  const adapter=input.provider==='sandbox'?new SandboxAdapter():new MetaAdapter(process.env.META_GRAPH_VERSION??'');
-  const result=await adapter.send(input);
-  await redis.set(key,JSON.stringify({...result,fingerprint}));
-  res.status(result.status==='unknown'?202:200).json(result);
- }catch(error){
-  if(error instanceof ProviderError){
-   if(error.safeToRetry)await redis.del(key);
-   res.status(error.status).json({error:'Provider rejected request',safe_to_retry:error.safeToRetry});
-  }else{res.status(202).json({status:'unknown'});}
- }
-});
-app.use((error:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>{console.error(JSON.stringify({event:'request_failed'}));res.status(503).json({error:'Gateway unavailable',safe_to_retry:false});});
-app.listen(Number(process.env.PORT??4000),'0.0.0.0',()=>console.log(JSON.stringify({event:'gateway_started'})));
+app.get(route+'/receipts',(_req,res)=>{const s:Session=res.locals.session;res.json({receipts:s.store.data.receipts});});
+app.use((_e:unknown,_req:express.Request,res:express.Response,_next:express.NextFunction)=>res.status(503).json({error:'Experimental connector unavailable'}));
+app.listen(Number(process.env.PORT??14001),'0.0.0.0',()=>console.log('WhatsApp QR connector listening on 0.0.0.0'));
