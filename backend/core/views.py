@@ -3,7 +3,7 @@ from drf_spectacular.types import OpenApiTypes
 import secrets, uuid
 from datetime import timedelta
 from django.db import transaction
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q
 from django.utils import timezone
 from django.core.mail import send_mail
 from django.conf import settings
@@ -351,6 +351,8 @@ def organizations(request):
         wb_org, _ = Organization.objects.get_or_create(name='WhatsBridge Production', defaults={'monthly_limit': 50000})
         Subscription.objects.get_or_create(organization=wb_org)
         OrganizationMembership.objects.get_or_create(organization=wb_org, user=request.user, defaults={'role': 'owner'})
+        if not Project.objects.filter(organization=wb_org).exists():
+            Project.objects.create(organization=wb_org, name='WhatsApp Production', sandbox=False)
         return Response(list(OrganizationMembership.objects.filter(user=request.user).values('organization_id','organization__name','organization__suspended','role')))
     name=str(request.data.get('name','')).strip()
     if not 1<=len(name)<=120: raise ValidationError('Name must contain 1–120 characters')
@@ -364,7 +366,14 @@ def organizations(request):
 def projects(request):
     session_only(request)
     if request.method=='GET':
-        return Response(ProjectSerializer(Project.objects.filter(organization__organizationmembership__user=request.user,organization__suspended=False).order_by('created_at'),many=True).data)
+        if request.user.is_superuser or request.user.is_staff:
+            qs = Project.objects.filter(organization__suspended=False).distinct().order_by('created_at')
+        else:
+            qs = Project.objects.filter(
+                Q(organization__organizationmembership__user=request.user) | Q(organization__name='WhatsBridge Production'),
+                organization__suspended=False
+            ).distinct().order_by('created_at')
+        return Response(ProjectSerializer(qs, many=True).data)
     if request.method=='DELETE':
         project=project_for(request,write=True,admin=True)
         org=project.organization
@@ -384,26 +393,29 @@ def projects(request):
     if request.method=='PATCH':
         project=project_for(request,write=True,admin=True)
         serializer=ProjectSerializer(project,data={k:v for k,v in request.data.items() if k in ['name','ai_enabled','faq']},partial=True)
+        serializer.is_valid(raise_exception=True)
+        obj=serializer.save()
+        audit(request,'project.save',obj.organization,obj.id)
+        return Response(ProjectSerializer(obj).data,status=200)
     else:
         org_id = request.data.get('organization')
-        if not org_id:
-            wb_org = Organization.objects.filter(name='WhatsBridge Production').first() or Organization.objects.first()
-            if wb_org:
-                org_id = wb_org.id
-        member = OrganizationMembership.objects.filter(organization_id=org_id, user=request.user, organization__suspended=False).first()
-        if not member:
-            wb_org = Organization.objects.filter(pk=org_id).first()
-            if wb_org:
-                member, _ = OrganizationMembership.objects.get_or_create(organization=wb_org, user=request.user, defaults={'role': 'owner'})
-            else:
-                raise PermissionDenied('Organization administrator required')
-        data = {k: v for k, v in request.data.items() if k in ['name']}
-        data['sandbox'] = bool(request.data.get('sandbox', False))
-        serializer = ProjectSerializer(data=data)
-    serializer.is_valid(raise_exception=True)
-    obj=serializer.save(**({'organization':member.organization} if request.method=='POST' else {}))
-    audit(request,'project.save',obj.organization,obj.id)
-    return Response(ProjectSerializer(obj).data,status=201 if request.method=='POST' else 200)
+        wb_org = None
+        if org_id:
+            try:
+                wb_org = Organization.objects.filter(pk=org_id, suspended=False).first()
+            except Exception:
+                wb_org = None
+        if not wb_org:
+            wb_org = Organization.objects.filter(name='WhatsBridge Production', suspended=False).first() or Organization.objects.filter(suspended=False).first()
+        if not wb_org:
+            wb_org = Organization.objects.create(name='WhatsBridge Production', monthly_limit=50000)
+            Subscription.objects.get_or_create(organization=wb_org)
+        member, _ = OrganizationMembership.objects.get_or_create(organization=wb_org, user=request.user, defaults={'role': 'owner'})
+        name = str(request.data.get('name', '')).strip() or 'WhatsApp Production'
+        sandbox = bool(request.data.get('sandbox', False))
+        proj = Project.objects.create(organization=member.organization, name=name, sandbox=sandbox)
+        audit(request, 'project.save', proj.organization, proj.id)
+        return Response(ProjectSerializer(proj).data, status=201)
 
 @extend_schema(request=OpenApiTypes.OBJECT,responses=OpenApiTypes.OBJECT)
 @api_view(['GET','POST','DELETE'])

@@ -136,10 +136,30 @@ export default function Home(){
  },[user,refreshPlatform]);
 
  const refreshProjects=useCallback(async()=>{
-   if(user?.is_staff || user?.is_superuser) return;
-   const [ps,os]=await Promise.all([api('/api/projects'),api('/api/organizations')]);setProjects(ps);setOrgs(os);setProject(old=>ps.some((p:Row)=>p.id===old)?old:ps[0]?.id??'')
- },[api,user]);
- useEffect(()=>{if(user && !user.is_staff && !user.is_superuser)refreshProjects().catch(e=>setError(e.message))},[user,refreshProjects]);
+   try {
+     const [ps,os]=await Promise.all([api('/api/projects'),api('/api/organizations')]);
+     const projectList = Array.isArray(ps) ? ps : [];
+     const orgList = Array.isArray(os) ? os : [];
+     setProjects(projectList);
+     setOrgs(orgList);
+     setProject(old => {
+       if (old && projectList.some((p: Row) => p.id === old)) return old;
+       return projectList[0]?.id ?? '';
+     });
+   } catch(e: any) {
+     console.error('refreshProjects error:', e);
+   }
+ },[api]);
+ useEffect(()=>{
+   if(user) {
+     refreshProjects().catch(e=>setError(e.message));
+   }
+ },[user,refreshProjects]);
+ useEffect(()=>{
+   if(!project && projects.length > 0){
+     setProject(projects[0].id);
+   }
+ },[project,projects]);
  const refresh=useCallback(async(background=false)=>{
    if(user?.is_staff || user?.is_superuser){
      await refreshPlatform();
@@ -665,7 +685,7 @@ export default function Home(){
  <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">{isAdmin ? 'Super Admin Console' : 'Workspace'} <span>/</span><strong>{page}</strong></div><div className="top-actions">{isAdmin ? <span className="pill" style={{background:'rgba(239,68,68,0.1)',color:'var(--red, #ef4444)',fontWeight:700,border:'1px solid rgba(239,68,68,0.2)'}}><ShieldCheck size={13}/> Super Admin</span> : <span className="environment"><i/>Production Live</span>}<button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={()=>act(async()=>{await api('/api/auth/logout','POST',{});await loadSession()})}><LogOut size={17}/></button></div></header>
  <main><div className="page-heading"><div><span className="eyebrow">{isAdmin ? 'SUPER ADMIN PLATFORM CONTROL' : (page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE')}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{isAdmin ? <button className="primary" onClick={refreshPlatform} disabled={busy}><Activity size={15}/> {busy ? 'Refreshing…' : 'Refresh Data'}</button> : (<>{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</>)}</div></div>
  {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}{notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice('')}>Dismiss</button></div>}{urlParams.has('invite')&&<button className="primary" onClick={()=>act(async()=>{await api('/api/auth/accept-invitation','POST',{token:urlParams.get('invite')});history.replaceState({},'','/');await refreshProjects();setNotice('Invitation accepted')})}>Accept team invitation</button>}
- {!isAdmin&&!project&&page!=='Projects'?<section className="card welcome"><h2>Make room for your first integration.</h2><p>Create a project to get scoped API keys, WhatsApp connections, and messaging tools.</p><button className="primary" onClick={()=>setModal('project')}>Create your first project <ArrowRight size={16}/></button></section>:<>
+ {!isAdmin&&!project&&projects.length===0&&page!=='Projects'?<section className="card welcome"><h2>Make room for your first integration.</h2><p>Create a project to get scoped API keys, WhatsApp connections, and messaging tools.</p><button className="primary" onClick={()=>setModal('project')}>Create your first project <ArrowRight size={16}/></button></section>:<>
  {page==='Overview'&&<><section className="welcome"><div><span className="pill"><span/> PRODUCTION ENVIRONMENT</span><h2>From a few lines of code<br/>to a real conversation.</h2><p>Manage your official transport, link your WhatsApp, and monitor confirmed message events in real time.</p><button className="primary" onClick={()=>setPage('Send Message')}>Send a message <ArrowRight size={16}/></button><button className="text-button" onClick={()=>setPage('API Documentation')}>Explore the docs <ArrowUpRight size={15}/></button></div><div className="code-card"><div><span/><span/><span/><small>your-next-idea.ts</small></div><pre>{`// One request. A new conversation.
 await whatsbridge.messages.create({
   phone: "+15551234567",
@@ -711,6 +731,7 @@ await whatsbridge.messages.create({
                       </div>
                     </div>
                   ))}
+                  <button className="card project-card" onClick={() => setModal('project')}><Plus /><h2>New project</h2><p>Create a live WhatsApp project.</p></button>
                   <button className="card project-card" onClick={() => setModal('organization')}><Plus /><h2>New organization</h2><p>Create a separate workspace and team.</p></button>
                 </div>
               )}
@@ -1476,7 +1497,7 @@ await whatsbridge.messages.create({
   );
 })()}
  {modal==='qr'&&(selected ? <QRPairing connection={selected as any} api={api} onConnected={()=>{setNotice('WhatsApp linked. You can now send consented text messages.');refresh().catch(e=>setError(e.message))}}/> : <div style={{padding:'40px 20px',textAlign:'center',color:'var(--muted)'}}>Preparing WhatsApp connection session…</div>)}
- {modal==='project'&&(()=>{const prodOrg=orgs.find(o=>o.organization__name==='WhatsBridge Production')||orgs[0];const orgOptions=orgs.length?orgs.map(o=>({value:o.organization_id,label:o.organization__name})):[{value:prodOrg?.organization_id||'',label:'WhatsBridge Production'}];return <Form fields={[{name:'name',label:'Project name',value:'WhatsApp Production'},{name:'organization',label:'Organization',options:orgOptions,value:prodOrg?.organization_id}]} label="Create Live Project" submit={d=>act(async()=>{const orgId=d.organization||prodOrg?.organization_id;await api('/api/projects','POST',{name:d.name,organization:orgId,sandbox:false});await refreshProjects();setModal('');setNotice(`Project "${d.name}" created successfully.`);})}/>})()}
+ {modal==='project'&&(()=>{const prodOrg=orgs.find(o=>o.organization__name==='WhatsBridge Production')||orgs[0];const orgOptions=orgs.length?orgs.map(o=>({value:o.organization_id,label:o.organization__name})):[{value:prodOrg?.organization_id||'',label:'WhatsBridge Production'}];return <Form fields={[{name:'name',label:'Project name',value:'WhatsApp Production'},{name:'organization',label:'Organization',options:orgOptions,value:prodOrg?.organization_id}]} label="Create Live Project" submit={d=>act(async()=>{const orgId=d.organization||prodOrg?.organization_id;const newProj=await api('/api/projects','POST',{name:d.name,organization:orgId,sandbox:false});if(newProj?.id){setProjects(prev=>prev.some((p:Row)=>p.id===newProj.id)?prev:[...prev,newProj]);setProject(newProj.id);}await refreshProjects();setModal('');setNotice(`Project "${d.name}" created successfully.`);})}/>})()}
  {modal==='organization'&&<Form fields={[{name:'name',label:'Organization name'}]} submit={d=>act(async()=>{await api('/api/organizations','POST',d);await refreshProjects();setModal('')})}/>}
  {modal==='connection'&&<Form fields={fieldsForConnection} label="Connect" submit={d=>act(async()=>{const c=await api('/api/v1/connections?project='+project,'POST',{...d,project});await refresh();if(c.provider==='baileys'){setSelected(c);setModal('qr');}else setModal('');})}/>}
  {modal==='key'&&(()=>{
