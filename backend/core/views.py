@@ -451,10 +451,13 @@ def platform(request):
             return Response({'detail': f'Updated verified status for {u.email}'})
         if action == 'reset_user_password':
             u = User.objects.get(pk=request.data.get('user_id'))
-            pw = request.data.get('password', 'Password123!@#')
+            pw = request.data.get('password')
+            if not pw:
+                import secrets
+                pw = secrets.token_urlsafe(10) + '!Aa1'
             u.set_password(pw)
             u.save()
-            return Response({'detail': f'Reset password for {u.email} to {pw}'})
+            return Response({'detail': f'Password reset for {u.email}. Temporary password: {pw}', 'password': pw})
         if action == 'toggle_active':
             u = User.objects.get(pk=request.data.get('user_id'))
             u.is_active = not u.is_active

@@ -1064,10 +1064,14 @@ await whatsbridge.messages.create({
                                     })}>
                                       {u.is_active ? 'Deactivate' : 'Activate'}
                                     </button>
-                                    <button type="button" onClick={() => act(async () => {
-                                      const r = await api('/api/platform', 'POST', { action: 'reset_user_password', user_id: u.id, password: 'Password123!@#' });
-                                      setNotice(r.detail);
-                                    })}>
+                                    <button type="button" onClick={() => {
+                                      const customPw = prompt(`Enter new password for ${u.email} (leave blank to auto-generate):`, '');
+                                      if (customPw === null) return;
+                                      act(async () => {
+                                        const r = await api('/api/platform', 'POST', { action: 'reset_user_password', user_id: u.id, ...(customPw ? { password: customPw } : {}) });
+                                        setNotice(r.detail);
+                                      });
+                                    }}>
                                       Reset PW
                                     </button>
                                     {String(user?.id) !== String(u.id) && (

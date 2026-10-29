@@ -21,7 +21,7 @@ def test_baileys_e2e():
     
     login_res = s.post(
         f"{BACKEND_URL}/api/auth/login",
-        json={"email": "admin@whatsbridge.com", "password": "AdminPassword123!"},
+        json={"email": os.environ.get("ADMIN_EMAIL", "admin@example.com"), "password": os.environ.get("ADMIN_PASSWORD", "TestPassword123!")},
         headers={"X-CSRFToken": csrf_token}
     )
     print("2. Login status:", login_res.status_code)
