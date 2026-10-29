@@ -80,7 +80,10 @@ export default function Home(){
  const [testSmtpBusy, setTestSmtpBusy] = useState(false);
  const [testSmtpResult, setTestSmtpResult] = useState<Row | null>(null);
  const rowsRef=useRef<Row[]>([]);
+ const pageCache=useRef<Record<string,Row[]>>({});
+ const connLenRef=useRef(connections.length);
  useEffect(()=>{rowsRef.current=rows},[rows]);
+ useEffect(()=>{connLenRef.current=connections.length},[connections.length]);
  const copyText=(txt:string,label:string)=>{try{navigator.clipboard.writeText(txt)}catch(e){const el=document.createElement('textarea');el.value=txt;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}setCopiedText(label);setTimeout(()=>setCopiedText(''),2500);};
  
  const parseResponse = async (r: Response) => {
@@ -188,7 +191,8 @@ export default function Home(){
      return;
    }
    if(!project)return;
-   if(background || rowsRef.current.length > 0){
+   const hasCached = (pageCache.current[page] && pageCache.current[page].length > 0) || rowsRef.current.length > 0;
+   if(background || hasCached){
      setSyncing(true);
    }else{
      setBusy(true);
@@ -197,17 +201,21 @@ export default function Home(){
      const query='?project='+project;
      const map:Record<string,string>={'Connections':'connections','API Keys':'keys','Inbox':'messages','Contacts':'contacts','Workflow Builder':'workflows','Webhooks':'webhooks','Templates':'templates'};
      
-     // 1. Immediately fetch the current active page data so user sees records in milliseconds!
+     // 1. Immediately fetch the current active page data and cache it
      const pageTask = (async () => {
        if(map[page]){
          const d = await api('/api/v1/'+map[page]+query);
-         setRows(d.results || []);
+         const list = d.results || [];
+         pageCache.current[page] = list;
+         setRows(list);
          if(page === 'Connections'){
-           setConnections(d.results || []);
+           setConnections(list);
          }
        }else if(page==='Team Members'){
          const d = await api('/api/team'+query);
-         setRows(d || []);
+         const list = d || [];
+         pageCache.current[page] = list;
+         setRows(list);
        }else if(page==='Admin'){
          if(!user?.is_staff && !user?.is_superuser){
            setPage('Overview');
@@ -225,57 +233,111 @@ export default function Home(){
      const statsTask = needsStats ? api('/api/overview'+query).then(s => setStats(s)).catch(()=>{}) : Promise.resolve();
 
      // 3. Fetch connections only if not already loaded or on screens that configure them
-     const needsConn = connections.length === 0 || ['Overview','Workflow Builder','Send Message','API Keys'].includes(page);
-     const connTask = (needsConn && page !== 'Connections') ? api('/api/v1/connections'+query).then(c => setConnections(c.results || [])).catch(()=>{}) : Promise.resolve();
+     const needsConn = connLenRef.current === 0 || ['Overview','Workflow Builder','Send Message','API Keys'].includes(page);
+     const connTask = (needsConn && page !== 'Connections') ? api('/api/v1/connections'+query).then(c => {
+       const list = c.results || [];
+       setConnections(list);
+     }).catch(()=>{}) : Promise.resolve();
 
      await Promise.all([pageTask, statsTask, connTask]);
    }finally{
      setBusy(false);
      setSyncing(false);
    }
- },[project,page,api,connections.length]);
+ },[project,page,api,refreshPlatform,user]);
  useEffect(()=>{setResult(null);setSearch('');refresh().catch(e=>setError(e.message))},[refresh]);
  useEffect(()=>{
    if(!project||!user)return;
    let stopped=false;
    let poll:ReturnType<typeof setInterval>|undefined;
    let wsActive = false;
+   let pingInterval:ReturnType<typeof setInterval>|undefined;
+   let reconnectTimer:ReturnType<typeof setTimeout>|undefined;
+
    const fallback=()=>{
      if(!stopped&&!poll&&!wsActive){
        poll=setInterval(()=>{
          if(document.visibilityState==='visible')refresh(true).catch(()=>{});
-       },10000);
+       },8000);
      }
    };
+
    let socket:WebSocket|null=null;
-   try{
-     const isVercel=typeof window!=='undefined'&&window.location.hostname.endsWith('vercel.app');
-     const wsHost=isVercel?'whatsbridge-backend.onrender.com':window.location.host;
-     const wsProto=(typeof window!=='undefined'&&window.location.protocol==='https:')||wsHost.includes('render.com')?'wss:':'ws:';
-     const wsUrl=`${wsProto}//${wsHost}/ws/projects/${project}?uid=${user.id||''}`;
-     socket=new WebSocket(wsUrl);
-     socket.onopen=()=>{
-       wsActive=true;
-       if(poll){ clearInterval(poll); poll=undefined; }
-     };
-     socket.onmessage=e=>{
-       try{
-         refresh(true).catch(()=>{});
-       }catch(err){}
-     };
-     socket.onerror=()=>{ wsActive=false; fallback(); };
-     socket.onclose=()=>{ wsActive=false; fallback(); };
-   }catch(err){
-     fallback();
-   }
-   // Gentle 15-second background sync to guarantee state consistency without overloading backend
+   const connect = () => {
+     if(stopped) return;
+     try{
+       const isVercel=typeof window!=='undefined'&&window.location.hostname.endsWith('vercel.app');
+       const wsHost=isVercel?'whatsbridge-backend.onrender.com':window.location.host;
+       const wsProto=(typeof window!=='undefined'&&window.location.protocol==='https:')||wsHost.includes('render.com')?'wss:':'ws:';
+       const wsUrl=`${wsProto}//${wsHost}/ws/projects/${project}?uid=${user.id||''}`;
+       socket=new WebSocket(wsUrl);
+       socket.onopen=()=>{
+         wsActive=true;
+         if(poll){ clearInterval(poll); poll=undefined; }
+       };
+       socket.onmessage=e=>{
+         try{
+           const msg = JSON.parse(e.data);
+           if(msg.type === 'pong') return;
+           // Instant 0ms memory update for realtime responsiveness
+           if(msg.type?.startsWith('message.') && msg.data){
+             setRows(prev => {
+               const idx = prev.findIndex(r => r.id === msg.data.id);
+               if(idx >= 0){
+                 const next = [...prev];
+                 next[idx] = { ...next[idx], ...msg.data };
+                 return next;
+               } else if(msg.type === 'message.created'){
+                 return [msg.data, ...prev];
+               }
+               return prev;
+             });
+           } else if(msg.type?.startsWith('connection.') && msg.data){
+             setConnections(prev => {
+               const idx = prev.findIndex(c => c.id === msg.data.id);
+               if(idx >= 0){
+                 const next = [...prev];
+                 next[idx] = { ...next[idx], ...msg.data };
+                 return next;
+               }
+               return prev;
+             });
+           }
+           refresh(true).catch(()=>{});
+         }catch(err){}
+       };
+       socket.onerror=()=>{ wsActive=false; fallback(); };
+       socket.onclose=()=>{
+         wsActive=false;
+         fallback();
+         if(!stopped){
+           reconnectTimer = setTimeout(connect, 3000);
+         }
+       };
+     }catch(err){
+       fallback();
+     }
+   };
+   connect();
+
+   // Heartbeat keep-alive ping every 20s so cloud reverse proxy never drops WebSocket connection
+   pingInterval = setInterval(()=>{
+     if(socket && socket.readyState === WebSocket.OPEN){
+       try{ socket.send(JSON.stringify({type:'ping'})); }catch(e){}
+     }
+   }, 20000);
+
+   // Background sync
    const bgPoll=setInterval(()=>{
      if(document.visibilityState==='visible')refresh(true).catch(()=>{});
    },15000);
+
    return()=>{
      stopped=true;
      if(poll)clearInterval(poll);
-     clearInterval(bgPoll);
+     if(bgPoll)clearInterval(bgPoll);
+     if(pingInterval)clearInterval(pingInterval);
+     if(reconnectTimer)clearTimeout(reconnectTimer);
      if(socket)socket.close();
    };
  },[project,user,refresh]);
@@ -754,7 +816,7 @@ export default function Home(){
  const currentNav = isAdmin ? adminNav : customerNav;
  return (
   <>
-  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage(isAdmin ? 'Platform Users' : 'Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span>{isAdmin && <span style={{marginLeft:'6px',fontSize:'10px',background:'var(--red, #ef4444)',color:'#fff',padding:'2px 6px',borderRadius:'4px',fontWeight:700,letterSpacing:'0.5px'}}>ADMIN</span>}</a><div className="workspace"><span className="avatar">{isAdmin ? '🛡️' : (active?.name??'W').slice(0,1)}</span><div><strong>{isAdmin ? 'Super Administrator' : (active?.name??'Your workspace')}</strong><small>{isAdmin ? 'Platform Management' : 'Production workspace'}</small></div>{!isAdmin && <ChevronDown size={14}/>}</div><nav>{currentNav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.map(n=>{const Icon=icons[n] || ShieldCheck;return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{if(page!==n){setRows([]);setBusy(true);}setPage(n);setMobile(false);setError('');}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}{n==='Platform Users'&&result?.users_count && <small>{result.users_count}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom">{isAdmin ? <div className="help-card" style={{border:'1px solid rgba(239,68,68,0.2)'}}><ShieldCheck size={18} color="var(--red, #ef4444)"/><strong>Super Admin Console</strong><p>Full control over platform users, quotas, and organization plans.</p></div> : <div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div>}<button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||(isAdmin ? 'Super Admin' : 'Developer')}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
+  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage(isAdmin ? 'Platform Users' : 'Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span>{isAdmin && <span style={{marginLeft:'6px',fontSize:'10px',background:'var(--red, #ef4444)',color:'#fff',padding:'2px 6px',borderRadius:'4px',fontWeight:700,letterSpacing:'0.5px'}}>ADMIN</span>}</a><div className="workspace"><span className="avatar">{isAdmin ? '🛡️' : (active?.name??'W').slice(0,1)}</span><div><strong>{isAdmin ? 'Super Administrator' : (active?.name??'Your workspace')}</strong><small>{isAdmin ? 'Platform Management' : 'Production workspace'}</small></div>{!isAdmin && <ChevronDown size={14}/>}</div><nav>{currentNav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.map(n=>{const Icon=icons[n] || ShieldCheck;return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{if(page!==n){if(pageCache.current[n]){setRows(pageCache.current[n]);setBusy(false);setSyncing(true);}else{setRows([]);setBusy(true);}setPage(n);setMobile(false);setError('');}}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}{n==='Platform Users'&&result?.users_count && <small>{result.users_count}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom">{isAdmin ? <div className="help-card" style={{border:'1px solid rgba(239,68,68,0.2)'}}><ShieldCheck size={18} color="var(--red, #ef4444)"/><strong>Super Admin Console</strong><p>Full control over platform users, quotas, and organization plans.</p></div> : <div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div>}<button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||(isAdmin ? 'Super Admin' : 'Developer')}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
  <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">{isAdmin ? 'Super Admin Console' : 'Workspace'} <span>/</span><strong>{page}</strong></div><div className="top-actions">{isAdmin ? <span className="pill" style={{background:'rgba(239,68,68,0.1)',color:'var(--red, #ef4444)',fontWeight:700,border:'1px solid rgba(239,68,68,0.2)'}}><ShieldCheck size={13}/> Super Admin</span> : <span className="environment"><i/>Production Live</span>}<button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={()=>act(async()=>{await api('/api/auth/logout','POST',{});await loadSession()})}><LogOut size={17}/></button></div></header>
  <main><div className="page-heading"><div><span className="eyebrow">{isAdmin ? 'SUPER ADMIN PLATFORM CONTROL' : (page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE')}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{isAdmin ? <button className="primary" onClick={refreshPlatform} disabled={busy}><Activity size={15}/> {busy ? 'Refreshing…' : 'Refresh Data'}</button> : (<>{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</>)}</div></div>
  {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}{notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice('')}>Dismiss</button></div>}{urlParams.has('invite')&&<button className="primary" onClick={()=>act(async()=>{await api('/api/auth/accept-invitation','POST',{token:urlParams.get('invite')});history.replaceState({},'','/');await refreshProjects();setNotice('Invitation accepted')})}>Accept team invitation</button>}

@@ -8,7 +8,7 @@ TESTING = os.getenv('TESTING', '0') == '1'
 SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'test-only-secret' if TESTING else '')
 if not SECRET_KEY:
     raise RuntimeError('Set DJANGO_SECRET_KEY before starting')
-ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,backend,testserver,whatsbridge-backend.onrender.com,.onrender.com,whats-bridge.vercel.app,.vercel.app').split(',') if h.strip()]
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,backend,testserver,whatsbridge-backend.onrender.com,.onrender.com,whats-bridge.vercel.app,.vercel.app,*').split(',') if h.strip()]
 INSTALLED_APPS = ['django.contrib.admin','django.contrib.auth','django.contrib.contenttypes','django.contrib.sessions','django.contrib.messages','django.contrib.staticfiles','rest_framework','corsheaders','drf_spectacular','channels','core']
 MIDDLEWARE = ['django.middleware.security.SecurityMiddleware','corsheaders.middleware.CorsMiddleware','django.contrib.sessions.middleware.SessionMiddleware','django.middleware.common.CommonMiddleware','django.middleware.csrf.CsrfViewMiddleware','django.contrib.auth.middleware.AuthenticationMiddleware','django.contrib.messages.middleware.MessageMiddleware','django.middleware.clickjacking.XFrameOptionsMiddleware']
 ROOT_URLCONF = 'config.urls'

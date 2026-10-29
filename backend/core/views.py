@@ -463,7 +463,17 @@ def team(request):
 @api_view(['GET'])
 def overview(request):
     session_only(request);p=project_for(request)
-    return Response({'messages':Message.objects.filter(project=p).count(),'connections':WhatsAppConnection.objects.filter(project=p,status='CONNECTED').count(),'contacts':Contact.objects.filter(project=p).count(),'by_status':list(Message.objects.filter(project=p).values('status').annotate(count=Count('id'))),'usage':list(UsageRecord.objects.filter(project=p).values('kind').annotate(quantity=Sum('quantity'))),'subscription':{'plan':Subscription.objects.get(organization=p.organization).plan,'monthly_limit':p.organization.monthly_limit},'audit':list(AuditLog.objects.filter(organization=p.organization).order_by('-created_at').values('action','target','created_at')[:30])})
+    sub = Subscription.objects.filter(organization=p.organization).first()
+    plan_name = sub.plan if sub else 'developer'
+    return Response({
+        'messages':Message.objects.filter(project=p).count(),
+        'connections':WhatsAppConnection.objects.filter(project=p,status='CONNECTED').count(),
+        'contacts':Contact.objects.filter(project=p).count(),
+        'by_status':list(Message.objects.filter(project=p).values('status').annotate(count=Count('id'))),
+        'usage':list(UsageRecord.objects.filter(project=p).values('kind').annotate(quantity=Sum('quantity'))),
+        'subscription':{'plan':plan_name,'monthly_limit':p.organization.monthly_limit},
+        'audit':list(AuditLog.objects.filter(organization=p.organization).order_by('-created_at').values('action','target','created_at')[:30])
+    })
 
 @extend_schema(request=OpenApiTypes.OBJECT,responses=OpenApiTypes.OBJECT)
 @api_view(['GET','POST'])
