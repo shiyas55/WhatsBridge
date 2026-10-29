@@ -74,11 +74,11 @@ def auth(request, action):
         return Response({
             'features':{'experimental_qr_otp':settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED},
             'smtp': {
-                'configured': bool(settings.EMAIL_HOST_USER or settings.RESEND_API_KEY),
-                'provider': 'resend_https' if settings.RESEND_API_KEY else ('smtp' if settings.EMAIL_HOST_USER else 'console'),
-                'host': 'api.resend.com (HTTPS Port 443)' if settings.RESEND_API_KEY else settings.EMAIL_HOST,
-                'port': 443 if settings.RESEND_API_KEY else settings.EMAIL_PORT,
-                'user': settings.EMAIL_HOST_USER or ('Resend API Key' if settings.RESEND_API_KEY else ''),
+                'configured': bool(settings.EMAIL_HOST_USER or settings.RESEND_API_KEY or getattr(settings, 'BREVO_API_KEY', '')),
+                'provider': 'resend_https' if settings.RESEND_API_KEY else ('brevo_https' if getattr(settings, 'BREVO_API_KEY', '') else ('smtp' if settings.EMAIL_HOST_USER else 'console')),
+                'host': 'api.resend.com (HTTPS Port 443)' if settings.RESEND_API_KEY else ('api.brevo.com (HTTPS Port 443)' if getattr(settings, 'BREVO_API_KEY', '') else settings.EMAIL_HOST),
+                'port': 443 if (settings.RESEND_API_KEY or getattr(settings, 'BREVO_API_KEY', '')) else settings.EMAIL_PORT,
+                'user': settings.EMAIL_HOST_USER or ('Resend API Key' if settings.RESEND_API_KEY else ('Brevo API Key' if getattr(settings, 'BREVO_API_KEY', '') else '')),
                 'from_email': settings.DEFAULT_FROM_EMAIL
             },
             'csrfToken':get_token(request),
@@ -121,18 +121,20 @@ def auth(request, action):
             org = Organization.objects.create(name=org_name)
             OrganizationMembership.objects.create(organization=org,user=user,role='owner')
             Subscription.objects.create(organization=org)
-            Project.objects.create(organization=org, name='WhatsApp Production', sandbox=False)
+            initial_proj = Project.objects.create(organization=org, name='WhatsApp Production', sandbox=False)
+            WhatsAppConnection.objects.create(project=initial_proj, name='WhatsApp Web', provider='baileys', status='DISCONNECTED')
             
         sent, token, verify_url, smtp_err = send_verification(user)
         if not sent:
-            detail = f"Account created, but verification email could not be sent: {smtp_err or 'Email service error'}. Please click 'Resend verification link' to try again."
+            detail = f"Account created! Email dispatch is pending verification. Please click 'Resend verification link' or use the direct link below to activate your account."
         else:
             detail = f"Account created! Verification email sent via SMTP to {user.email}. Please check your inbox and click the link to activate your account."
 
         return Response({
             'detail': detail,
             'email_sent': sent,
-            'smtp_error': smtp_err
+            'smtp_error': smtp_err,
+            'verify_url': verify_url if not sent else None
         }, status=201)
     if action == 'resend-verification':
         email = str(data.get('email', '')).strip().lower()

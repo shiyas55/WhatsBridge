@@ -30,10 +30,39 @@ def otp(request, action):
         if type(ttl) is not int or not 60<=ttl<=600: raise ValidationError('TTL must be 60–600 seconds')
         conn_id = request.data.get('connection')
         if conn_id:
-            connection=WhatsAppConnection.objects.filter(pk=conn_id,project=project,status='CONNECTED').first()
+            connection=WhatsAppConnection.objects.filter(pk=conn_id,project=project).first()
         else:
             connection=WhatsAppConnection.objects.filter(project=project,status='CONNECTED').first()
-        if not connection: raise ValidationError('Connected transport required')
+            if not connection:
+                connection=WhatsAppConnection.objects.filter(project=project).first()
+
+        if not connection:
+            if project.sandbox:
+                connection = WhatsAppConnection.objects.create(
+                    project=project,
+                    name='Sandbox Test Transport',
+                    provider='sandbox',
+                    status='CONNECTED'
+                )
+            else:
+                connection = WhatsAppConnection.objects.create(
+                    project=project,
+                    name='WhatsApp Web',
+                    provider='baileys',
+                    status='DISCONNECTED'
+                )
+
+        if connection.provider == 'sandbox' and connection.status != 'CONNECTED':
+            connection.status = 'CONNECTED'
+            connection.save(update_fields=['status'])
+
+        if connection.status != 'CONNECTED':
+            raise ValidationError(
+                f"Transport '{connection.name}' is currently {connection.status.lower()}. "
+                "Please scan the QR code in the Connections tab to link your WhatsApp phone before sending live OTPs, "
+                "or switch this project to Sandbox mode for instant simulation."
+            )
+
         experimental = connection.provider == 'baileys'
         if experimental and not (settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED):
             raise ValidationError('Experimental QR OTP is disabled. Enable BAILEYS_OTP_ENABLED explicitly for research use.')
@@ -55,9 +84,9 @@ def otp(request, action):
             msg,_=queue_message(project,{'connection':str(connection.id),'phone':phone,'kind':kind,'payload':payload},'otp:'+str(challenge.id),otp=True)
             challenge.message=msg;challenge.save()
             audit(request,'otp.created',project.organization,challenge.id)
-        result={'challenge_id':str(challenge.id),'expires_at':challenge.expires_at,'status':'queued'}
+        result={'challenge_id':str(challenge.id),'expires_at':challenge.expires_at,'status':'queued','phone':phone}
         if experimental: result.update(experimental=True, delivery_guaranteed=False)
-        if project.sandbox and connection.provider=='sandbox': result['sandbox_code']=code
+        if project.sandbox or connection.provider=='sandbox': result['sandbox_code']=code
         return Response(result,status=202)
     rate_limit('otp-verify:'+str(project.id),120,3600)
     code=str(request.data.get('code',''))

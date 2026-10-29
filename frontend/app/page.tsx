@@ -79,6 +79,22 @@ export default function Home(){
  const [testSmtpEmail, setTestSmtpEmail] = useState('');
  const [testSmtpBusy, setTestSmtpBusy] = useState(false);
  const [testSmtpResult, setTestSmtpResult] = useState<Row | null>(null);
+ const [otpPhone, setOtpPhone] = useState('+919567334117');
+ const [otpConnId, setOtpConnId] = useState('');
+ const [otpChallengeId, setOtpChallengeId] = useState('');
+ const [otpCode, setOtpCode] = useState('');
+ const [otpSandboxCode, setOtpSandboxCode] = useState('');
+ const [otpBusy, setOtpBusy] = useState(false);
+ const [otpVerified, setOtpVerified] = useState(false);
+ const [otpProof, setOtpProof] = useState<any>(null);
+ const [otpCountdown, setOtpCountdown] = useState(0);
+ const [otpRecipient, setOtpRecipient] = useState('');
+ const [verificationLink, setVerificationLink] = useState('');
+ useEffect(() => {
+   if (otpCountdown <= 0) return;
+   const t = setInterval(() => setOtpCountdown(c => (c > 0 ? c - 1 : 0)), 1000);
+   return () => clearInterval(t);
+ }, [otpCountdown]);
  const rowsRef=useRef<Row[]>([]);
  const pageCache=useRef<Record<string,Row[]>>({});
  const connLenRef=useRef(connections.length);
@@ -382,8 +398,11 @@ export default function Home(){
         confirm_password: regConfirmPassword,
         organization: regOrg.trim() || (regFirstName.trim() ? `${regFirstName.trim()}'s Organization` : 'My organization')
       });
-      setNotice(res.detail || 'Account created! Verification email sent via SMTP. Please check your inbox to verify.');
+      setNotice(res.detail || 'Account created! Please check your inbox and verify your email.');
       setResendEmail(regEmail.trim().toLowerCase());
+      if (res.verify_url) {
+        setVerificationLink(res.verify_url);
+      }
       setAuthMode('login');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
@@ -484,10 +503,40 @@ export default function Home(){
           )}
           {notice && <div role="status" className="notice">{notice}</div>}
 
-          {urlParams.has('verify') && (
-            <div style={{ marginBottom: '16px', padding: '12px', background: '#eef8f1', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
-              <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#166534', fontWeight: 600 }}>Verify your account</p>
-              <button className="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={()=>act(async()=>{const d=await api('/api/auth/verify-email','POST',{token:urlParams.get('verify')});setNotice(d.detail);history.replaceState({},'','/');setAuthMode('login');})}>Confirm Email Verification</button>
+          {(verificationLink || urlParams.has('verify')) && (
+            <div style={{ marginBottom: '16px', padding: '14px', background: '#eef8f1', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#166534', fontWeight: 600 }}>Account Activation Required</p>
+              <button
+                type="button"
+                className="primary"
+                style={{ width: '100%', justifyContent: 'center', marginBottom: '8px' }}
+                onClick={() => act(async () => {
+                  let tok = urlParams.get('verify');
+                  if (!tok && verificationLink) {
+                    try {
+                      tok = new URL(verificationLink).searchParams.get('verify');
+                    } catch (e) {
+                      tok = verificationLink;
+                    }
+                  }
+                  const d = await api('/api/auth/verify-email', 'POST', { token: tok });
+                  setNotice(d.detail || 'Email verified successfully! You can sign in.');
+                  setVerificationLink('');
+                  history.replaceState({}, '', '/');
+                  setAuthMode('login');
+                })}
+              >
+                Click to Verify & Activate Account Now
+              </button>
+              {verificationLink && (
+                <button
+                  type="button"
+                  style={{ background: 'transparent', border: 'none', color: '#166534', fontSize: '11.5px', textDecoration: 'underline', cursor: 'pointer' }}
+                  onClick={() => copyText(verificationLink, 'verify_link')}
+                >
+                  {copiedText === 'verify_link' ? '✓ Link Copied!' : 'Copy direct verification link'}
+                </button>
+              )}
             </div>
           )}
 
@@ -1127,7 +1176,292 @@ await whatsbridge.messages.create({
               ))}
               {page === 'Send Message' && <section className="card narrow"><h2>Create a message</h2><p className="muted">Send a text message directly through your connected WhatsApp or sandbox transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phone', label: 'Recipient · E.164', value: '+15551234567' }, { name: 'body', label: 'Message', type: 'textarea', value: 'Hello from WhatsBridge 👋' }]} label="Queue message" submit={d => act(async () => { const r = await api('/api/v1/messages?project=' + project, 'POST', { project, connection: d.connection, phone: d.phone, kind: 'text', payload: { body: d.body } }, { 'Idempotency-Key': crypto.randomUUID() }); setResult(r); setNotice('Message dispatched successfully! Check Inbox for delivery.'); await refresh() })} /><p className="fine">Use the API Playground for templates, media, and scheduled messages.</p></section>}
               {page === 'Bulk Messaging' && <section className="card narrow"><h2>Bulk Broadcast Messaging</h2><p className="muted">Broadcast WhatsApp messages to multiple recipients at once. Messages are automatically scheduled with a safe 5-second interval to avoid anti-spam limits.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phones', label: 'Recipient Numbers (one per line or comma-separated E.164, e.g. +15551234567)', type: 'textarea', value: '+15551234567\n+15559876543' }, { name: 'body', label: 'Message Body', type: 'textarea', value: 'Hello! This is a message from WhatsBridge.' }]} label="Dispatch Bulk Campaign" submit={d => act(async () => { const r = await api('/api/v1/messages/bulk?project=' + project, 'POST', { project, connection: d.connection, phones: d.phones, body: d.body }); setResult(r); setNotice(`Bulk campaign queued for ${r.total} recipient(s)!`); await refresh() })} /><p className="fine">Works directly with your linked WhatsApp account or official provider.</p></section>}
-              {page === 'OTP Verification' && <div className="two-col"><section className="card"><h2>1. Create a challenge</h2><p className="muted">Generate and deliver a real 6-digit verification code directly to WhatsApp via your connected transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connections.filter(c=>c.status==='CONNECTED').map(c=>({value:c.id,label:c.name + (c.provider==='baileys'?' · WhatsApp QR':c.provider==='meta'?' · Meta API':' · Sandbox')})) }, { name: 'phone', label: 'Phone number (e.g. +919567334117)', value: '+91' }, { name: 'template', label: 'Meta Template Name (only required for official Meta API; leave blank for WhatsApp QR)', required: false }]} label="Send OTP" submit={d => act(async () => { const r = await api('/api/v1/otp/send?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('Verification code dispatched to WhatsApp! Enter it below.'); })} /></section><section className="card"><h2>2. Verify the code</h2><Form key={result?.challenge_id} fields={[{ name: 'challenge_id', label: 'Challenge ID', value: result?.challenge_id }, { name: 'code', label: 'Six-digit code' }]} label="Verify code" submit={d => act(async () => { const r = await api('/api/v1/otp/verify?project=' + project, 'POST', { ...d, project }); setResult(r); setNotice('OTP verified successfully!'); })} /></section></div>}
+              {page === 'OTP Verification' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* Connection Status Helper if no connected WhatsApp transports */}
+                  {connections.filter(c => c.status === 'CONNECTED').length === 0 && (
+                    <div style={{ background: 'var(--surface)', padding: '22px 24px', borderRadius: '12px', border: '1px solid #fed7aa', backgroundAttachment: 'local', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{ width: '44px', height: '44px', borderRadius: '10px', background: '#ffedd5', color: '#c2410c', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <ShieldCheck size={24} />
+                        </div>
+                        <div>
+                          <h4 style={{ margin: '0 0 4px', fontSize: '14px', fontWeight: 700, color: '#9a3412' }}>No Active WhatsApp Transport Connected</h4>
+                          <p style={{ margin: 0, fontSize: '12.5px', color: '#7c2d12', maxWidth: '580px', lineHeight: '1.5' }}>
+                            To deliver real verification codes to user phones via WhatsApp, link your WhatsApp account by scanning the QR code, or enable instant sandbox simulation.
+                          </p>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className="primary"
+                          onClick={linkWhatsApp}
+                          style={{ padding: '8px 14px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <MessageCircle size={15} /> Scan QR & Link WhatsApp
+                        </button>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await api('/api/v1/connections?project=' + project, 'POST', { project, name: 'Sandbox Test Transport', provider: 'sandbox' });
+                              await refresh();
+                              setNotice('Sandbox test connection enabled and connected!');
+                            } catch (e: any) {
+                              setError(e.message || 'Failed to create sandbox connection');
+                            }
+                          }}
+                          style={{ padding: '8px 14px', fontSize: '12.5px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          🧪 Enable Sandbox Transport
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="two-col">
+                    {/* Step 1: Create / Send OTP */}
+                    <section className="card">
+                      <div className="section-heading" style={{ marginBottom: '14px' }}>
+                        <div>
+                          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <ShieldCheck size={18} color="var(--green)" /> 1. Generate & Send OTP
+                          </h2>
+                          <p>Dispatch a secure 6-digit verification code directly to WhatsApp.</p>
+                        </div>
+                        {otpCountdown > 0 && (
+                          <span className="pill" style={{ background: '#fef3c7', color: '#b45309', fontWeight: 600 }}>
+                            <Clock size={12} style={{ marginRight: '4px' }} /> Resend in {otpCountdown}s
+                          </span>
+                        )}
+                      </div>
+
+                      <form
+                        onSubmit={async (e) => {
+                          e.preventDefault();
+                          setOtpBusy(true);
+                          setError('');
+                          setNotice('');
+                          try {
+                            const activeConnId = otpConnId || connections.find(c => c.status === 'CONNECTED')?.id || connections[0]?.id;
+                            const r = await api('/api/v1/otp/send?project=' + project, 'POST', {
+                              project,
+                              connection: activeConnId,
+                              phone: otpPhone.trim()
+                            });
+                            setOtpChallengeId(r.challenge_id);
+                            setOtpRecipient(r.phone || otpPhone.trim());
+                            setOtpSandboxCode(r.sandbox_code || '');
+                            setOtpCountdown(120);
+                            setOtpVerified(false);
+                            setOtpProof(null);
+                            setOtpCode('');
+                            setNotice(`Verification code dispatched to ${r.phone || otpPhone.trim()}!`);
+                          } catch (err: any) {
+                            setError(err.message || 'Failed to dispatch OTP');
+                          } finally {
+                            setOtpBusy(false);
+                          }
+                        }}
+                        style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+                      >
+                        <label className="field" style={{ margin: 0, gap: '6px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 600 }}>WhatsApp Connection Transport *</span>
+                          <select
+                            value={otpConnId || connections.find(c => c.status === 'CONNECTED')?.id || ''}
+                            onChange={e => setOtpConnId(e.target.value)}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                          >
+                            {connections.map(c => (
+                              <option key={c.id} value={c.id}>
+                                {c.name} ({c.provider === 'baileys' ? 'WhatsApp QR' : c.provider === 'meta' ? 'Meta API' : 'Sandbox'}) · {c.status}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+
+                        <label className="field" style={{ margin: 0, gap: '6px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 600 }}>Recipient WhatsApp Phone (E.164) *</span>
+                          <input
+                            type="text"
+                            required
+                            placeholder="+919567334117"
+                            value={otpPhone}
+                            onChange={e => setOtpPhone(e.target.value)}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                          />
+                        </label>
+
+                        <button
+                          type="submit"
+                          className="primary"
+                          disabled={otpBusy || (otpCountdown > 90)}
+                          style={{ width: '100%', height: '42px', marginTop: '6px', justifyContent: 'center', fontSize: '13px', fontWeight: 600 }}
+                        >
+                          {otpBusy ? 'Dispatching to WhatsApp…' : 'Send WhatsApp OTP Code'}
+                          <ArrowRight size={15} style={{ marginLeft: '6px' }} />
+                        </button>
+                      </form>
+                      <p className="fine" style={{ marginTop: '12px' }}>
+                        Codes expire in 5 minutes. Includes brute-force protection and rate-limiting.
+                      </p>
+                    </section>
+
+                    {/* Step 2: Verify Code */}
+                    <section className="card">
+                      <div className="section-heading" style={{ marginBottom: '14px' }}>
+                        <div>
+                          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <Check size={18} color="var(--green)" /> 2. Verify 6-Digit Code
+                          </h2>
+                          <p>Validate the received verification challenge.</p>
+                        </div>
+                        {otpVerified && (
+                          <span className="pill" style={{ background: '#dcfce7', color: '#166534', fontWeight: 700 }}>
+                            ✓ Verified
+                          </span>
+                        )}
+                      </div>
+
+                      {otpChallengeId ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          <div style={{ background: 'var(--bg)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border)', fontSize: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div>
+                              <span style={{ color: 'var(--muted)', display: 'block' }}>Active Challenge</span>
+                              <strong style={{ fontFamily: 'monospace', fontSize: '11.5px' }}>{otpChallengeId}</strong>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => copyText(otpChallengeId, 'otp_cid')}
+                              style={{ padding: '4px 8px', fontSize: '11px', background: 'transparent', border: '1px solid var(--border)' }}
+                            >
+                              {copiedText === 'otp_cid' ? 'Copied!' : 'Copy'}
+                            </button>
+                          </div>
+
+                          {otpSandboxCode && (
+                            <div
+                              onClick={() => setOtpCode(otpSandboxCode)}
+                              style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                            >
+                              <span style={{ fontSize: '12px', color: '#1e40af' }}>
+                                🧪 Sandbox Simulation Code: <strong>{otpSandboxCode}</strong>
+                              </span>
+                              <span style={{ fontSize: '11px', color: '#2563eb', fontWeight: 600, textDecoration: 'underline' }}>
+                                Auto-fill →
+                              </span>
+                            </div>
+                          )}
+
+                          {otpVerified ? (
+                            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '16px', textAlign: 'center' }}>
+                              <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#22c55e', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 10px' }}>
+                                <Check size={20} />
+                              </div>
+                              <h4 style={{ margin: '0 0 6px', color: '#166534', fontSize: '15px' }}>Phone Verified Successfully!</h4>
+                              <p style={{ margin: '0 0 14px', fontSize: '12.5px', color: '#15803d' }}>
+                                Challenge confirmed for <strong>{otpRecipient}</strong>.
+                              </p>
+                              {otpProof && (
+                                <button
+                                  type="button"
+                                  onClick={() => copyText(typeof otpProof === 'string' ? otpProof : JSON.stringify(otpProof), 'otp_token')}
+                                  style={{ padding: '6px 12px', fontSize: '12px', margin: '0 auto' }}
+                                >
+                                  {copiedText === 'otp_token' ? '✓ Token Copied!' : 'Copy Signed Proof Token'}
+                                </button>
+                              )}
+                              <div style={{ marginTop: '16px' }}>
+                                <button
+                                  type="button"
+                                  className="primary"
+                                  style={{ padding: '8px 16px', fontSize: '12px' }}
+                                  onClick={() => {
+                                    setOtpChallengeId('');
+                                    setOtpCode('');
+                                    setOtpVerified(false);
+                                    setOtpProof(null);
+                                    setOtpSandboxCode('');
+                                  }}
+                                >
+                                  Verify Another Phone
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <form
+                              onSubmit={async (e) => {
+                                e.preventDefault();
+                                setOtpBusy(true);
+                                setError('');
+                                setNotice('');
+                                try {
+                                  const r = await api('/api/v1/otp/verify?project=' + project, 'POST', {
+                                    project,
+                                    challenge_id: otpChallengeId,
+                                    code: otpCode.trim()
+                                  });
+                                  setOtpVerified(true);
+                                  setOtpProof(r.verification_token);
+                                  setNotice('OTP code verified successfully! Phone confirmed.');
+                                } catch (err: any) {
+                                  setError(err.message || 'Invalid or expired OTP code');
+                                } finally {
+                                  setOtpBusy(false);
+                                }
+                              }}
+                              style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}
+                            >
+                              <label className="field" style={{ margin: 0, gap: '6px' }}>
+                                <span style={{ fontSize: '12px', fontWeight: 600 }}>Enter 6-Digit Code *</span>
+                                <input
+                                  type="text"
+                                  required
+                                  maxLength={6}
+                                  placeholder="123456"
+                                  value={otpCode}
+                                  onChange={e => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                                  style={{
+                                    width: '100%',
+                                    boxSizing: 'border-box',
+                                    padding: '12px',
+                                    borderRadius: '8px',
+                                    border: '1px solid #dfe6e1',
+                                    fontSize: '20px',
+                                    fontWeight: 700,
+                                    letterSpacing: '8px',
+                                    textAlign: 'center',
+                                    fontFamily: 'monospace'
+                                  }}
+                                />
+                              </label>
+
+                              <button
+                                type="submit"
+                                className="primary"
+                                disabled={otpBusy || otpCode.length !== 6}
+                                style={{ width: '100%', height: '42px', marginTop: '6px', justifyContent: 'center', fontSize: '13px', fontWeight: 600 }}
+                              >
+                                {otpBusy ? 'Verifying Code…' : 'Verify Code'}
+                                <Check size={15} style={{ marginLeft: '6px' }} />
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)' }}>
+                          <ShieldCheck size={36} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+                          <p style={{ margin: '0 0 6px', fontSize: '13.5px', fontWeight: 600, color: 'var(--ink)' }}>No Active Verification Challenge</p>
+                          <p style={{ margin: 0, fontSize: '12.5px', maxWidth: '320px', marginInline: 'auto', lineHeight: '1.5' }}>
+                            Fill in the phone number on the left and click <strong>Send WhatsApp OTP Code</strong> to initiate a challenge.
+                          </p>
+                        </div>
+                      )}
+                    </section>
+                  </div>
+                </div>
+              )}
               {['Workflow Builder', 'Templates', 'Webhooks'].includes(page) && (
                 <section className="card narrow" style={{textAlign:'center',padding:'55px 28px',margin:'20px auto'}}>
                   <div style={{display:'inline-flex',alignItems:'center',justifyContent:'center',width:'68px',height:'68px',borderRadius:'18px',background:'var(--pale)',color:'var(--green)',marginBottom:'22px'}}>

@@ -54,9 +54,9 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
-# Gmail App Passwords often have spaces ("abcd efgh ijkl mnop") when copied; strip internal spaces:
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
+# If EMAIL_HOST_PASSWORD is provided in Render but EMAIL_HOST_USER was omitted, default to the user's Gmail
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'whatsbridges@gmail.com' if EMAIL_HOST_PASSWORD else '').strip()
 
 _port_env = os.getenv('EMAIL_PORT', '')
 _ssl_env = os.getenv('EMAIL_USE_SSL', '0') == '1'
@@ -79,6 +79,7 @@ EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com' if EMAIL_HOST_USER else 'l
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '').strip()
 RESEND_CUSTOM_DOMAIN = os.getenv('RESEND_CUSTOM_DOMAIN', '0') == '1'
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '').strip()
 RELAY_SECRET = os.getenv('RELAY_SECRET', 'whatsbridge-shared-relay-token-2026')
 
 _backend_env = os.getenv('EMAIL_BACKEND', '').strip()
@@ -86,6 +87,8 @@ if _backend_env and _backend_env not in ('django.core.mail.backends.smtp.EmailBa
     EMAIL_BACKEND = _backend_env
 elif RESEND_API_KEY:
     EMAIL_BACKEND = 'core.mail.ResendEmailBackend'
+elif BREVO_API_KEY:
+    EMAIL_BACKEND = 'core.mail.BrevoEmailBackend'
 elif EMAIL_HOST_USER or _backend_env in ('django.core.mail.backends.smtp.EmailBackend', 'core.mail.SmartSmtpEmailBackend'):
     EMAIL_BACKEND = 'core.mail.SmartSmtpEmailBackend'
 elif TESTING:

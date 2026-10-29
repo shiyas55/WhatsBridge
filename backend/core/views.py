@@ -431,6 +431,10 @@ def projects(request):
         name = str(request.data.get('name', '')).strip() or 'WhatsApp Production'
         sandbox = bool(request.data.get('sandbox', False))
         proj = Project.objects.create(organization=member.organization, name=name, sandbox=sandbox)
+        if sandbox:
+            WhatsAppConnection.objects.create(project=proj, name='Sandbox Test Transport', provider='sandbox', status='CONNECTED')
+        else:
+            WhatsAppConnection.objects.create(project=proj, name='WhatsApp Web', provider='baileys', status='DISCONNECTED')
         audit(request, 'project.save', proj.organization, proj.id)
         return Response(ProjectSerializer(proj).data, status=201)
 

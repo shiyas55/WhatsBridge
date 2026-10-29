@@ -65,45 +65,31 @@ class ResendEmailBackend(BaseEmailBackend):
                     raise
         return sent
 
-class SmartSmtpEmailBackend(DjangoSmtpEmailBackend):
+class BrevoEmailBackend(BaseEmailBackend):
     """
-    Tries direct SMTP first. If blocked by cloud network (e.g. Render Free tier blocking port 587 with Errno 101),
-    automatically routes via the Vercel HTTPS SMTP Relay (port 443) or Resend.
+    Sends outbound emails via Brevo's (Sendinblue) HTTPS REST API (Port 443).
+    Bypasses cloud provider SMTP port 587/465 firewall restrictions (e.g., Render Free tier).
+    Free tier supports 300 emails/day.
     """
     def send_messages(self, email_messages):
         if not email_messages:
             return 0
+        key = getattr(settings, 'BREVO_API_KEY', '').strip()
+        if not key:
+            return 0
+        sent = 0
+        for msg in email_messages:
+            try:
+                from_email = msg.from_email or settings.DEFAULT_FROM_EMAIL
+                sender_name = 'WhatsBridge'
+                sender_email = getattr(settings, 'EMAIL_HOST_USER', 'whatsbridges@gmail.com') or 'whatsbridges@gmail.com'
+                if '<' in from_email and '>' in from_email:
+                    parts = from_email.split('<')
+                    sender_name = parts[0].strip() or 'WhatsBridge'
+                    sender_email = parts[1].replace('>', '').strip()
+                elif '@' in from_email:
+                    sender_email = from_email.strip()
 
-        # If Resend API Key is configured, use Resend directly
-        resend_key = getattr(settings, 'RESEND_API_KEY', '').strip()
-        if resend_key:
-            return ResendEmailBackend(fail_silently=self.fail_silently).send_messages(email_messages)
-
-        # First, attempt direct SMTP connection
-        try:
-            return super().send_messages(email_messages)
-        except Exception as smtp_exc:
-            err_str = str(smtp_exc)
-            logger.warning("Direct SMTP dispatch failed (%s). Attempting HTTPS relay bridge...", err_str)
-
-            # Fallback: Route via Vercel HTTPS SMTP Relay
-            public_url = getattr(settings, 'PUBLIC_URL', 'https://whats-bridge.vercel.app').rstrip('/')
-            relay_url = f"{public_url}/relay/smtp"
-            relay_token = getattr(settings, 'RELAY_SECRET', None) or 'whatsbridge-shared-relay-token-2026'
-
-            host_user = getattr(settings, 'EMAIL_HOST_USER', '').strip()
-            host_pass = getattr(settings, 'EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
-            host = getattr(settings, 'EMAIL_HOST', 'smtp.gmail.com')
-            port = getattr(settings, 'EMAIL_PORT', 587)
-            use_ssl = getattr(settings, 'EMAIL_USE_SSL', False)
-
-            if not host_user or not host_pass:
-                if not self.fail_silently:
-                    raise smtp_exc
-                return 0
-
-            sent_count = 0
-            for msg in email_messages:
                 body_html = None
                 if getattr(msg, 'content_subtype', None) == 'html':
                     body_html = msg.body
@@ -113,34 +99,71 @@ class SmartSmtpEmailBackend(DjangoSmtpEmailBackend):
                             body_html = content
                             break
 
+                to_list = [{'email': rec} for rec in msg.to]
                 payload = {
-                    'token': relay_token,
-                    'host': host,
-                    'port': port,
-                    'secure': use_ssl,
-                    'user': host_user,
-                    'pass': host_pass,
-                    'from': msg.from_email or getattr(settings, 'DEFAULT_FROM_EMAIL', host_user),
-                    'to': list(msg.to),
+                    'sender': {'name': sender_name, 'email': sender_email},
+                    'to': to_list,
                     'subject': msg.subject,
-                    'text': msg.body,
-                    'html': body_html
+                    'textContent': msg.body,
                 }
+                if body_html:
+                    payload['htmlContent'] = body_html
 
-                try:
-                    res = requests.post(relay_url, json=payload, timeout=15)
-                    if res.status_code == 200:
-                        sent_count += 1
-                        logger.info("Successfully dispatched email via HTTPS Relay to %s", msg.to)
-                    else:
-                        resp_data = res.json() if res.headers.get('content-type', '').startswith('application/json') else {}
-                        relay_err = resp_data.get('error', res.text)
-                        logger.error("HTTPS Relay failed (%d): %s", res.status_code, relay_err)
-                        if not self.fail_silently:
-                            raise RuntimeError(f"SMTP error ({err_str}), and HTTPS Relay error: {relay_err}")
-                except Exception as relay_exc:
-                    logger.error("HTTPS Relay exception: %s", relay_exc)
+                res = requests.post(
+                    'https://api.brevo.com/v3/smtp/email',
+                    headers={
+                        'api-key': key,
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    json=payload,
+                    timeout=10
+                )
+                if res.status_code in (200, 201):
+                    sent += 1
+                else:
+                    logger.warning("Brevo API error (%d): %s", res.status_code, res.text)
                     if not self.fail_silently:
-                        raise RuntimeError(f"SMTP failed ({err_str}), and Relay failed ({relay_exc})")
+                        raise RuntimeError(f"Brevo error: {res.text}")
+            except Exception as exc:
+                logger.warning("Brevo dispatch failed: %s", exc)
+                if not self.fail_silently:
+                    raise
+        return sent
 
-            return sent_count
+class SmartSmtpEmailBackend(DjangoSmtpEmailBackend):
+    """
+    Tries direct SMTP first. If blocked by cloud network (e.g. Render Free tier blocking port 587 with Errno 101),
+    automatically routes via Resend (HTTPS 443), Brevo (HTTPS 443), or returns actionable instructions.
+    """
+    def send_messages(self, email_messages):
+        if not email_messages:
+            return 0
+
+        # If Resend API Key is configured, use Resend directly over HTTPS Port 443
+        resend_key = getattr(settings, 'RESEND_API_KEY', '').strip()
+        if resend_key:
+            return ResendEmailBackend(fail_silently=self.fail_silently).send_messages(email_messages)
+
+        # If Brevo API Key is configured, use Brevo directly over HTTPS Port 443
+        brevo_key = getattr(settings, 'BREVO_API_KEY', '').strip()
+        if brevo_key:
+            return BrevoEmailBackend(fail_silently=self.fail_silently).send_messages(email_messages)
+
+        # Attempt direct SMTP connection
+        try:
+            return super().send_messages(email_messages)
+        except Exception as smtp_exc:
+            err_str = str(smtp_exc)
+            logger.warning("Direct SMTP dispatch failed (%s).", err_str)
+            if '101' in err_str or 'Network is unreachable' in err_str:
+                hint = (
+                    "Render Free Tier blocks outbound SMTP port 587 ([Errno 101] Network is unreachable). "
+                    "To send emails 100% free over HTTPS Port 443, set RESEND_API_KEY (from resend.com) "
+                    "or BREVO_API_KEY (from brevo.com) in your Render Environment Variables."
+                )
+                if not self.fail_silently:
+                    raise RuntimeError(hint)
+            if not self.fail_silently:
+                raise smtp_exc
+            return 0
