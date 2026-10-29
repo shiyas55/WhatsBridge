@@ -21,19 +21,51 @@ async function start(s:Session){
  if(s.starting)return s.starting;
  s.starting=(async()=>{
   s.stopped=false;s.status='PAIRING';s.error=undefined;s.qr=undefined;const epoch=++s.epoch;
-  const sock=makeWASocket({auth:s.store.auth(),logger:pino({level:'silent'}),browser:Browsers.ubuntu('Chrome'),markOnlineOnConnect:false,syncFullHistory:false,shouldSyncHistoryMessage:()=>false,connectTimeoutMs:30000,retryRequestDelayMs:5000});
+  const sock=makeWASocket({
+    auth:s.store.auth(),
+    logger:pino({level:'silent'}),
+    browser:Browsers.macOS('Desktop'),
+    markOnlineOnConnect:true,
+    syncFullHistory:false,
+    shouldSyncHistoryMessage:()=>false,
+    connectTimeoutMs:60000,
+    defaultQueryTimeoutMs:60000,
+    keepAliveIntervalMs:25000,
+    retryRequestDelayMs:2000
+  });
   s.sock=sock;
-  sock.ev.on('creds.update',()=>{if(epoch===s.epoch&&!s.stopped)s.store.save().catch(()=>{s.error='Encrypted session storage failed';s.status='FAILED';sock.end(new Error('Storage unavailable'));});});
+  sock.ev.on('creds.update',()=>{
+    if(epoch===s.epoch&&!s.stopped){
+      s.store.save().catch(()=>{s.error='Encrypted session storage failed';s.status='FAILED';sock.end(new Error('Storage unavailable'));});
+    }
+  });
   sock.ev.on('connection.update',async update=>{
    if(epoch!==s.epoch||s.stopped)return;
-   if(update.qr){s.qr=await QRCode.toDataURL(update.qr,{width:300,margin:2,errorCorrectionLevel:'M'});s.qrExpires=Date.now()+45000;s.status='PAIRING';}
-   if(update.connection==='open'){s.status='CONNECTED';s.qr=undefined;s.error=undefined;s.restarts=0;await s.store.save();}
+   if(update.qr){
+     s.qr=await QRCode.toDataURL(update.qr,{width:320,margin:2,errorCorrectionLevel:'L'});
+     s.qrExpires=Date.now()+45000;
+     s.status='PAIRING';
+   }
+   if(update.connection==='open'){
+     s.status='CONNECTED';s.qr=undefined;s.error=undefined;s.restarts=0;await s.store.save();
+   }
    if(update.connection==='close'){
-    s.qr=undefined;const code=(update.lastDisconnect?.error as any)?.output?.statusCode;
-    if(code===DisconnectReason.loggedOut){s.status='REVOKED';s.stopped=true;await s.store.clearAuth();return;}
-    // One protocol-required post-pairing restart; no endless reconnect or evasion.
-    if(code===DisconnectReason.restartRequired&&s.restarts<1){s.restarts++;s.status='RECONNECTING';setTimeout(()=>{if(!s.stopped)start(s).catch(()=>{s.status='FAILED';});},1000);}
-    else{s.status='DISCONNECTED';s.error=`WhatsApp connection closed (${code ?? 'network error'}). Check gateway internet access and retry pairing.`;}
+    s.qr=undefined;
+    const code=(update.lastDisconnect?.error as any)?.output?.statusCode;
+    if(code===DisconnectReason.loggedOut){
+      s.status='REVOKED';s.stopped=true;await s.store.clearAuth();return;
+    }
+    // WhatsApp multi-device pairing requires reconnecting on restartRequired (code 515 or 428) to finalize device keys
+    if(code===DisconnectReason.restartRequired || code===515 || code===428 || (s.restarts < 4)){
+      s.restarts++;
+      s.status='RECONNECTING';
+      setTimeout(()=>{
+        if(!s.stopped)start(s).catch(()=>{s.status='FAILED';});
+      }, 750);
+    } else {
+      s.status='DISCONNECTED';
+      s.error=`WhatsApp connection closed (${code ?? 'network error'}). Check gateway internet access and retry pairing.`;
+    }
    }
   });
   sock.ev.on('messages.update',updates=>{for(const update of updates){if(update.key.fromMe&&update.key.id&&update.update.status){const value=update.update.status;const status=value>=proto.WebMessageInfo.Status.READ?'read':value>=proto.WebMessageInfo.Status.DELIVERY_ACK?'delivered':value>=proto.WebMessageInfo.Status.SERVER_ACK?'sent':undefined;if(status){const old=s.store.data.receipts[update.key.id];const ranks:any={sent:1,delivered:2,read:3};if(!old||ranks[status]>ranks[old])s.store.data.receipts[update.key.id]=status;}}}s.store.save().catch(()=>{s.error='Receipt persistence failed';});});

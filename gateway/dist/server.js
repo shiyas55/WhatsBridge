@@ -32,15 +32,29 @@ async function start(s) {
         s.error = undefined;
         s.qr = undefined;
         const epoch = ++s.epoch;
-        const sock = makeWASocket({ auth: s.store.auth(), logger: pino({ level: 'silent' }), browser: Browsers.ubuntu('Chrome'), markOnlineOnConnect: false, syncFullHistory: false, shouldSyncHistoryMessage: () => false, connectTimeoutMs: 30000, retryRequestDelayMs: 5000 });
+        const sock = makeWASocket({
+            auth: s.store.auth(),
+            logger: pino({ level: 'silent' }),
+            browser: Browsers.macOS('Desktop'),
+            markOnlineOnConnect: true,
+            syncFullHistory: false,
+            shouldSyncHistoryMessage: () => false,
+            connectTimeoutMs: 60000,
+            defaultQueryTimeoutMs: 60000,
+            keepAliveIntervalMs: 25000,
+            retryRequestDelayMs: 2000
+        });
         s.sock = sock;
-        sock.ev.on('creds.update', () => { if (epoch === s.epoch && !s.stopped)
-            s.store.save().catch(() => { s.error = 'Encrypted session storage failed'; s.status = 'FAILED'; sock.end(new Error('Storage unavailable')); }); });
+        sock.ev.on('creds.update', () => {
+            if (epoch === s.epoch && !s.stopped) {
+                s.store.save().catch(() => { s.error = 'Encrypted session storage failed'; s.status = 'FAILED'; sock.end(new Error('Storage unavailable')); });
+            }
+        });
         sock.ev.on('connection.update', async (update) => {
             if (epoch !== s.epoch || s.stopped)
                 return;
             if (update.qr) {
-                s.qr = await QRCode.toDataURL(update.qr, { width: 300, margin: 2, errorCorrectionLevel: 'M' });
+                s.qr = await QRCode.toDataURL(update.qr, { width: 320, margin: 2, errorCorrectionLevel: 'L' });
                 s.qrExpires = Date.now() + 45000;
                 s.status = 'PAIRING';
             }
@@ -60,12 +74,14 @@ async function start(s) {
                     await s.store.clearAuth();
                     return;
                 }
-                // One protocol-required post-pairing restart; no endless reconnect or evasion.
-                if (code === DisconnectReason.restartRequired && s.restarts < 1) {
+                // WhatsApp multi-device pairing requires reconnecting on restartRequired (code 515 or 428) to finalize device keys
+                if (code === DisconnectReason.restartRequired || code === 515 || code === 428 || (s.restarts < 4)) {
                     s.restarts++;
                     s.status = 'RECONNECTING';
-                    setTimeout(() => { if (!s.stopped)
-                        start(s).catch(() => { s.status = 'FAILED'; }); }, 1000);
+                    setTimeout(() => {
+                        if (!s.stopped)
+                            start(s).catch(() => { s.status = 'FAILED'; });
+                    }, 750);
                 }
                 else {
                     s.status = 'DISCONNECTED';

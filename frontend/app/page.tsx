@@ -123,6 +123,24 @@ export default function Home(){
  const loadSession=async()=>{try{const r=await fetch('/api/auth/session',{credentials:'include'});const data=await parseResponse(r);if(data?.csrfToken)setCsrf(data.csrfToken);if(data?.features)setExperimentalOTP(Boolean(data.features?.experimental_qr_otp));if(data?.smtp)setSmtpInfo(data.smtp);if(data?.user)setUser(data.user);setReady(true);}catch(e){console.warn('loadSession error:',e);setReady(true);}};
  useEffect(()=>{loadSession().catch(()=>{setError('Cannot reach the backend. Check that the services are running.');setReady(true)})},[]);
 
+ useEffect(() => {
+   if (typeof window !== 'undefined') {
+     const p = new URLSearchParams(window.location.search);
+     const token = p.get('verify');
+     if (token) {
+       api('/api/auth/verify-email', 'POST', { token })
+         .then(d => {
+           setNotice(d?.detail || 'Email verified successfully! You can now sign in.');
+           window.history.replaceState({}, '', window.location.pathname);
+           setAuthMode('login');
+         })
+         .catch(err => {
+           setError(err?.message || 'Email verification link is invalid or expired.');
+         });
+     }
+   }
+ }, [api]);
+
  useEffect(()=>{
    if(user){
      if(user.is_staff || user.is_superuser){
@@ -341,6 +359,7 @@ export default function Home(){
     const email = String(formData.get('email') || '').trim();
     const password = String(formData.get('password') || '');
     const code = String(formData.get('code') || '').trim();
+    if (email) setResendEmail(email);
     setAuthBusy(true);
     try {
       const r = await api('/api/auth/login', 'POST', { email, password, ...(code ? { code } : {}) });
@@ -383,7 +402,24 @@ export default function Home(){
             {authMode==='register'?'Start building with verified email and WhatsApp phone.':authMode==='forgot-password'?'Choose email or WhatsApp OTP to restore access.':authMode==='resend-verify'?'Enter your registered email address to receive a fresh verification link.':'Sign in to your developer workspace.'}
           </p>
 
-          {error && <div role="alert" className="error">{error}</div>}
+          {error && (
+            <div role="alert" className="error" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <span>{error}</span>
+              {(error.toLowerCase().includes('verify') || error.toLowerCase().includes('unverified')) && (
+                <button
+                  type="button"
+                  className="primary"
+                  style={{ padding: '6px 12px', fontSize: '11px', alignSelf: 'flex-start', marginTop: '2px' }}
+                  onClick={() => {
+                    setAuthMode('resend-verify');
+                    setError('');
+                  }}
+                >
+                  Resend verification email now →
+                </button>
+              )}
+            </div>
+          )}
           {notice && <div role="status" className="notice">{notice}</div>}
 
           {urlParams.has('verify') && (

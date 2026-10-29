@@ -27,7 +27,9 @@ class ResendEmailBackend(BaseEmailBackend):
                     from_email = 'WhatsBridge <onboarding@resend.dev>'
 
                 body_html = None
-                if getattr(msg, 'alternatives', None):
+                if getattr(msg, 'content_subtype', None) == 'html':
+                    body_html = msg.body
+                elif getattr(msg, 'alternatives', None):
                     for content, mimetype in msg.alternatives:
                         if mimetype == 'text/html':
                             body_html = content
@@ -103,7 +105,9 @@ class SmartSmtpEmailBackend(DjangoSmtpEmailBackend):
             sent_count = 0
             for msg in email_messages:
                 body_html = None
-                if getattr(msg, 'alternatives', None):
+                if getattr(msg, 'content_subtype', None) == 'html':
+                    body_html = msg.body
+                elif getattr(msg, 'alternatives', None):
                     for content, mimetype in msg.alternatives:
                         if mimetype == 'text/html':
                             body_html = content

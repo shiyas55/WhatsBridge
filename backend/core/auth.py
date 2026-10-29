@@ -122,9 +122,6 @@ def auth(request, action):
             OrganizationMembership.objects.create(organization=org,user=user,role='owner')
             Subscription.objects.create(organization=org)
             Project.objects.create(organization=org, name='WhatsApp Production', sandbox=False)
-            prod_org = Organization.objects.filter(name='WhatsBridge Production', suspended=False).first()
-            if prod_org:
-                OrganizationMembership.objects.get_or_create(organization=prod_org, user=user, defaults={'role': 'owner'})
             
         sent, token, verify_url, smtp_err = send_verification(user)
         if not sent:
@@ -290,12 +287,28 @@ def auth(request, action):
             validate_email(test_to)
         except DV:
             raise ValidationError('A valid recipient email address is required')
+        test_html = f"""
+        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+            <h2 style="color: #008069; margin-top: 0;">WhatsBridge SMTP Test Email ✓</h2>
+            <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+                Hello,<br><br>
+                This confirms that your SMTP email dispatch is working perfectly!
+            </p>
+            <div style="background: #f8fafc; border-radius: 8px; padding: 14px; margin: 20px 0; font-size: 13px; color: #475569; line-height: 1.8;">
+                <strong>SMTP Host:</strong> {settings.EMAIL_HOST}:{settings.EMAIL_PORT}<br/>
+                <strong>Security:</strong> TLS {settings.EMAIL_USE_TLS} / SSL {settings.EMAIL_USE_SSL}<br/>
+                <strong>Sender:</strong> {settings.DEFAULT_FROM_EMAIL}
+            </div>
+            <p style="color: #64748b; font-size: 12px;">WhatsBridge Messaging Infrastructure</p>
+        </div>
+        """
         try:
             send_mail(
                 subject='WhatsBridge SMTP Test Email',
                 message=f'Hello,\n\nThis is a test message confirming that your SMTP email dispatch is working!\n\nHost: {settings.EMAIL_HOST}:{settings.EMAIL_PORT}\nTLS: {settings.EMAIL_USE_TLS}\nSSL: {settings.EMAIL_USE_SSL}\nFrom: {settings.DEFAULT_FROM_EMAIL}',
                 from_email=settings.DEFAULT_FROM_EMAIL,
                 recipient_list=[test_to],
+                html_message=test_html,
                 fail_silently=False
             )
             return Response({

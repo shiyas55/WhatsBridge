@@ -350,7 +350,8 @@ def organizations(request):
     if request.method=='GET':
         wb_org, _ = Organization.objects.get_or_create(name='WhatsBridge Production', defaults={'monthly_limit': 50000})
         Subscription.objects.get_or_create(organization=wb_org)
-        OrganizationMembership.objects.get_or_create(organization=wb_org, user=request.user, defaults={'role': 'owner'})
+        if request.user.is_superuser or request.user.is_staff:
+            OrganizationMembership.objects.get_or_create(organization=wb_org, user=request.user, defaults={'role': 'owner'})
         if not Project.objects.filter(organization=wb_org).exists():
             Project.objects.create(organization=wb_org, name='WhatsApp Production', sandbox=False)
         return Response(list(OrganizationMembership.objects.filter(user=request.user).values('organization_id','organization__name','organization__suspended','role')))
@@ -370,7 +371,7 @@ def projects(request):
             qs = Project.objects.filter(organization__suspended=False).distinct().order_by('created_at')
         else:
             qs = Project.objects.filter(
-                Q(organization__organizationmembership__user=request.user) | Q(organization__name='WhatsBridge Production'),
+                organization__organizationmembership__user=request.user,
                 organization__suspended=False
             ).distinct().order_by('created_at')
             if not qs.exists():
@@ -625,7 +626,11 @@ def platform(request):
     user_list = []
     for u in User.objects.all().order_by('-date_joined')[:200]:
         org_ids = list(OrganizationMembership.objects.filter(user=u).values_list('organization_id', flat=True))
-        projs = Project.objects.filter(organization_id__in=org_ids)
+        if u.is_staff or u.is_superuser:
+            projs = Project.objects.filter(organization_id__in=org_ids)
+        else:
+            personal_org_ids = list(OrganizationMembership.objects.filter(user=u).exclude(organization__name='WhatsBridge Production').values_list('organization_id', flat=True))
+            projs = Project.objects.filter(organization_id__in=personal_org_ids if personal_org_ids else org_ids)
         msgs_count = Message.objects.filter(project__in=projs).count()
         user_list.append({
             'id': u.id,
