@@ -79,13 +79,15 @@ EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com' if EMAIL_HOST_USER else 'l
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
 RESEND_API_KEY = os.getenv('RESEND_API_KEY', '').strip()
 RESEND_CUSTOM_DOMAIN = os.getenv('RESEND_CUSTOM_DOMAIN', '0') == '1'
+RELAY_SECRET = os.getenv('RELAY_SECRET', 'whatsbridge-shared-relay-token-2026')
 
-if os.getenv('EMAIL_BACKEND'):
-    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
+_backend_env = os.getenv('EMAIL_BACKEND', '').strip()
+if _backend_env and _backend_env not in ('django.core.mail.backends.smtp.EmailBackend', 'core.mail.SmartSmtpEmailBackend'):
+    EMAIL_BACKEND = _backend_env
 elif RESEND_API_KEY:
     EMAIL_BACKEND = 'core.mail.ResendEmailBackend'
-elif EMAIL_HOST_USER:
-    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+elif EMAIL_HOST_USER or _backend_env in ('django.core.mail.backends.smtp.EmailBackend', 'core.mail.SmartSmtpEmailBackend'):
+    EMAIL_BACKEND = 'core.mail.SmartSmtpEmailBackend'
 elif TESTING:
     EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 else:

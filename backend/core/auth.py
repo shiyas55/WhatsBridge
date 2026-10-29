@@ -20,7 +20,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.exceptions import ValidationError, PermissionDenied
 from rest_framework.authentication import SessionAuthentication
-from .models import User, Organization, OrganizationMembership, Invitation, Subscription, Contact, WhatsAppConnection, OTPChallenge
+from .models import User, Organization, OrganizationMembership, Invitation, Subscription, Contact, WhatsAppConnection, OTPChallenge, Project
 from .security import encrypt, decrypt, digest, rate_limit, session_only, audit
 from .services import phone_number, queue_message
 
@@ -121,22 +121,36 @@ def auth(request, action):
             org = Organization.objects.create(name=org_name)
             OrganizationMembership.objects.create(organization=org,user=user,role='owner')
             Subscription.objects.create(organization=org)
+            Project.objects.create(organization=org, name='WhatsApp Production', sandbox=False)
+            prod_org = Organization.objects.filter(name='WhatsBridge Production', suspended=False).first()
+            if prod_org:
+                OrganizationMembership.objects.get_or_create(organization=prod_org, user=user, defaults={'role': 'owner'})
             
         sent, token, verify_url, smtp_err = send_verification(user)
         if not sent:
-            user.email_verified = True
-            user.save(update_fields=['email_verified'])
-            detail = f"Account created! (Note: {smtp_err or 'SMTP server not configured'}. Your account is activated so you can sign in immediately.)"
+            detail = f"Account created, but verification email could not be sent: {smtp_err or 'Email service error'}. Please click 'Resend verification link' to try again."
         else:
-            detail = f"Account created! Verification email sent via SMTP to {user.email}. Check your inbox or spam folder."
+            detail = f"Account created! Verification email sent via SMTP to {user.email}. Please check your inbox and click the link to activate your account."
 
         return Response({
             'detail': detail,
             'email_sent': sent,
-            'token': token,
-            'verify_url': verify_url,
             'smtp_error': smtp_err
         }, status=201)
+    if action == 'resend-verification':
+        email = str(data.get('email', '')).strip().lower()
+        if not email:
+            raise ValidationError('Email address is required')
+        rate_limit('resend-verify:' + email, 5, 300)
+        user = User.objects.filter(email=email).first()
+        if not user:
+            return Response({'detail': 'If an account exists with this email, a verification link has been sent.'})
+        if user.email_verified:
+            return Response({'detail': 'This account is already verified. You can sign in immediately.'})
+        sent, token, verify_url, err = send_verification(user)
+        if not sent:
+            raise ValidationError(f'Failed to dispatch email: {err or "SMTP unreachable"}. Please check SMTP configuration or try again.')
+        return Response({'detail': f'Verification email has been resent to {user.email}. Please check your inbox and spam folder.'})
     if action == 'verify-email':
         try:
             payload = signing.loads(data.get('token',''),salt='email-verification',max_age=86400)

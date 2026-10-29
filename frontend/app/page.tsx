@@ -73,8 +73,7 @@ export default function Home(){
  const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
  const [countrySearch, setCountrySearch] = useState('');
  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
- const [createdVerifyUrl, setCreatedVerifyUrl] = useState('');
- const [createdVerifyToken, setCreatedVerifyToken] = useState('');
+ const [resendEmail, setResendEmail] = useState('');
  const [authBusy, setAuthBusy] = useState(false);
  const [smtpInfo, setSmtpInfo] = useState<Row | null>(null);
  const [testSmtpEmail, setTestSmtpEmail] = useState('');
@@ -139,7 +138,7 @@ export default function Home(){
    }
  },[user,refreshPlatform]);
 
- const refreshProjects=useCallback(async()=>{
+ const refreshProjects=useCallback(async(preferredId?:string)=>{
    try {
      const [ps,os]=await Promise.all([api('/api/projects'),api('/api/organizations')]);
      const projectList = Array.isArray(ps) ? ps : [];
@@ -147,7 +146,8 @@ export default function Home(){
      setProjects(projectList);
      setOrgs(orgList);
      setProject(old => {
-       if (old && projectList.some((p: Row) => p.id === old)) return old;
+       const target = preferredId || old;
+       if (target && projectList.some((p: Row) => p.id === target)) return target;
        return projectList[0]?.id ?? '';
      });
    } catch(e: any) {
@@ -302,13 +302,32 @@ export default function Home(){
         confirm_password: regConfirmPassword,
         organization: regOrg.trim() || (regFirstName.trim() ? `${regFirstName.trim()}'s Organization` : 'My organization')
       });
-      setNotice(res.detail || 'Account created! Verification email sent via SMTP.');
-      if (res.verify_url) {
-        setCreatedVerifyUrl(res.verify_url);
-        setCreatedVerifyToken(res.token);
-      }
+      setNotice(res.detail || 'Account created! Verification email sent via SMTP. Please check your inbox to verify.');
+      setResendEmail(regEmail.trim().toLowerCase());
+      setAuthMode('login');
     } catch (err: any) {
       setError(err.message || 'Registration failed');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleResendVerification = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    const targetEmail = resendEmail.trim().toLowerCase();
+    if (!targetEmail) {
+      setError('Please enter your email address');
+      return;
+    }
+    setAuthBusy(true);
+    try {
+      const res = await api('/api/auth/resend-verification', 'POST', { email: targetEmail });
+      setNotice(res.detail || 'Verification email resent successfully! Check your inbox.');
+      setAuthMode('login');
+    } catch (err: any) {
+      setError(err.message || 'Failed to resend verification link');
     } finally {
       setAuthBusy(false);
     }
@@ -359,9 +378,9 @@ export default function Home(){
       <section className="auth-form">
         <div className="auth-box" style={{ maxWidth: authMode === 'register' ? '460px' : '380px' }}>
           <span className="eyebrow">WELCOME TO WHATSBRIDGE</span>
-          <h2>{authMode==='register'?'Create your account':authMode==='forgot-password'?'Reset your password':'Welcome back'}</h2>
+          <h2>{authMode==='register'?'Create your account':authMode==='forgot-password'?'Reset your password':authMode==='resend-verify'?'Resend verification email':'Welcome back'}</h2>
           <p className="muted" style={{ marginBottom: '16px' }}>
-            {authMode==='register'?'Start building with verified email and WhatsApp phone.':authMode==='forgot-password'?'Choose email or WhatsApp OTP to restore access.':'Sign in to your developer workspace.'}
+            {authMode==='register'?'Start building with verified email and WhatsApp phone.':authMode==='forgot-password'?'Choose email or WhatsApp OTP to restore access.':authMode==='resend-verify'?'Enter your registered email address to receive a fresh verification link.':'Sign in to your developer workspace.'}
           </p>
 
           {error && <div role="alert" className="error">{error}</div>}
@@ -370,29 +389,7 @@ export default function Home(){
           {urlParams.has('verify') && (
             <div style={{ marginBottom: '16px', padding: '12px', background: '#eef8f1', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
               <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#166534', fontWeight: 600 }}>Verify your account</p>
-              <button className="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={()=>act(async()=>{const d=await api('/api/auth/verify-email','POST',{token:urlParams.get('verify')});setNotice(d.detail);history.replaceState({},'','/');})}>Confirm Email Verification</button>
-            </div>
-          )}
-
-          {createdVerifyUrl && (
-            <div style={{ marginBottom: '16px', padding: '14px', background: '#eef8f1', border: '1px solid #bbf7d0', borderRadius: '10px', textAlign: 'center' }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#166534', margin: '0 0 10px' }}>
-                ✓ Verification link ready!
-              </p>
-              <button
-                type="button"
-                className="primary"
-                style={{ width: '100%', justifyContent: 'center' }}
-                onClick={() => act(async () => {
-                  const d = await api('/api/auth/verify-email', 'POST', { token: createdVerifyToken });
-                  setNotice(d.detail);
-                  setCreatedVerifyUrl('');
-                  setCreatedVerifyToken('');
-                  setAuthMode('login');
-                })}
-              >
-                Click to Verify & Sign In Now
-              </button>
+              <button className="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={()=>act(async()=>{const d=await api('/api/auth/verify-email','POST',{token:urlParams.get('verify')});setNotice(d.detail);history.replaceState({},'','/');setAuthMode('login');})}>Confirm Email Verification</button>
             </div>
           )}
 
@@ -411,6 +408,37 @@ export default function Home(){
             ) : (
               <Form fields={[{name:'code',label:'6-Digit WhatsApp Code'},{name:'password',label:'New Password (12+ characters)',type:'password'}]} label="Verify & Reset Password" submit={d=>act(async()=>{const r=await api('/api/auth/whatsapp-otp-verify','POST',{...d,challenge_id:waChallenge,user_id:waUid});setNotice(r.detail);await loadSession();})}/>
             )
+          ) : authMode === 'resend-verify' ? (
+            /* RESEND VERIFICATION EMAIL FORM */
+            <form onSubmit={handleResendVerification} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>Registered email address *</span>
+                <input
+                  type="email"
+                  required
+                  placeholder="developer@example.com"
+                  value={resendEmail}
+                  onChange={e => setResendEmail(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                />
+              </label>
+              <button
+                type="submit"
+                className="primary"
+                disabled={authBusy}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  marginTop: '6px',
+                  justifyContent: 'center',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}
+              >
+                {authBusy ? 'Resending email via SMTP…' : 'Resend Verification Link'}
+                <ArrowRight size={15} style={{ marginLeft: '4px' }} />
+              </button>
+            </form>
           ) : authMode === 'register' ? (
             /* CREATE AN ACCOUNT (NAME, LAST NAME, EMAIL, PHONE WITH SEARCHABLE REGION, PASSWORD, CONFIRM PASSWORD) */
             <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
@@ -667,10 +695,15 @@ export default function Home(){
             </form>
           )}
 
-          <div className="auth-links" style={{ marginTop: '16px' }}>
+          <div className="auth-links" style={{ marginTop: '16px', display: 'flex', flexWrap: 'wrap', gap: '8px', justifyContent: 'space-between' }}>
             <button onClick={() => { setAuthMode(authMode==='login'?'register':'login'); setError(''); setNotice(''); }}>
               {authMode==='login'?'Create an account':'Back to sign in'}
             </button>
+            {authMode !== 'resend-verify' && (
+              <button onClick={() => { setAuthMode('resend-verify'); setError(''); setNotice(''); }}>
+                Resend verification email
+              </button>
+            )}
             <button onClick={() => { setAuthMode('forgot-password'); setError(''); setNotice(''); }}>
               Forgot password?
             </button>
@@ -1501,7 +1534,7 @@ await whatsbridge.messages.create({
   );
 })()}
  {modal==='qr'&&(selected ? <QRPairing connection={selected as any} api={api} onConnected={()=>{setNotice('WhatsApp linked. You can now send consented text messages.');refresh().catch(e=>setError(e.message))}}/> : <div style={{padding:'40px 20px',textAlign:'center',color:'var(--muted)'}}>Preparing WhatsApp connection session…</div>)}
- {modal==='project'&&(()=>{const prodOrg=orgs.find(o=>o.organization__name==='WhatsBridge Production')||orgs[0];const orgOptions=orgs.length?orgs.map(o=>({value:o.organization_id,label:o.organization__name})):[{value:prodOrg?.organization_id||'',label:'WhatsBridge Production'}];return <Form fields={[{name:'name',label:'Project name',value:'WhatsApp Production'},{name:'organization',label:'Organization',options:orgOptions,value:prodOrg?.organization_id}]} label="Create Live Project" submit={d=>act(async()=>{const orgId=d.organization||prodOrg?.organization_id;const newProj=await api('/api/projects','POST',{name:d.name,organization:orgId,sandbox:false});if(newProj?.id){setProjects(prev=>prev.some((p:Row)=>p.id===newProj.id)?prev:[...prev,newProj]);setProject(newProj.id);}await refreshProjects();setModal('');setNotice(`Project "${d.name}" created successfully.`);})}/>})()}
+ {modal==='project'&&(()=>{const prodOrg=orgs.find(o=>o.organization__name==='WhatsBridge Production')||orgs[0];const orgOptions=orgs.length?orgs.map(o=>({value:o.organization_id,label:o.organization__name})):[{value:prodOrg?.organization_id||'',label:'WhatsBridge Production'}];return <Form fields={[{name:'name',label:'Project name',value:'WhatsApp Production'},{name:'organization',label:'Organization',options:orgOptions,value:prodOrg?.organization_id}]} label="Create Live Project" submit={d=>act(async()=>{const orgId=d.organization||prodOrg?.organization_id;const newProj=await api('/api/projects','POST',{name:d.name,organization:orgId,sandbox:false});if(newProj?.id){setProjects(prev=>prev.some((p:Row)=>p.id===newProj.id)?prev:[...prev,newProj]);setProject(newProj.id);}await refreshProjects(newProj?.id);setModal('');setNotice(`Project "${d.name}" created successfully.`);})}/>})()}
  {modal==='organization'&&<Form fields={[{name:'name',label:'Organization name'}]} submit={d=>act(async()=>{await api('/api/organizations','POST',d);await refreshProjects();setModal('')})}/>}
  {modal==='connection'&&<Form fields={fieldsForConnection} label="Connect" submit={d=>act(async()=>{const c=await api('/api/v1/connections?project='+project,'POST',{...d,project});await refresh();if(c.provider==='baileys'){setSelected(c);setModal('qr');}else setModal('');})}/>}
  {modal==='key'&&(()=>{

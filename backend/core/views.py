@@ -373,6 +373,18 @@ def projects(request):
                 Q(organization__organizationmembership__user=request.user) | Q(organization__name='WhatsBridge Production'),
                 organization__suspended=False
             ).distinct().order_by('created_at')
+            if not qs.exists():
+                user_org_member = OrganizationMembership.objects.filter(user=request.user, organization__suspended=False).first()
+                if user_org_member:
+                    target_org = user_org_member.organization
+                else:
+                    target_org = Organization.objects.filter(name='WhatsBridge Production', suspended=False).first()
+                    if not target_org:
+                        target_org = Organization.objects.create(name=f"{request.user.first_name or 'My'} Organization", monthly_limit=50000)
+                        Subscription.objects.get_or_create(organization=target_org)
+                    OrganizationMembership.objects.get_or_create(organization=target_org, user=request.user, defaults={'role': 'owner'})
+                Project.objects.create(organization=target_org, name='WhatsApp Production', sandbox=False)
+                qs = Project.objects.filter(organization=target_org, organization__suspended=False)
         return Response(ProjectSerializer(qs, many=True).data)
     if request.method=='DELETE':
         project=project_for(request,write=True,admin=True)
@@ -399,18 +411,22 @@ def projects(request):
         return Response(ProjectSerializer(obj).data,status=200)
     else:
         org_id = request.data.get('organization')
-        wb_org = None
+        target_org = None
         if org_id:
             try:
-                wb_org = Organization.objects.filter(pk=org_id, suspended=False).first()
+                target_org = Organization.objects.filter(pk=org_id, suspended=False).first()
             except Exception:
-                wb_org = None
-        if not wb_org:
-            wb_org = Organization.objects.filter(name='WhatsBridge Production', suspended=False).first() or Organization.objects.filter(suspended=False).first()
-        if not wb_org:
-            wb_org = Organization.objects.create(name='WhatsBridge Production', monthly_limit=50000)
-            Subscription.objects.get_or_create(organization=wb_org)
-        member, _ = OrganizationMembership.objects.get_or_create(organization=wb_org, user=request.user, defaults={'role': 'owner'})
+                target_org = None
+        if not target_org:
+            user_org_member = OrganizationMembership.objects.filter(user=request.user, organization__suspended=False).first()
+            if user_org_member:
+                target_org = user_org_member.organization
+            else:
+                target_org = Organization.objects.filter(name='WhatsBridge Production', suspended=False).first() or Organization.objects.filter(suspended=False).first()
+        if not target_org:
+            target_org = Organization.objects.create(name='WhatsBridge Production', monthly_limit=50000)
+            Subscription.objects.get_or_create(organization=target_org)
+        member, _ = OrganizationMembership.objects.get_or_create(organization=target_org, user=request.user, defaults={'role': 'owner'})
         name = str(request.data.get('name', '')).strip() or 'WhatsApp Production'
         sandbox = bool(request.data.get('sandbox', False))
         proj = Project.objects.create(organization=member.organization, name=name, sandbox=sandbox)
