@@ -176,8 +176,9 @@ export default function WhatsAppWeb({
   return (
     <div className="wb-whatsapp-container" style={{
       display: 'flex',
-      height: 'calc(100vh - 190px)',
-      minHeight: '680px',
+      height: 'calc(100vh - 175px)',
+      maxHeight: 'calc(100dvh - 175px)',
+      minHeight: '480px',
       background: '#ffffff',
       border: '1px solid var(--line, #e7ece9)',
       borderRadius: '14px',
@@ -189,21 +190,25 @@ export default function WhatsAppWeb({
       <style>{`
         .wb-wa-sidebar {
           width: 360px;
-          min-width: 320px;
+          min-width: 300px;
           border-right: 1px solid #e2e8f0;
           display: flex;
           flex-direction: column;
           background: #ffffff;
           flex-shrink: 0;
+          height: 100%;
+          min-height: 0;
+          overflow: hidden;
         }
         .wb-wa-sidebar-header {
-          height: 64px;
-          padding: 12px 16px;
+          height: 60px;
+          padding: 10px 16px;
           background: #f0f2f5;
           display: flex;
           align-items: center;
           justify-content: space-between;
           border-bottom: 1px solid #e2e8f0;
+          flex-shrink: 0;
         }
         .wb-wa-chat-item {
           display: flex;
@@ -222,12 +227,16 @@ export default function WhatsAppWeb({
           border-left: 4px solid #00a884;
         }
         .wb-phone-frame {
-          width: 375px;
-          height: 680px;
+          height: 100%;
+          max-height: 100%;
+          width: auto;
+          aspect-ratio: 9 / 18.5;
+          max-width: 350px;
+          min-width: 285px;
           background: #000000;
-          border-radius: 46px;
-          border: 10px solid #1e293b;
-          box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.45), 0 0 0 2px #334155;
+          border-radius: 38px;
+          border: 8px solid #1e293b;
+          box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.4), 0 0 0 1px #334155;
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -236,18 +245,19 @@ export default function WhatsAppWeb({
         }
         .wb-phone-notch {
           position: absolute;
-          top: 10px;
+          top: 6px;
           left: 50%;
           transform: translateX(-50%);
-          width: 94px;
-          height: 22px;
+          width: 78px;
+          height: 18px;
           background: #000000;
-          border-radius: 20px;
+          border-radius: 14px;
           z-index: 50;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding: 0 10px;
+          padding: 0 8px;
+        }
         }
         .wb-doodle-bg {
           background-color: #efeae2;
@@ -670,18 +680,21 @@ export default function WhatsAppWeb({
         flexDirection: 'column',
         background: '#f1f5f9',
         position: 'relative',
-        minWidth: 0
+        minWidth: 0,
+        height: '100%',
+        overflow: 'hidden'
       }}>
         {/* Top Control Bar: Recipient Details & View Mode Toggle */}
         <header style={{
-          height: '56px',
-          padding: '0 20px',
+          height: '50px',
+          padding: '0 18px',
           background: '#ffffff',
           borderBottom: '1px solid #e2e8f0',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          zIndex: 10
+          zIndex: 10,
+          flexShrink: 0
         }}>
           {/* Selected Chat Contact Info */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
@@ -816,8 +829,9 @@ export default function WhatsAppWeb({
         {viewMode === 'mobile' ? (
           <div style={{
             flex: 1,
-            overflowY: 'auto',
-            padding: '24px 16px',
+            minHeight: 0,
+            overflow: 'hidden',
+            padding: '10px 14px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -827,39 +841,40 @@ export default function WhatsAppWeb({
             <div className="wb-phone-frame">
               {/* Dynamic Island / Top Speaker Notch */}
               <div className="wb-phone-notch">
-                <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#1e293b', border: '1px solid #334155' }} />
-                <div style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#0284c7' }} />
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#1e293b', border: '1px solid #334155' }} />
+                <div style={{ width: '3.5px', height: '3.5px', borderRadius: '50%', background: '#0284c7' }} />
               </div>
 
               {/* Status Bar (Time, Battery, Signal) */}
               <div style={{
-                height: '38px',
-                padding: '0 18px',
+                height: '28px',
+                padding: '0 14px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 color: '#ffffff',
-                fontSize: '11.5px',
+                fontSize: '11px',
                 fontWeight: 600,
                 background: '#008069',
-                zIndex: 40
+                zIndex: 40,
+                flexShrink: 0
               }}>
                 <span>{clockTime}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '10px', fontWeight: 700 }}>5G</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span style={{ fontSize: '9.5px', fontWeight: 700 }}>5G</span>
                   {/* Signal bars */}
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1.5px', height: '10px' }}>
-                    <div style={{ width: '2.5px', height: '3px', background: '#ffffff', borderRadius: '0.5px' }} />
-                    <div style={{ width: '2.5px', height: '5px', background: '#ffffff', borderRadius: '0.5px' }} />
-                    <div style={{ width: '2.5px', height: '7px', background: '#ffffff', borderRadius: '0.5px' }} />
-                    <div style={{ width: '2.5px', height: '10px', background: '#ffffff', borderRadius: '0.5px' }} />
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '1px', height: '9px' }}>
+                    <div style={{ width: '2px', height: '3px', background: '#ffffff', borderRadius: '0.5px' }} />
+                    <div style={{ width: '2px', height: '5px', background: '#ffffff', borderRadius: '0.5px' }} />
+                    <div style={{ width: '2px', height: '7px', background: '#ffffff', borderRadius: '0.5px' }} />
+                    <div style={{ width: '2px', height: '9px', background: '#ffffff', borderRadius: '0.5px' }} />
                   </div>
                   {/* Battery Pill */}
                   <div style={{
-                    width: '18px',
-                    height: '9px',
+                    width: '16px',
+                    height: '8px',
                     border: '1px solid #ffffff',
-                    borderRadius: '2.5px',
+                    borderRadius: '2px',
                     padding: '1px',
                     display: 'flex',
                     alignItems: 'center'
@@ -871,23 +886,24 @@ export default function WhatsAppWeb({
 
               {/* Real WhatsApp Mobile Navigation Header */}
               <div style={{
-                height: '52px',
+                height: '46px',
                 background: '#008069',
-                padding: '0 12px',
+                padding: '0 10px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 color: '#ffffff',
                 zIndex: 30,
-                boxShadow: '0 1px 3px rgba(0,0,0,0.15)'
+                boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                flexShrink: 0
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-                  <ArrowLeft size={18} color="#ffffff" style={{ cursor: 'pointer', flexShrink: 0 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                  <ArrowLeft size={16} color="#ffffff" style={{ cursor: 'pointer', flexShrink: 0 }} />
                   
                   {/* Contact Avatar */}
                   <div style={{
-                    width: '35px',
-                    height: '35px',
+                    width: '32px',
+                    height: '32px',
                     borderRadius: '50%',
                     background: '#ffffff',
                     color: '#008069',
@@ -895,7 +911,7 @@ export default function WhatsAppWeb({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 700,
-                    fontSize: '12.5px',
+                    fontSize: '11.5px',
                     flexShrink: 0
                   }}>
                     {(selectedPhone || 'WA').replace('+', '').slice(0, 2).toUpperCase()}
@@ -905,7 +921,7 @@ export default function WhatsAppWeb({
                   <div style={{ minWidth: 0 }}>
                     <div style={{
                       fontWeight: 700,
-                      fontSize: '13.5px',
+                      fontSize: '13px',
                       lineHeight: '1.2',
                       color: '#ffffff',
                       overflow: 'hidden',
@@ -914,29 +930,30 @@ export default function WhatsAppWeb({
                     }}>
                       {activeConversation?.name || selectedPhone || 'WhatsApp'}
                     </div>
-                    <div style={{ fontSize: '10px', color: '#d1fae5', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: '#4ade80' }} />
+                    <div style={{ fontSize: '9.5px', color: '#d1fae5', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                      <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#4ade80' }} />
                       online
                     </div>
                   </div>
                 </div>
 
                 {/* Right Action Icons (Video, Phone, 3-dots) */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px', color: '#ffffff' }}>
-                  <Video size={17} style={{ cursor: 'pointer' }} />
-                  <PhoneCall size={16} style={{ cursor: 'pointer' }} />
-                  <MoreVertical size={17} style={{ cursor: 'pointer' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: '#ffffff' }}>
+                  <Video size={15} style={{ cursor: 'pointer' }} />
+                  <PhoneCall size={14} style={{ cursor: 'pointer' }} />
+                  <MoreVertical size={15} style={{ cursor: 'pointer' }} />
                 </div>
               </div>
 
               {/* WhatsApp Messages Stream with Authentic Wallpaper */}
               <div className="wb-doodle-bg" style={{
                 flex: 1,
+                minHeight: 0,
                 overflowY: 'auto',
-                padding: '14px 12px',
+                padding: '10px 10px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '8px'
+                gap: '6px'
               }}>
                 {/* WhatsApp End-to-End Encryption Banner */}
                 <div style={{
@@ -1051,12 +1068,13 @@ export default function WhatsAppWeb({
 
               {/* Real WhatsApp Mobile Bottom Message Bar (Composer) */}
               <div style={{
-                padding: '8px 8px 12px',
+                padding: '6px 8px 8px',
                 background: '#f0f2f5',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                borderTop: '1px solid #e2e8f0'
+                borderTop: '1px solid #e2e8f0',
+                flexShrink: 0
               }}>
                 {/* White Rounded Input Pill */}
                 <div style={{
@@ -1065,11 +1083,12 @@ export default function WhatsAppWeb({
                   borderRadius: '24px',
                   display: 'flex',
                   alignItems: 'center',
-                  padding: '4px 10px',
-                  gap: '6px',
-                  boxShadow: '0 1px 2px rgba(0,0,0,0.08)'
+                  padding: '3px 8px',
+                  gap: '5px',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                  minWidth: 0
                 }}>
-                  <Smile size={19} color="#54656f" style={{ cursor: 'pointer', flexShrink: 0 }} />
+                  <Smile size={18} color="#54656f" style={{ cursor: 'pointer', flexShrink: 0 }} />
                   <input
                     type="text"
                     placeholder="Message"
@@ -1082,14 +1101,14 @@ export default function WhatsAppWeb({
                       border: 'none',
                       background: 'transparent',
                       outline: 'none',
-                      padding: '6px 0',
-                      fontSize: '13px',
+                      padding: '5px 0',
+                      fontSize: '12.5px',
                       color: '#111b21',
                       minWidth: 0
                     }}
                   />
-                  <Paperclip size={17} color="#54656f" style={{ cursor: 'pointer', flexShrink: 0 }} />
-                  <Camera size={17} color="#54656f" style={{ cursor: 'pointer', flexShrink: 0 }} />
+                  <Paperclip size={16} color="#54656f" style={{ cursor: 'pointer', flexShrink: 0 }} />
+                  <Camera size={16} color="#54656f" style={{ cursor: 'pointer', flexShrink: 0 }} />
                 </div>
 
                 {/* Floating Green Circle Send/Mic Button */}
@@ -1098,8 +1117,8 @@ export default function WhatsAppWeb({
                   onClick={handleSendMessage}
                   disabled={sending || !selectedPhone || !inputMessage.trim()}
                   style={{
-                    width: '40px',
-                    height: '40px',
+                    width: '36px',
+                    height: '36px',
                     borderRadius: '50%',
                     background: '#008069',
                     border: 'none',
@@ -1107,7 +1126,7 @@ export default function WhatsAppWeb({
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: sending || !inputMessage.trim() ? 'default' : 'pointer',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.18)',
                     color: '#ffffff',
                     flexShrink: 0,
                     opacity: sending ? 0.7 : 1,
@@ -1116,16 +1135,16 @@ export default function WhatsAppWeb({
                   title="Send Message"
                 >
                   {inputMessage.trim() ? (
-                    <Send size={17} style={{ marginLeft: '2px' }} />
+                    <Send size={15} style={{ marginLeft: '1px' }} />
                   ) : (
-                    <Mic size={18} />
+                    <Mic size={16} />
                   )}
                 </button>
               </div>
 
               {/* Home Indicator */}
-              <div style={{ height: '14px', background: '#000000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <div style={{ width: '120px', height: '4px', background: '#475569', borderRadius: '2px' }} />
+              <div style={{ height: '11px', background: '#000000', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <div style={{ width: '96px', height: '3px', background: '#475569', borderRadius: '2px' }} />
               </div>
             </div>
           </div>
