@@ -439,6 +439,81 @@ def platform(request):
     if not (request.user.is_superuser or request.user.is_staff): raise PermissionDenied('Platform administrator required')
     if request.method=='POST':
         action = request.data.get('action')
+        if action == 'create_user':
+            email = str(request.data.get('email', '')).strip().lower()
+            if not email:
+                raise ValidationError('Email is required')
+            from django.core.validators import validate_email, ValidationError as DjangoValidationError
+            try:
+                validate_email(email)
+            except DjangoValidationError:
+                raise ValidationError('A valid email address is required')
+            if User.objects.filter(email=email).exists():
+                raise ValidationError(f'User with email {email} already exists')
+
+            first_name = str(request.data.get('first_name', '')).strip()
+            last_name = str(request.data.get('last_name', '')).strip()
+            phone = str(request.data.get('phone', '')).strip()
+            pw = request.data.get('password')
+            if not pw:
+                import secrets
+                pw = secrets.token_urlsafe(10) + '!Aa1'
+            else:
+                validate_pw(pw)
+
+            is_staff = bool(request.data.get('is_staff', False))
+            is_superuser = bool(request.data.get('is_superuser', False))
+            email_verified = bool(request.data.get('email_verified', True))
+
+            u = User.objects.create(
+                username=email,
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone,
+                is_staff=is_staff or is_superuser,
+                is_superuser=is_superuser,
+                email_verified=email_verified
+            )
+            u.set_password(pw)
+            u.save()
+
+            org_id = request.data.get('organization')
+            new_org_name = request.data.get('new_organization_name')
+            org = None
+            if new_org_name:
+                org = Organization.objects.create(name=new_org_name.strip(), monthly_limit=50000)
+                Subscription.objects.get_or_create(organization=org)
+            elif org_id:
+                org = Organization.objects.filter(pk=org_id).first()
+            if not org:
+                org = Organization.objects.first()
+            if org:
+                role = request.data.get('role', 'developer')
+                OrganizationMembership.objects.get_or_create(organization=org, user=u, defaults={'role': role})
+                if not Project.objects.filter(organization=org).exists():
+                    Project.objects.create(organization=org, name=f'{u.first_name or "Workspace"} WhatsApp Project', sandbox=False)
+
+            audit(request, 'platform.user.create', target=str(u.pk))
+            return Response({
+                'detail': f'User {u.email} created successfully',
+                'user': {
+                    'id': u.pk,
+                    'email': u.email,
+                    'first_name': u.first_name,
+                    'temporary_password': pw
+                }
+            }, status=201)
+        if action == 'change_user_org':
+            uid = request.data.get('user_id')
+            u = User.objects.get(pk=uid)
+            org_id = request.data.get('organization')
+            role = request.data.get('role', 'developer')
+            org = Organization.objects.get(pk=org_id)
+            OrganizationMembership.objects.filter(user=u).delete()
+            OrganizationMembership.objects.create(organization=org, user=u, role=role)
+            audit(request, 'platform.user.org_change', target=uid)
+            return Response({'detail': f'Updated organization for {u.email} to {org.name} ({role})'})
         if action == 'toggle_staff':
             u = User.objects.get(pk=request.data.get('user_id'))
             u.is_staff = not u.is_staff
@@ -531,7 +606,7 @@ def platform(request):
             'date_joined': u.date_joined,
             'projects_count': projs.count(),
             'messages_count': msgs_count,
-            'organizations': list(OrganizationMembership.objects.filter(user=u).values('organization__name', 'role')),
+            'organizations': list(OrganizationMembership.objects.filter(user=u).values('organization__name', 'organization__id', 'role')),
         })
 
     status_breakdown = list(Message.objects.values('status').annotate(count=Count('id')))

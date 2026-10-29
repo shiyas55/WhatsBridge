@@ -1022,17 +1022,30 @@ await whatsbridge.messages.create({
                     <div className="section-heading" style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'12px'}}>
                       <div>
                         <h2>All Platform Users ({(result?.users ?? []).filter((u: Row) => !search || u.email?.toLowerCase().includes(search.toLowerCase()) || u.first_name?.toLowerCase().includes(search.toLowerCase())).length})</h2>
-                        <p>Full administrative user controls: block / unblock accounts, manage roles, verify emails, reset credentials, and delete users.</p>
+                        <p>Full administrative user controls: create users, assign organizations, block / unblock accounts, manage roles, and delete users.</p>
                       </div>
-                      <div style={{position:'relative',minWidth:'260px'}}>
-                        <Search size={14} style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}/>
-                        <input
-                          type="text"
-                          placeholder="Search users by email or name…"
-                          value={search}
-                          onChange={e => setSearch(e.target.value)}
-                          style={{paddingLeft:'32px',width:'100%',boxSizing:'border-box',fontSize:'13px',borderRadius:'8px',border:'1px solid var(--line)',background:'var(--surface)'}}
-                        />
+                      <div style={{display:'flex',alignItems:'center',gap:'10px',flexWrap:'wrap'}}>
+                        <button
+                          type="button"
+                          className="primary"
+                          style={{display:'inline-flex',alignItems:'center',gap:'6px',padding:'7px 14px',fontSize:'12px'}}
+                          onClick={() => {
+                            setSelected(null);
+                            setModal('create-user');
+                          }}
+                        >
+                          <Plus size={14}/> Create User
+                        </button>
+                        <div style={{position:'relative',minWidth:'220px'}}>
+                          <Search size={14} style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}/>
+                          <input
+                            type="text"
+                            placeholder="Search users…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                            style={{paddingLeft:'30px',width:'100%',boxSizing:'border-box',fontSize:'12px',borderRadius:'8px',border:'1px solid var(--line)',background:'var(--surface)',paddingTop:'6px',paddingBottom:'6px'}}
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="table-scroll">
@@ -1070,8 +1083,8 @@ await whatsbridge.messages.create({
                                 </span>
                               </td>
                               <td>
-                                <strong>{u.projects_count ?? 0} projects</strong>
-                                <small style={{display:'block',color:'var(--muted)'}}>{(u.messages_count ?? 0).toLocaleString()} messages sent</small>
+                                <strong>{u.organizations?.[0]?.organization__name || 'WhatsBridge Production'}</strong>
+                                <small style={{display:'block',color:'var(--muted)'}}>{u.projects_count ?? 0} projects · {(u.messages_count ?? 0).toLocaleString()} msgs</small>
                               </td>
                               <td>
                                 {u.is_active ? (
@@ -1092,6 +1105,15 @@ await whatsbridge.messages.create({
                               </td>
                               <td>
                                 <div className="row-actions">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setSelected(u);
+                                      setModal('change-user-org');
+                                    }}
+                                  >
+                                    Change Org
+                                  </button>
                                   <button
                                     type="button"
                                     style={u.is_active ? {color:'#dc2626',fontWeight:600,borderColor:'rgba(220,38,38,0.3)'} : {color:'#15803d',fontWeight:700,borderColor:'rgba(21,128,61,0.3)'}}
@@ -1371,7 +1393,88 @@ await whatsbridge.messages.create({
  </>}
  <footer className="footer"><span>WhatsBridge <span>·</span> Production Platform</span><span><i/> Production transport · provider rules apply</span></footer></main></div>
  </div>
- {modal&&<Modal onClose={()=>setModal('')} title={modal==='qr'?'Link your WhatsApp':modal==='key'?'Create an API key':modal==='created-key'?'API Key Created · Live & Ready':modal==='test-key'?'Live WhatsApp API Tester':modal==='onboard'?'Official Meta onboarding':modal==='consent'?'Record recipient consent':modal==='connection'?'Add connection':modal==='project'?'Create project':'Create '+modal} description={modal==='qr'?'Connect your phone by scanning the QR code below.':modal==='key'?'Generate a scoped API key linked to your WhatsApp transport.':modal==='created-key'?'Copy your secret key now. It is shown once and cannot be retrieved later.':modal==='test-key'?'Send a live test message using your Bearer API key.':modal==='connection'?'Choose a messaging transport for this project.':modal==='project'?'Set up an isolated environment for your application.':undefined}>
+ {modal&&<Modal onClose={()=>setModal('')} title={modal==='qr'?'Link your WhatsApp':modal==='create-user'?'Create New User Account':modal==='change-user-org'?'Change User Organization & Role':modal==='key'?'Create an API key':modal==='created-key'?'API Key Created · Live & Ready':modal==='test-key'?'Live WhatsApp API Tester':modal==='onboard'?'Official Meta onboarding':modal==='consent'?'Record recipient consent':modal==='connection'?'Add connection':modal==='project'?'Create project':'Create '+modal} description={modal==='qr'?'Connect your phone by scanning the QR code below.':modal==='create-user'?'Provision a new user account with assigned organization and credentials.':modal==='change-user-org'?'Select a new organization and role assignment for this user.':modal==='key'?'Generate a scoped API key linked to your WhatsApp transport.':modal==='created-key'?'Copy your secret key now. It is shown once and cannot be retrieved later.':modal==='test-key'?'Send a live test message using your Bearer API key.':modal==='connection'?'Choose a messaging transport for this project.':modal==='project'?'Set up an isolated environment for your application.':undefined}>
+ {modal==='create-user'&&(()=>{
+  const orgOptions = (result?.organizations || []).map((o: Row) => ({ value: o.id, label: o.name }));
+  if (!orgOptions.length) orgOptions.push({ value: '', label: 'WhatsBridge Production' });
+  return (
+    <Form
+      fields={[
+        { name: 'email', label: 'Email Address', type: 'email', required: true },
+        { name: 'first_name', label: 'First Name', required: false },
+        { name: 'last_name', label: 'Last Name', required: false },
+        { name: 'phone', label: 'Phone Number (e.g. +919567334117)', required: false },
+        { name: 'password', label: 'Password (leave blank to auto-generate)', type: 'password', required: false },
+        { name: 'organization', label: 'Organization', options: orgOptions, value: orgOptions[0]?.value },
+        {
+          name: 'role',
+          label: 'Role in Organization',
+          options: [
+            { value: 'developer', label: 'Developer (Standard access)' },
+            { value: 'admin', label: 'Organization Admin' },
+            { value: 'owner', label: 'Organization Owner' }
+          ]
+        },
+        {
+          name: 'is_staff',
+          label: 'Super Admin Access',
+          options: [
+            { value: 'false', label: 'Standard User (No Admin Console)' },
+            { value: 'true', label: 'Super Administrator (Full Admin Console)' }
+          ]
+        }
+      ]}
+      label="Create User Account"
+      submit={async d => act(async () => {
+        const res = await api('/api/platform', 'POST', {
+          action: 'create_user',
+          ...d,
+          is_staff: d.is_staff === 'true',
+          is_superuser: d.is_staff === 'true',
+          email_verified: true
+        });
+        setModal('');
+        setNotice(res.detail + (res.user?.temporary_password ? ' · Password: ' + res.user.temporary_password : ''));
+        await refreshPlatform();
+      })}
+    />
+  );
+})()}
+ {modal==='change-user-org'&&selected&&(()=>{
+  const orgOptions = (result?.organizations || []).map((o: Row) => ({ value: o.id, label: o.name }));
+  if (!orgOptions.length) orgOptions.push({ value: '', label: 'WhatsBridge Production' });
+  const currentOrgId = selected.organizations?.[0]?.organization__id || orgOptions[0]?.value;
+  const currentRole = selected.organizations?.[0]?.role || 'developer';
+  return (
+    <Form
+      fields={[
+        { name: 'organization', label: 'Organization', options: orgOptions, value: currentOrgId },
+        {
+          name: 'role',
+          label: 'Role in Organization',
+          options: [
+            { value: 'developer', label: 'Developer (Standard access)' },
+            { value: 'admin', label: 'Organization Admin' },
+            { value: 'owner', label: 'Organization Owner' }
+          ],
+          value: currentRole
+        }
+      ]}
+      label="Update Organization & Role"
+      submit={async d => act(async () => {
+        const res = await api('/api/platform', 'POST', {
+          action: 'change_user_org',
+          user_id: selected.id,
+          organization: d.organization,
+          role: d.role
+        });
+        setModal('');
+        setNotice(res.detail);
+        await refreshPlatform();
+      })}
+    />
+  );
+})()}
  {modal==='qr'&&(selected ? <QRPairing connection={selected as any} api={api} onConnected={()=>{setNotice('WhatsApp linked. You can now send consented text messages.');refresh().catch(e=>setError(e.message))}}/> : <div style={{padding:'40px 20px',textAlign:'center',color:'var(--muted)'}}>Preparing WhatsApp connection session…</div>)}
  {modal==='project'&&(()=>{const prodOrg=orgs.find(o=>o.organization__name==='WhatsBridge Production')||orgs[0];const orgOptions=orgs.length?orgs.map(o=>({value:o.organization_id,label:o.organization__name})):[{value:prodOrg?.organization_id||'',label:'WhatsBridge Production'}];return <Form fields={[{name:'name',label:'Project name',value:'WhatsApp Production'},{name:'organization',label:'Organization',options:orgOptions,value:prodOrg?.organization_id}]} label="Create Live Project" submit={d=>act(async()=>{const orgId=d.organization||prodOrg?.organization_id;await api('/api/projects','POST',{name:d.name,organization:orgId,sandbox:false});await refreshProjects();setModal('');setNotice(`Project "${d.name}" created successfully.`);})}/>})()}
  {modal==='organization'&&<Form fields={[{name:'name',label:'Organization name'}]} submit={d=>act(async()=>{await api('/api/organizations','POST',d);await refreshProjects();setModal('')})}/>}
