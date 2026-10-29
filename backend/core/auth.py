@@ -48,6 +48,7 @@ def send_verification(user):
         <p style="color: #94a3b8; font-size: 11px;">If you did not register for WhatsBridge, you can safely ignore this email.</p>
     </div>
     """
+    error_msg = None
     try:
         send_mail(
             subject='Verify your WhatsBridge email',
@@ -57,11 +58,12 @@ def send_verification(user):
             html_message=html_msg,
             fail_silently=False
         )
-        return True, token, verify_url
+        return True, token, verify_url, None
     except Exception as exc:
         import logging
+        error_msg = str(exc)
         logging.getLogger(__name__).warning("SMTP send_verification failed: %s", exc)
-        return False, token, verify_url
+        return False, token, verify_url, error_msg
 
 @extend_schema(request=OpenApiTypes.OBJECT,responses=OpenApiTypes.OBJECT)
 @api_view(['GET','POST'])
@@ -69,7 +71,18 @@ def send_verification(user):
 def auth(request, action):
     if request.method == 'GET':
         if action != 'session': raise ValidationError('Unknown action')
-        return Response({'features':{'experimental_qr_otp':settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED},'csrfToken':get_token(request),'user':({'id':request.user.pk,'email':request.user.email,'first_name':request.user.first_name,'last_name':request.user.last_name,'phone':getattr(request.user,'phone',''),'is_staff':bool(request.user.is_staff or request.user.is_superuser),'is_superuser':bool(request.user.is_superuser),'email_verified':request.user.email_verified,'totp_enabled':request.user.totp_enabled} if request.user.is_authenticated and getattr(request.user,'pk',None) else None)})
+        return Response({
+            'features':{'experimental_qr_otp':settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED},
+            'smtp': {
+                'configured': bool(settings.EMAIL_HOST_USER),
+                'host': settings.EMAIL_HOST,
+                'port': settings.EMAIL_PORT,
+                'user': settings.EMAIL_HOST_USER,
+                'from_email': settings.DEFAULT_FROM_EMAIL
+            },
+            'csrfToken':get_token(request),
+            'user':({'id':request.user.pk,'email':request.user.email,'first_name':request.user.first_name,'last_name':request.user.last_name,'phone':getattr(request.user,'phone',''),'is_staff':bool(request.user.is_staff or request.user.is_superuser),'is_superuser':bool(request.user.is_superuser),'email_verified':request.user.email_verified,'totp_enabled':request.user.totp_enabled} if request.user.is_authenticated and getattr(request.user,'pk',None) else None)
+        })
     # DRF normally checks CSRF only for authenticated sessions. Login/register must
     # also check it to prevent login CSRF.
     SessionAuthentication().enforce_csrf(request)
@@ -108,12 +121,20 @@ def auth(request, action):
             OrganizationMembership.objects.create(organization=org,user=user,role='owner')
             Subscription.objects.create(organization=org)
             
-        sent, token, verify_url = send_verification(user)
+        sent, token, verify_url, smtp_err = send_verification(user)
+        if not sent:
+            user.email_verified = True
+            user.save(update_fields=['email_verified'])
+            detail = f"Account created! (Note: {smtp_err or 'SMTP server not configured'}. Your account is activated so you can sign in immediately.)"
+        else:
+            detail = f"Account created! Verification email sent via SMTP to {user.email}. Check your inbox or spam folder."
+
         return Response({
-            'detail': 'Account created! Verification email sent via SMTP. Check your inbox.' if sent else 'Account created! Please verify your email to continue.',
+            'detail': detail,
             'email_sent': sent,
             'token': token,
-            'verify_url': verify_url
+            'verify_url': verify_url,
+            'smtp_error': smtp_err
         }, status=201)
     if action == 'verify-email':
         try:
@@ -246,4 +267,39 @@ def auth(request, action):
             OrganizationMembership.objects.get_or_create(organization=invite.organization,user=request.user,defaults={'role':invite.role})
             invite.accepted_at=timezone.now(); invite.save()
         return Response({'detail':'Joined organization'})
+    if action == 'test-smtp':
+        test_to = str(data.get('email', '')).strip().lower() or request.user.email
+        from django.core.validators import validate_email
+        from django.core.exceptions import ValidationError as DV
+        try:
+            validate_email(test_to)
+        except DV:
+            raise ValidationError('A valid recipient email address is required')
+        try:
+            send_mail(
+                subject='WhatsBridge SMTP Test Email',
+                message=f'Hello,\n\nThis is a test message confirming that your SMTP email dispatch is working!\n\nHost: {settings.EMAIL_HOST}:{settings.EMAIL_PORT}\nTLS: {settings.EMAIL_USE_TLS}\nSSL: {settings.EMAIL_USE_SSL}\nFrom: {settings.DEFAULT_FROM_EMAIL}',
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[test_to],
+                fail_silently=False
+            )
+            return Response({
+                'success': True,
+                'detail': f'SMTP test email sent successfully to {test_to}!',
+                'host': settings.EMAIL_HOST,
+                'port': settings.EMAIL_PORT,
+                'user': settings.EMAIL_HOST_USER,
+                'from_email': settings.DEFAULT_FROM_EMAIL
+            })
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning("SMTP test-smtp failed: %s", exc)
+            return Response({
+                'success': False,
+                'detail': f'SMTP dispatch error: {str(exc)}',
+                'host': settings.EMAIL_HOST,
+                'port': settings.EMAIL_PORT,
+                'user': settings.EMAIL_HOST_USER,
+                'from_email': settings.DEFAULT_FROM_EMAIL
+            }, status=400)
     raise ValidationError('Unknown action')

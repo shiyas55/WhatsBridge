@@ -53,15 +53,41 @@ SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND','django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com' if os.getenv('EMAIL_HOST_USER') and not DEBUG else 'mailpit')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465' if os.getenv('EMAIL_USE_SSL', '0') == '1' else '587' if os.getenv('EMAIL_USE_TLS', '1') == '1' else '1025'))
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER','')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD','')
-EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', '0') == '1'
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', '0' if EMAIL_USE_SSL else '1' if os.getenv('EMAIL_HOST_USER') else '0') == '1'
+
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+# Gmail App Passwords often have spaces ("abcd efgh ijkl mnop") when copied; strip internal spaces:
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '').replace(' ', '').strip()
+
+_port_env = os.getenv('EMAIL_PORT', '')
+_ssl_env = os.getenv('EMAIL_USE_SSL', '0') == '1'
+_tls_env = os.getenv('EMAIL_USE_TLS', '1' if EMAIL_HOST_USER else '0') == '1'
+
+if _ssl_env or _port_env == '465':
+    EMAIL_USE_SSL = True
+    EMAIL_USE_TLS = False
+    EMAIL_PORT = 465
+elif _tls_env or _port_env == '587' or EMAIL_HOST_USER:
+    EMAIL_USE_SSL = False
+    EMAIL_USE_TLS = True
+    EMAIL_PORT = 587
+else:
+    EMAIL_USE_SSL = False
+    EMAIL_USE_TLS = False
+    EMAIL_PORT = int(_port_env) if _port_env else 587
+
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com' if EMAIL_HOST_USER else 'localhost')
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'WhatsBridge <{os.getenv("EMAIL_HOST_USER")}>' if os.getenv('EMAIL_HOST_USER') else 'WhatsBridge <hello@whatsbridge.com>')
+
+if os.getenv('EMAIL_BACKEND'):
+    EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
+elif EMAIL_HOST_USER:
+    EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+elif TESTING:
+    EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'WhatsBridge <{EMAIL_HOST_USER}>' if EMAIL_HOST_USER else 'WhatsBridge <hello@whatsbridge.com>')
 PUBLIC_URL = os.getenv('PUBLIC_URL', 'https://whats-bridge.vercel.app' if not DEBUG and not TESTING else 'http://localhost:3000')
 GATEWAY_URL = service_url(os.getenv('GATEWAY_URL','http://gateway:4000'))
 GATEWAY_TOKEN = os.getenv('GATEWAY_TOKEN','test-gateway' if TESTING else '')

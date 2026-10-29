@@ -434,9 +434,13 @@ def team(request):
     if role not in ['admin','developer','viewer']: raise ValidationError('Invalid invitation role')
     token=secrets.token_urlsafe(32)
     Invitation.objects.create(organization=project.organization,email=email,role=role,digest=digest(token),expires_at=timezone.now()+timedelta(days=3))
-    send_mail('Join WhatsBridge',f'Sign in to accept: {settings.PUBLIC_URL}/?invite={token}',settings.DEFAULT_FROM_EMAIL,[email])
+    try:
+        send_mail('Join WhatsBridge',f'Sign in to accept: {settings.PUBLIC_URL}/?invite={token}',settings.DEFAULT_FROM_EMAIL,[email])
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("SMTP team send_mail failed: %s", exc)
     audit(request,'team.invite',project.organization)
-    return Response({'detail':'Invitation sent'},status=201)
+    return Response({'detail':'Invitation created. Email sent if SMTP is configured.','invite_url':f'{settings.PUBLIC_URL}/?invite={token}'},status=201)
 
 @extend_schema(request=OpenApiTypes.OBJECT,responses=OpenApiTypes.OBJECT)
 @api_view(['GET'])
