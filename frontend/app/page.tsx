@@ -128,8 +128,12 @@ export default function Home(){
          const d = await api('/api/team'+query);
          setRows(d || []);
        }else if(page==='Admin'){
-         const d = await api('/api/platform');
-         setResult(d);
+         if(!user?.is_staff && !user?.is_superuser){
+           setPage('Overview');
+         } else {
+           const d = await api('/api/platform');
+           setResult(d);
+         }
        }else{
          setRows([]);
        }
@@ -957,7 +961,15 @@ await whatsbridge.messages.create({
               {page === 'AI Assistant' && <section className="card narrow"><span className="pill"><Sparkles size={13} /> HUMAN REVIEW REQUIRED</span><h2>A thoughtful first draft</h2><p className="muted">Gemini must be configured by your platform administrator and enabled in project settings. Generated replies are suggestions.</p><Form fields={[{ name: 'mode', label: 'Task', options: ['reply', 'summary', 'intent', 'workflow'].map(v => ({ value: v, label: v })) }, { name: 'prompt', label: 'Customer question or conversation · English / Malayalam', type: 'textarea' }]} label="Generate suggestion" submit={d => act(async () => setResult(await api('/api/ai?project=' + project, 'POST', { ...d, project })))} /></section>}
               {['Analytics', 'Usage & Billing'].includes(page) && <div className="two-col"><section className="card"><h2>{page === 'Analytics' ? 'Message status' : 'Usage accounting'}</h2>{(page === 'Analytics' ? stats.by_status : stats.usage)?.map((r: Row) => <div className="usage-row" key={r.status || r.kind}><span>{r.status || r.kind}</span><strong>{r.count ?? r.quantity}</strong><div className="meter"><i style={{ width: `${Math.min(100, 100 * (r.count ?? r.quantity) / Math.max(stats.messages ?? 1, 1))}%` }} /></div></div>)}</section><section className="card"><h2>{stats.subscription?.plan ?? 'Sandbox'} plan</h2><p className="metric">{stats.subscription?.monthly_limit?.toLocaleString()}</p><p className="muted">Monthly organization-wide message reservations. Accepted sends are tracked separately. Payment collection is not connected.</p></section></div>}
               {page === 'Settings' && <div className="two-col"><section className="card"><h2>Your account</h2><Form fields={[{ name: 'first_name', label: 'Display name', value: user.first_name, required: false }]} submit={d => act(async () => { await api('/api/auth/profile', 'POST', d); await loadSession(); setNotice('Profile saved') })} /><hr /><h3>Two-factor authentication</h3><p className="muted">{user.totp_enabled ? 'Enabled' : 'Protect sign-in with an authenticator app.'}</p>{!user.totp_enabled && <><button onClick={() => act(async () => setResult(await api('/api/auth/2fa-setup', 'POST', {})))}>Generate authenticator secret</button><Form fields={[{ name: 'code', label: 'Authenticator code' }]} label="Enable two-factor" submit={d => act(async () => { await api('/api/auth/2fa-enable', 'POST', d); await loadSession() })} /></>}</section><section className="card"><h2>Project settings</h2><Form key={project} fields={[{ name: 'name', label: 'Project name', value: active?.name }, { name: 'ai_enabled', label: 'AI suggestions', value: String(active?.ai_enabled), options: [{ value: 'false', label: 'Disabled' }, { value: 'true', label: 'Enabled' }] }, { name: 'faq', label: 'Private FAQ knowledge base', type: 'textarea', value: active?.faq, required: false }]} submit={d => act(async () => { await api('/api/projects?project=' + project, 'PATCH', { ...d, ai_enabled: d.ai_enabled === 'true', project }); await refreshProjects(); setNotice('Settings saved') })} /><hr style={{margin:'20px 0'}}/><div style={{border:'1px solid rgba(239,68,68,0.25)',background:'rgba(239,68,68,0.03)',borderRadius:'8px',padding:'16px'}}><h3 style={{color:'var(--red, #ef4444)',margin:0,fontSize:'14px',display:'flex',alignItems:'center',gap:'6px'}}><Trash2 size={15}/> Danger Zone</h3><p className="muted" style={{fontSize:'12px',margin:'6px 0 12px'}}>Permanently delete this project, along with all associated credentials, connections, API keys, and messages.</p><button type="button" style={{background:'var(--red, #ef4444)',color:'#fff',border:'none',padding:'8px 14px',borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer'}} onClick={()=>{if(projects.length<=1){alert('Cannot delete the last remaining project in your organization.');return;}if(confirm(`Are you sure you want to permanently delete project "${active?.name}"? This action cannot be undone.`)){act(async()=>{await api('/api/projects?project='+project,'DELETE',{});await refreshProjects();setPage('Overview');setNotice(`Project "${active?.name}" deleted.`);});}}}>Delete Project</button></div></section></div>}
-              {page === 'Admin' && (
+              {page === 'Admin' && (!user?.is_staff && !user?.is_superuser) && (
+                <section className="card" style={{textAlign:'center',padding:'48px 24px'}}>
+                  <ShieldCheck size={48} style={{margin:'0 auto 16px',color:'var(--red, #ef4444)'}} />
+                  <h2>Access Denied</h2>
+                  <p className="muted">Platform Administrator privileges are required to view this page.</p>
+                  <button className="primary" style={{marginTop:'16px'}} onClick={()=>setPage('Overview')}>Return to Dashboard</button>
+                </section>
+              )}
+              {page === 'Admin' && (user?.is_staff || user?.is_superuser) && (
                 <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
                   <div className="stat-grid">
                     {[['Platform Users', result?.users_count ?? result?.users?.length ?? 0, Users],
