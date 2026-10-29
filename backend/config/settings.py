@@ -77,9 +77,13 @@ else:
 
 EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com' if EMAIL_HOST_USER else 'localhost')
 EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
+RESEND_API_KEY = os.getenv('RESEND_API_KEY', '').strip()
+RESEND_CUSTOM_DOMAIN = os.getenv('RESEND_CUSTOM_DOMAIN', '0') == '1'
 
 if os.getenv('EMAIL_BACKEND'):
     EMAIL_BACKEND = os.getenv('EMAIL_BACKEND')
+elif RESEND_API_KEY:
+    EMAIL_BACKEND = 'core.mail.ResendEmailBackend'
 elif EMAIL_HOST_USER:
     EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 elif TESTING:

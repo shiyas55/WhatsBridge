@@ -74,10 +74,11 @@ def auth(request, action):
         return Response({
             'features':{'experimental_qr_otp':settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED},
             'smtp': {
-                'configured': bool(settings.EMAIL_HOST_USER),
-                'host': settings.EMAIL_HOST,
-                'port': settings.EMAIL_PORT,
-                'user': settings.EMAIL_HOST_USER,
+                'configured': bool(settings.EMAIL_HOST_USER or settings.RESEND_API_KEY),
+                'provider': 'resend_https' if settings.RESEND_API_KEY else ('smtp' if settings.EMAIL_HOST_USER else 'console'),
+                'host': 'api.resend.com (HTTPS Port 443)' if settings.RESEND_API_KEY else settings.EMAIL_HOST,
+                'port': 443 if settings.RESEND_API_KEY else settings.EMAIL_PORT,
+                'user': settings.EMAIL_HOST_USER or ('Resend API Key' if settings.RESEND_API_KEY else ''),
                 'from_email': settings.DEFAULT_FROM_EMAIL
             },
             'csrfToken':get_token(request),
