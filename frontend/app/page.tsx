@@ -12,18 +12,96 @@ const icons:Record<string,any>={'Overview':LayoutDashboard,'Projects':Blocks,'Co
 const descriptions:Record<string,string>={'Overview':'Your messaging infrastructure, at a glance.','Projects':'Separate your environments, credentials, and integrations.','Connections':'Connect a supported transport to your application.','API Keys':'Scoped access. Secrets shown once. Control that stays with you.','Send Message':'Send a message through your project transport.','Bulk Messaging':'Send broadcasts to multiple WhatsApp numbers with automated pacing.','Inbox':'Follow incoming messages and confirmed delivery events.','Contacts':'Keep recipient details and verifiable history.','OTP Verification':'Generate and verify 6-digit WhatsApp OTP codes.','Workflow Builder':'Build an ordered automation. Publish a version when it is ready.','Webhooks':'Deliver signed events to your approved HTTPS endpoints.','Templates':'Save reusable template drafts. Manage provider approval in Meta WhatsApp Manager.','AI Assistant':'Draft, classify, and summarize with human review.','Analytics':'Real activity from your project.','Usage & Billing':'Track reservations and accepted sends against your organization limit.','Team Members':'Invite collaborators with the right level of access.','Settings':'Manage your account and project settings.','Admin':'Platform-wide controls for authorized administrators.','API Playground':'Try the API with your secure browser session.','API Documentation':'Everything you need to connect your application.'};
 function Badge({children}:{children:React.ReactNode}){return <span className={'badge '+String(children).toLowerCase()}>{children}</span>}
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
+const COUNTRIES = [
+  { code: '+91', name: 'India', flag: '🇮🇳' },
+  { code: '+1', name: 'United States', flag: '🇺🇸' },
+  { code: '+44', name: 'United Kingdom', flag: '🇬🇧' },
+  { code: '+971', name: 'United Arab Emirates', flag: '🇦🇪' },
+  { code: '+966', name: 'Saudi Arabia', flag: '🇸🇦' },
+  { code: '+1', name: 'Canada', flag: '🇨🇦' },
+  { code: '+61', name: 'Australia', flag: '🇦🇺' },
+  { code: '+49', name: 'Germany', flag: '🇩🇪' },
+  { code: '+33', name: 'France', flag: '🇫🇷' },
+  { code: '+65', name: 'Singapore', flag: '🇸🇬' },
+  { code: '+60', name: 'Malaysia', flag: '🇲🇾' },
+  { code: '+62', name: 'Indonesia', flag: '🇮🇩' },
+  { code: '+55', name: 'Brazil', flag: '🇧🇷' },
+  { code: '+27', name: 'South Africa', flag: '🇿🇦' },
+  { code: '+234', name: 'Nigeria', flag: '🇳🇬' },
+  { code: '+92', name: 'Pakistan', flag: '🇵🇰' },
+  { code: '+880', name: 'Bangladesh', flag: '🇧🇩' },
+  { code: '+63', name: 'Philippines', flag: '🇵🇭' },
+  { code: '+34', name: 'Spain', flag: '🇪🇸' },
+  { code: '+39', name: 'Italy', flag: '🇮🇹' },
+  { code: '+81', name: 'Japan', flag: '🇯🇵' },
+  { code: '+86', name: 'China', flag: '🇨🇳' },
+  { code: '+7', name: 'Russia', flag: '🇷🇺' },
+  { code: '+20', name: 'Egypt', flag: '🇪🇬' },
+  { code: '+90', name: 'Turkey', flag: '🇹🇷' },
+  { code: '+974', name: 'Qatar', flag: '🇶🇦' },
+  { code: '+968', name: 'Oman', flag: '🇴🇲' },
+  { code: '+965', name: 'Kuwait', flag: '🇰🇼' },
+  { code: '+973', name: 'Bahrain', flag: '🇧🇭' },
+  { code: '+94', name: 'Sri Lanka', flag: '🇱🇰' },
+  { code: '+977', name: 'Nepal', flag: '🇳🇵' },
+  { code: '+254', name: 'Kenya', flag: '🇰🇪' },
+  { code: '+31', name: 'Netherlands', flag: '🇳🇱' },
+  { code: '+41', name: 'Switzerland', flag: '🇨🇭' },
+  { code: '+46', name: 'Sweden', flag: '🇸🇪' },
+  { code: '+47', name: 'Norway', flag: '🇳🇴' },
+  { code: '+45', name: 'Denmark', flag: '🇩🇰' },
+  { code: '+351', name: 'Portugal', flag: '🇵🇹' },
+  { code: '+353', name: 'Ireland', flag: '🇮🇪' },
+  { code: '+64', name: 'New Zealand', flag: '🇳🇿' },
+  { code: '+52', name: 'Mexico', flag: '🇲🇽' },
+  { code: '+54', name: 'Argentina', flag: '🇦🇷' },
+  { code: '+57', name: 'Colombia', flag: '🇨🇴' },
+  { code: '+56', name: 'Chile', flag: '🇨🇱' }
+];
+
 function Empty({text='No records yet. Create your first one to get started.'}:{text?:string}){return <div className="empty"><MessageCircle size={30}/><h3>A clean slate</h3><p>{text}</p></div>}
 export default function Home(){
  const [user,setUser]=useState<Row|null>(null),[ready,setReady]=useState(false),[csrf,setCsrf]=useState(''),[page,setPage]=useState('Overview'),[projects,setProjects]=useState<Row[]>([]),[orgs,setOrgs]=useState<Row[]>([]),[project,setProject]=useState(''),[stats,setStats]=useState<Row>({}),[rows,setRows]=useState<Row[]>([]),[connections,setConnections]=useState<Row[]>([]),[error,setError]=useState(''),[notice,setNotice]=useState(''),[result,setResult]=useState<any>(null),[modal,setModal]=useState(''),[selected,setSelected]=useState<Row|null>(null),[authMode,setAuthMode]=useState('login'),[search,setSearch]=useState(''),[busy,setBusy]=useState(false),[syncing,setSyncing]=useState(false),[inboxView,setInboxView]=useState<'chat'|'table'>('chat'),[mobile,setMobile]=useState(false),[docLang,setDocLang]=useState('curl'),[adminTab,setAdminTab]=useState<'users'|'usage'|'projects'|'connections'|'overview'>('users'),[waOtpReset,setWaOtpReset]=useState(false),[waStep,setWaStep]=useState(1),[waChallenge,setWaChallenge]=useState(''),[waUid,setWaUid]=useState<any>(null),[createdKey,setCreatedKey]=useState<Row|null>(null),[selectedKey,setSelectedKey]=useState<Row|null>(null),[copiedText,setCopiedText]=useState(''),[testPhone,setTestPhone]=useState('+919567334117'),[testBody,setTestBody]=useState('Hello from WhatsBridge API! 👋'),[testKeyInput,setTestKeyInput]=useState(''),[testRunning,setTestRunning]=useState(false),[testResult,setTestResult]=useState<any>(null);
+ const [regFirstName, setRegFirstName] = useState('');
+ const [regLastName, setRegLastName] = useState('');
+ const [regEmail, setRegEmail] = useState('');
+ const [regPhone, setRegPhone] = useState('');
+ const [regPassword, setRegPassword] = useState('');
+ const [regConfirmPassword, setRegConfirmPassword] = useState('');
+ const [regOrg, setRegOrg] = useState('');
+ const [selectedCountry, setSelectedCountry] = useState(COUNTRIES[0]);
+ const [countrySearch, setCountrySearch] = useState('');
+ const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+ const [createdVerifyUrl, setCreatedVerifyUrl] = useState('');
+ const [createdVerifyToken, setCreatedVerifyToken] = useState('');
+ const [authBusy, setAuthBusy] = useState(false);
  const rowsRef=useRef<Row[]>([]);
  useEffect(()=>{rowsRef.current=rows},[rows]);
  const copyText=(txt:string,label:string)=>{try{navigator.clipboard.writeText(txt)}catch(e){const el=document.createElement('textarea');el.value=txt;document.body.appendChild(el);el.select();document.execCommand('copy');document.body.removeChild(el);}setCopiedText(label);setTimeout(()=>setCopiedText(''),2500);};
- const runApiTest=async(apiKeySecret:string,connectionId?:string)=>{setTestRunning(true);setTestResult(null);try{const conn=connectionId||connections.find(c=>c.status==='CONNECTED')?.id||connections[0]?.id;const res=await fetch('/api/v1/messages?project='+project,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKeySecret.trim(),'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({...(conn?{connection:conn}:{}),phone:testPhone,kind:'text',payload:{body:testBody}})});const data=await res.json();if(!res.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));setTestResult(data);setNotice('Test message successfully sent via API key!');await refresh(true);}catch(err:any){setTestResult({error:err.message});}finally{setTestRunning(false);}};
+ 
+ const parseResponse = async (r: Response) => {
+   if (r.status === 204) return null;
+   const text = await r.text();
+   try {
+     return JSON.parse(text);
+   } catch {
+     if (!r.ok) {
+       if (text.includes('An error occurred') || r.status >= 502) {
+         throw new Error('Backend service is waking up or temporarily unavailable. Please retry in a few seconds.');
+       }
+       const clean = text.replace(/<[^>]+>/g, '').trim().slice(0, 160);
+       throw new Error(clean || `Server error (${r.status})`);
+     }
+     return { detail: text };
+   }
+ };
+
+ const runApiTest=async(apiKeySecret:string,connectionId?:string)=>{setTestRunning(true);setTestResult(null);try{const conn=connectionId||connections.find(c=>c.status==='CONNECTED')?.id||connections[0]?.id;const res=await fetch('/api/v1/messages?project='+project,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKeySecret.trim(),'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({...(conn?{connection:conn}:{}),phone:testPhone,kind:'text',payload:{body:testBody}})});const data=await parseResponse(res);if(!res.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));setTestResult(data);setNotice('Test message successfully sent via API key!');await refresh(true);}catch(err:any){setTestResult({error:err.message});}finally{setTestRunning(false);}};
  const active=projects.find(p=>p.id===project);
- const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=r.status===204?null:await r.json();if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
+ const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=await parseResponse(r);if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
  const act=async(fn:()=>Promise<void>)=>{setError('');try{await fn()}catch(e){setError((e as Error).message)}};
  const [experimentalOTP,setExperimentalOTP]=useState(false);
- const loadSession=async()=>{const data=await fetch('/api/auth/session',{credentials:'include'}).then(r=>r.json());setCsrf(data.csrfToken);setExperimentalOTP(Boolean(data.features?.experimental_qr_otp));setUser(data.user);setReady(true)};
+ const loadSession=async()=>{try{const r=await fetch('/api/auth/session',{credentials:'include'});const data=await parseResponse(r);if(data?.csrfToken)setCsrf(data.csrfToken);if(data?.features)setExperimentalOTP(Boolean(data.features?.experimental_qr_otp));if(data?.user)setUser(data.user);setReady(true);}catch(e){console.warn('loadSession error:',e);setReady(true);}};
  useEffect(()=>{loadSession().catch(()=>{setError('Cannot reach the backend. Check that the services are running.');setReady(true)})},[]);
  const refreshProjects=useCallback(async()=>{const [ps,os]=await Promise.all([api('/api/projects'),api('/api/organizations')]);setProjects(ps);setOrgs(os);setProject(old=>ps.some((p:Row)=>p.id===old)?old:ps[0]?.id??'')},[api]);
  useEffect(()=>{if(user)refreshProjects().catch(e=>setError(e.message))},[user,refreshProjects]);
@@ -132,9 +210,411 @@ export default function Home(){
  const connectionOptions=connections.filter(c=>c.status==='CONNECTED').map(c=>({value:c.id,label:c.name}));
  const filtered=rows.filter(r=>JSON.stringify(r).toLowerCase().includes(search.toLowerCase()));
  const urlParams=typeof window!=='undefined'?new URLSearchParams(window.location.search):new URLSearchParams();
+
+  const handleRegister = async (e: FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    if (regPassword !== regConfirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+    if (regPassword.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    const fullPhone = selectedCountry.code + regPhone.trim();
+    setAuthBusy(true);
+    try {
+      const res = await api('/api/auth/register', 'POST', {
+        first_name: regFirstName.trim(),
+        last_name: regLastName.trim(),
+        email: regEmail.trim().toLowerCase(),
+        phone: fullPhone,
+        password: regPassword,
+        confirm_password: regConfirmPassword,
+        organization: regOrg.trim() || (regFirstName.trim() ? `${regFirstName.trim()}'s Organization` : 'My organization')
+      });
+      setNotice(res.detail || 'Account created! Verification email sent via SMTP.');
+      if (res.verify_url) {
+        setCreatedVerifyUrl(res.verify_url);
+        setCreatedVerifyToken(res.token);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Registration failed');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
+  const handleLogin = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError('');
+    setNotice('');
+    const formData = new FormData(e.currentTarget);
+    const email = String(formData.get('email') || '').trim();
+    const password = String(formData.get('password') || '');
+    const code = String(formData.get('code') || '').trim();
+    setAuthBusy(true);
+    try {
+      const r = await api('/api/auth/login', 'POST', { email, password, ...(code ? { code } : {}) });
+      setNotice(r.detail || 'Signed in');
+      if (r.user) {
+        setUser(r.user);
+        if (r.csrfToken) setCsrf(r.csrfToken);
+      } else {
+        await loadSession();
+      }
+    } catch (err: any) {
+      setError(err.message || 'Invalid credentials or unverified email');
+    } finally {
+      setAuthBusy(false);
+    }
+  };
+
  if(!ready)return <div className="boot"><div className="logo-mark"><MessageCircle/></div><p>Starting WhatsBridge…</p></div>;
-  if(!user)return <div className="auth-layout"><section className="auth-story"><div className="brand"><span className="logo-mark"><MessageCircle/></span>WhatsBridge<span className="brand-dot">.</span></div><div><span className="eyebrow">BUILT FOR DEVELOPERS</span><h1>Good conversations.<br/><em>Great infrastructure.</em></h1><p>One place to build, test, and manage messaging.<br/>From your first sandbox message to official WhatsApp integrations.</p><div className="auth-points"><span><Check size={16}/> Tenant-isolated projects</span><span><Check size={16}/> Official Meta transport</span><span><Check size={16}/> A sandbox to build with confidence</span></div></div><small>YOUR CODE. YOUR CUSTOMERS. CONNECTED.</small></section><section className="auth-form"><div className="auth-box"><span className="eyebrow">WELCOME TO WHATSBRIDGE</span><h2>{authMode==='register'?'Create your workspace':authMode==='forgot-password'?'Reset your password':'Welcome back'}</h2><p className="muted">{authMode==='register'?'Start building with a free sandbox project.':'Sign in to your developer workspace.'}</p>{error&&<div role="alert" className="error">{error}</div>}{notice&&<div role="status" className="notice">{notice}</div>}{urlParams.has('verify')&&<button className="primary" onClick={()=>act(async()=>{const d=await api('/api/auth/verify-email','POST',{token:urlParams.get('verify')});setNotice(d.detail);history.replaceState({},'','/');})}>Verify email</button>}{authMode==='forgot-password'&&<div style={{display:'flex',gap:'8px',marginBottom:'16px'}}><button type="button" className={!waOtpReset?'primary':''} onClick={()=>{setWaOtpReset(false);setWaStep(1)}} style={{padding:'7px 11px',fontSize:'11px'}}>Reset with Email</button><button type="button" className={waOtpReset?'primary':''} onClick={()=>{setWaOtpReset(true);setWaStep(1)}} style={{padding:'7px 11px',fontSize:'11px'}}>Reset via WhatsApp OTP</button></div>}{urlParams.has('reset')?<Form fields={[{name:'password',label:'New password (12+ characters)',type:'password'}]} submit={d=>act(async()=>{const r=await api('/api/auth/reset-password','POST',{...d,token:urlParams.get('reset'),uid:urlParams.get('uid')});setNotice(r.detail);history.replaceState({},'','/');setAuthMode('login');})} label="Reset password"/>:authMode==='forgot-password'&&waOtpReset?(waStep===1?<Form fields={[{name:'phone',label:'WhatsApp Phone Number (e.g. +919567334117)',value:'+91'}]} label="Send WhatsApp OTP" submit={d=>act(async()=>{const r=await api('/api/auth/whatsapp-otp-send','POST',d);setWaChallenge(r.challenge_id);setWaUid(r.user_id);setWaStep(2);setNotice(r.detail);})}/>:<Form fields={[{name:'code',label:'6-Digit WhatsApp Code'},{name:'password',label:'New Password (12+ characters)',type:'password'}]} label="Verify & Reset Password" submit={d=>act(async()=>{const r=await api('/api/auth/whatsapp-otp-verify','POST',{...d,challenge_id:waChallenge,user_id:waUid});setNotice(r.detail);await loadSession();})}/>):<Form key={authMode} fields={[{name:'email',label:'Email address',type:'email'},...(authMode!=='forgot-password'?[{name:'password',label:'Password',type:'password'}]:[]),...(authMode==='register'?[{name:'organization',label:'Organization name'}]:authMode==='login'?[{name:'code',label:'Two-factor code (if enabled)',required:false}]:[])]} submit={d=>act(async()=>{const r=await api('/api/auth/'+authMode,'POST',d);if(authMode==='forgot-password'&&r?.token&&r?.uid){history.replaceState({},'',`/?reset=${r.token}&uid=${r.uid}`);setNotice('Account verified! Enter your new password below.');return;}setNotice(r.detail);if(authMode==='login')await loadSession()})} label={authMode==='register'?'Create account':authMode==='forgot-password'?'Send reset link':'Sign in'} />}
- <div className="auth-links"><button onClick={()=>setAuthMode(authMode==='login'?'register':'login')}>{authMode==='login'?'Create an account':'Back to sign in'}</button><button onClick={()=>setAuthMode('forgot-password')}>Forgot password?</button></div><p className="fine">Development email links arrive in <a href="http://localhost:8025" target="_blank" rel="noreferrer">Mailpit</a>. Production uses your configured email provider.</p></div></section></div>;
+  if(!user)return (
+    <div className="auth-layout">
+      <section className="auth-story">
+        <div className="brand"><span className="logo-mark"><MessageCircle/></span>WhatsBridge<span className="brand-dot">.</span></div>
+        <div>
+          <span className="eyebrow">BUILT FOR DEVELOPERS</span>
+          <h1>Good conversations.<br/><em>Great infrastructure.</em></h1>
+          <p>One place to build, test, and manage messaging.<br/>From your first sandbox message to official WhatsApp integrations.</p>
+          <div className="auth-points">
+            <span><Check size={16}/> Tenant-isolated projects</span>
+            <span><Check size={16}/> Official Meta & WhatsApp Web transport</span>
+            <span><Check size={16}/> SMTP email verification & OTP security</span>
+          </div>
+        </div>
+        <small>YOUR CODE. YOUR CUSTOMERS. CONNECTED.</small>
+      </section>
+      <section className="auth-form">
+        <div className="auth-box" style={{ maxWidth: authMode === 'register' ? '460px' : '380px' }}>
+          <span className="eyebrow">WELCOME TO WHATSBRIDGE</span>
+          <h2>{authMode==='register'?'Create your account':authMode==='forgot-password'?'Reset your password':'Welcome back'}</h2>
+          <p className="muted" style={{ marginBottom: '16px' }}>
+            {authMode==='register'?'Start building with verified email and WhatsApp phone.':authMode==='forgot-password'?'Choose email or WhatsApp OTP to restore access.':'Sign in to your developer workspace.'}
+          </p>
+
+          {error && <div role="alert" className="error">{error}</div>}
+          {notice && <div role="status" className="notice">{notice}</div>}
+
+          {urlParams.has('verify') && (
+            <div style={{ marginBottom: '16px', padding: '12px', background: '#eef8f1', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center' }}>
+              <p style={{ margin: '0 0 10px', fontSize: '13px', color: '#166534', fontWeight: 600 }}>Verify your account</p>
+              <button className="primary" style={{ width: '100%', justifyContent: 'center' }} onClick={()=>act(async()=>{const d=await api('/api/auth/verify-email','POST',{token:urlParams.get('verify')});setNotice(d.detail);history.replaceState({},'','/');})}>Confirm Email Verification</button>
+            </div>
+          )}
+
+          {createdVerifyUrl && (
+            <div style={{ marginBottom: '16px', padding: '14px', background: '#eef8f1', border: '1px solid #bbf7d0', borderRadius: '10px', textAlign: 'center' }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#166534', margin: '0 0 10px' }}>
+                ✓ Verification link ready!
+              </p>
+              <button
+                type="button"
+                className="primary"
+                style={{ width: '100%', justifyContent: 'center' }}
+                onClick={() => act(async () => {
+                  const d = await api('/api/auth/verify-email', 'POST', { token: createdVerifyToken });
+                  setNotice(d.detail);
+                  setCreatedVerifyUrl('');
+                  setCreatedVerifyToken('');
+                  setAuthMode('login');
+                })}
+              >
+                Click to Verify & Sign In Now
+              </button>
+            </div>
+          )}
+
+          {authMode==='forgot-password'&& (
+            <div style={{display:'flex',gap:'8px',marginBottom:'16px'}}>
+              <button type="button" className={!waOtpReset?'primary':''} onClick={()=>{setWaOtpReset(false);setWaStep(1)}} style={{padding:'7px 11px',fontSize:'11px'}}>Reset with Email</button>
+              <button type="button" className={waOtpReset?'primary':''} onClick={()=>{setWaOtpReset(true);setWaStep(1)}} style={{padding:'7px 11px',fontSize:'11px'}}>Reset via WhatsApp OTP</button>
+            </div>
+          )}
+
+          {urlParams.has('reset') ? (
+            <Form fields={[{name:'password',label:'New password (12+ characters)',type:'password'}]} submit={d=>act(async()=>{const r=await api('/api/auth/reset-password','POST',{...d,token:urlParams.get('reset'),uid:urlParams.get('uid')});setNotice(r.detail);history.replaceState({},'','/');setAuthMode('login');})} label="Reset password"/>
+          ) : authMode==='forgot-password'&&waOtpReset ? (
+            waStep===1 ? (
+              <Form fields={[{name:'phone',label:'WhatsApp Phone Number (e.g. +919567334117)',value:'+91'}]} label="Send WhatsApp OTP" submit={d=>act(async()=>{const r=await api('/api/auth/whatsapp-otp-send','POST',d);setWaChallenge(r.challenge_id);setWaUid(r.user_id);setWaStep(2);setNotice(r.detail);})}/>
+            ) : (
+              <Form fields={[{name:'code',label:'6-Digit WhatsApp Code'},{name:'password',label:'New Password (12+ characters)',type:'password'}]} label="Verify & Reset Password" submit={d=>act(async()=>{const r=await api('/api/auth/whatsapp-otp-verify','POST',{...d,challenge_id:waChallenge,user_id:waUid});setNotice(r.detail);await loadSession();})}/>
+            )
+          ) : authMode === 'register' ? (
+            /* CREATE AN ACCOUNT (NAME, LAST NAME, EMAIL, PHONE WITH SEARCHABLE REGION, PASSWORD, CONFIRM PASSWORD) */
+            <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label className="field" style={{ margin: 0, gap: '5px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600 }}>First name *</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="John"
+                    value={regFirstName}
+                    onChange={e => setRegFirstName(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                  />
+                </label>
+                <label className="field" style={{ margin: 0, gap: '5px' }}>
+                  <span style={{ fontSize: '12px', fontWeight: 600 }}>Last name *</span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Doe"
+                    value={regLastName}
+                    onChange={e => setRegLastName(e.target.value)}
+                    style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                  />
+                </label>
+              </div>
+
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>Email address *</span>
+                <input
+                  type="email"
+                  required
+                  placeholder="developer@example.com"
+                  value={regEmail}
+                  onChange={e => setRegEmail(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                />
+              </label>
+
+              {/* Phone with Country/Region dropdown and live search */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', position: 'relative' }}>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>WhatsApp Phone Number *</label>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowCountryDropdown(!showCountryDropdown)}
+                    style={{
+                      padding: '10px 10px',
+                      borderRadius: '8px',
+                      border: '1px solid #dfe6e1',
+                      background: 'var(--surface)',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      cursor: 'pointer',
+                      flexShrink: 0
+                    }}
+                    title="Select country/region"
+                  >
+                    <span>{selectedCountry.flag}</span>
+                    <span style={{ fontWeight: 600 }}>{selectedCountry.code}</span>
+                    <ChevronDown size={14} color="#64748b" />
+                  </button>
+
+                  <input
+                    type="tel"
+                    required
+                    placeholder="9567334117"
+                    value={regPhone}
+                    onChange={e => setRegPhone(e.target.value.replace(/[^0-9]/g, ''))}
+                    style={{ flex: 1, width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                  />
+                </div>
+
+                {showCountryDropdown && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '64px',
+                    left: 0,
+                    width: '290px',
+                    maxHeight: '260px',
+                    background: 'var(--surface, #ffffff)',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.15)',
+                    zIndex: 100,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    overflow: 'hidden'
+                  }}>
+                    <div style={{ padding: '8px', borderBottom: '1px solid #f1f5f9', background: 'var(--bg, #f8fafc)' }}>
+                      <input
+                        type="text"
+                        placeholder="Search region or dial code..."
+                        value={countrySearch}
+                        onChange={e => setCountrySearch(e.target.value)}
+                        autoFocus
+                        style={{
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          fontSize: '12px',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, overflowY: 'auto', maxHeight: '200px' }}>
+                      {COUNTRIES.filter(c => c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.includes(countrySearch)).map(c => (
+                        <div
+                          key={c.name + c.code}
+                          onClick={() => {
+                            setSelectedCountry(c);
+                            setShowCountryDropdown(false);
+                            setCountrySearch('');
+                          }}
+                          style={{
+                            padding: '8px 12px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            fontSize: '12.5px',
+                            borderBottom: '1px solid #f8fafc',
+                            background: selectedCountry.name === c.name ? 'var(--pale, #eef8f1)' : 'transparent'
+                          }}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>{c.flag}</span>
+                            <span>{c.name}</span>
+                          </span>
+                          <span style={{ fontWeight: 600, color: '#008069', fontSize: '12px' }}>{c.code}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>Organization name (optional)</span>
+                <input
+                  type="text"
+                  placeholder="My Workspace"
+                  value={regOrg}
+                  onChange={e => setRegOrg(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                />
+              </label>
+
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>Password (12+ characters) *</span>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  value={regPassword}
+                  onChange={e => setRegPassword(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                />
+              </label>
+
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>Confirm password *</span>
+                <input
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  value={regConfirmPassword}
+                  onChange={e => setRegConfirmPassword(e.target.value)}
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 12px',
+                    borderRadius: '8px',
+                    border: `1px solid ${regConfirmPassword && regConfirmPassword !== regPassword ? '#ef4444' : '#dfe6e1'}`,
+                    fontSize: '13px'
+                  }}
+                />
+                {regConfirmPassword && regConfirmPassword !== regPassword && (
+                  <span style={{ color: '#ef4444', fontSize: '11px', fontWeight: 500 }}>Passwords do not match</span>
+                )}
+              </label>
+
+              <button
+                type="submit"
+                className="primary"
+                disabled={authBusy || (Boolean(regConfirmPassword) && regConfirmPassword !== regPassword)}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  marginTop: '6px',
+                  justifyContent: 'center',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}
+              >
+                {authBusy ? 'Creating account & sending SMTP email…' : 'Create Account'}
+                <ArrowRight size={15} style={{ marginLeft: '4px' }} />
+              </button>
+            </form>
+          ) : (
+            /* FAST LOGIN FORM */
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%' }}>
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>Email address *</span>
+                <input
+                  name="email"
+                  type="email"
+                  required
+                  placeholder="developer@example.com"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                />
+              </label>
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 600 }}>Password *</span>
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  placeholder="••••••••••••"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                />
+              </label>
+              <label className="field" style={{ margin: 0, gap: '5px' }}>
+                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--muted)' }}>Two-factor code (if enabled)</span>
+                <input
+                  name="code"
+                  type="text"
+                  placeholder="6-digit code"
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: '8px', border: '1px solid #dfe6e1', fontSize: '13px' }}
+                />
+              </label>
+
+              <button
+                type="submit"
+                className="primary"
+                disabled={authBusy}
+                style={{
+                  width: '100%',
+                  height: '42px',
+                  marginTop: '6px',
+                  justifyContent: 'center',
+                  fontSize: '13px',
+                  fontWeight: 600
+                }}
+              >
+                {authBusy ? 'Signing in…' : 'Sign in'}
+                <ArrowRight size={15} style={{ marginLeft: '4px' }} />
+              </button>
+            </form>
+          )}
+
+          <div className="auth-links" style={{ marginTop: '16px' }}>
+            <button onClick={() => { setAuthMode(authMode==='login'?'register':'login'); setError(''); setNotice(''); }}>
+              {authMode==='login'?'Create an account':'Back to sign in'}
+            </button>
+            <button onClick={() => { setAuthMode('forgot-password'); setError(''); setNotice(''); }}>
+              Forgot password?
+            </button>
+          </div>
+          <p className="fine" style={{ marginTop: '14px' }}>
+            Production uses authenticated SMTP email dispatch.
+          </p>
+        </div>
+      </section>
+    </div>
+  );
  return (
   <>
   <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage('Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span></a><div className="workspace"><span className="avatar">{(active?.name??'W').slice(0,1)}</span><div><strong>{active?.name??'Your workspace'}</strong><small>Production workspace</small></div><ChevronDown size={14}/></div><nav>{nav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.filter(n=>n!=='Admin'||(user?.is_staff||user?.is_superuser)).map(n=>{const Icon=icons[n];return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{if(page!==n){setRows([]);setBusy(true);}setPage(n);setMobile(false);setError('');}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div><button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||'Developer'}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>

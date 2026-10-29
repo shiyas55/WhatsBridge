@@ -54,13 +54,15 @@ SECURE_HSTS_PRELOAD = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 X_FRAME_OPTIONS = 'DENY'
 EMAIL_BACKEND = os.getenv('EMAIL_BACKEND','django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = os.getenv('EMAIL_HOST','mailpit')
-EMAIL_PORT = int(os.getenv('EMAIL_PORT','1025'))
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com' if os.getenv('EMAIL_HOST_USER') and not DEBUG else 'mailpit')
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '465' if os.getenv('EMAIL_USE_SSL', '0') == '1' else '587' if os.getenv('EMAIL_USE_TLS', '1') == '1' else '1025'))
 EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER','')
 EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD','')
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS','0') == '1'
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL','WhatsBridge <hello@localhost>')
-PUBLIC_URL = os.getenv('PUBLIC_URL','http://localhost:8080')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', '0') == '1'
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', '0' if EMAIL_USE_SSL else '1' if os.getenv('EMAIL_HOST_USER') else '0') == '1'
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', f'WhatsBridge <{os.getenv("EMAIL_HOST_USER")}>' if os.getenv('EMAIL_HOST_USER') else 'WhatsBridge <hello@whatsbridge.com>')
+PUBLIC_URL = os.getenv('PUBLIC_URL', 'https://whats-bridge.vercel.app' if not DEBUG and not TESTING else 'http://localhost:3000')
 GATEWAY_URL = service_url(os.getenv('GATEWAY_URL','http://gateway:4000'))
 GATEWAY_TOKEN = os.getenv('GATEWAY_TOKEN','test-gateway' if TESTING else '')
 CREDENTIAL_KEY = os.getenv('CREDENTIAL_KEY','')

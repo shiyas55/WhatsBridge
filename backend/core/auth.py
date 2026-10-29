@@ -30,7 +30,38 @@ def validate_pw(password):
 
 def send_verification(user):
     token = signing.dumps({'id':user.id},salt='email-verification')
-    send_mail('Verify your WhatsBridge email',f'Open {settings.PUBLIC_URL}/?verify={token}',settings.DEFAULT_FROM_EMAIL,[user.email])
+    verify_url = f'{settings.PUBLIC_URL}/?verify={token}'
+    html_msg = f"""
+    <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff;">
+        <h2 style="color: #008069; margin-top: 0;">Welcome to WhatsBridge!</h2>
+        <p style="color: #334155; font-size: 15px; line-height: 1.6;">
+            Hello {user.first_name or 'there'},<br><br>
+            Thank you for creating an account. Please click the button below to verify your email and activate your developer workspace:
+        </p>
+        <div style="margin: 28px 0; text-align: center;">
+            <a href="{verify_url}" style="background: #008069; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px; display: inline-block;">
+                Verify My Email
+            </a>
+        </div>
+        <p style="color: #64748b; font-size: 12px;">Or copy and paste this link into your browser:<br><a href="{verify_url}" style="color: #008069;">{verify_url}</a></p>
+        <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+        <p style="color: #94a3b8; font-size: 11px;">If you did not register for WhatsBridge, you can safely ignore this email.</p>
+    </div>
+    """
+    try:
+        send_mail(
+            subject='Verify your WhatsBridge email',
+            message=f'Welcome to WhatsBridge!\n\nOpen this link to verify your email:\n{verify_url}',
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_msg,
+            fail_silently=False
+        )
+        return True, token, verify_url
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).warning("SMTP send_verification failed: %s", exc)
+        return False, token, verify_url
 
 @extend_schema(request=OpenApiTypes.OBJECT,responses=OpenApiTypes.OBJECT)
 @api_view(['GET','POST'])
@@ -38,7 +69,7 @@ def send_verification(user):
 def auth(request, action):
     if request.method == 'GET':
         if action != 'session': raise ValidationError('Unknown action')
-        return Response({'features':{'experimental_qr_otp':settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED},'csrfToken':get_token(request),'user':({'id':request.user.pk,'email':request.user.email,'first_name':request.user.first_name,'is_staff':bool(request.user.is_staff or request.user.is_superuser),'is_superuser':bool(request.user.is_superuser),'email_verified':request.user.email_verified,'totp_enabled':request.user.totp_enabled} if request.user.is_authenticated and getattr(request.user,'pk',None) else None)})
+        return Response({'features':{'experimental_qr_otp':settings.BAILEYS_ENABLED and settings.BAILEYS_OTP_ENABLED},'csrfToken':get_token(request),'user':({'id':request.user.pk,'email':request.user.email,'first_name':request.user.first_name,'last_name':request.user.last_name,'phone':getattr(request.user,'phone',''),'is_staff':bool(request.user.is_staff or request.user.is_superuser),'is_superuser':bool(request.user.is_superuser),'email_verified':request.user.email_verified,'totp_enabled':request.user.totp_enabled} if request.user.is_authenticated and getattr(request.user,'pk',None) else None)})
     # DRF normally checks CSRF only for authenticated sessions. Login/register must
     # also check it to prevent login CSRF.
     SessionAuthentication().enforce_csrf(request)
@@ -49,15 +80,41 @@ def auth(request, action):
         from django.core.validators import validate_email
         try: validate_email(email)
         except DjangoValidationError: raise ValidationError('A valid email is required')
-        password = data.get('password',''); validate_pw(password)
+        password = data.get('password','')
+        confirm_password = data.get('confirm_password')
+        if confirm_password is not None and password != confirm_password:
+            raise ValidationError('Passwords do not match')
+        validate_pw(password)
         if User.objects.filter(email=email).exists(): raise ValidationError('Unable to register this email')
+        
+        first_name = str(data.get('first_name','')).strip()[:150]
+        last_name = str(data.get('last_name','')).strip()[:150]
+        phone = str(data.get('phone','')).strip()[:32]
+        org_name = str(data.get('organization','')).strip()
+        if not org_name:
+            org_name = f"{first_name}'s Organization" if first_name else 'My organization'
+        org_name = org_name[:120]
+
         with transaction.atomic():
-            user = User.objects.create_user(username=email,email=email,password=password)
-            org = Organization.objects.create(name=data.get('organization','My organization')[:120])
+            user = User.objects.create_user(
+                username=email,
+                email=email,
+                password=password,
+                first_name=first_name,
+                last_name=last_name,
+                phone=phone
+            )
+            org = Organization.objects.create(name=org_name)
             OrganizationMembership.objects.create(organization=org,user=user,role='owner')
             Subscription.objects.create(organization=org)
-        send_verification(user)
-        return Response({'detail':'Check your email to verify your account'},status=201)
+            
+        sent, token, verify_url = send_verification(user)
+        return Response({
+            'detail': 'Account created! Verification email sent via SMTP. Check your inbox.' if sent else 'Account created! Please verify your email to continue.',
+            'email_sent': sent,
+            'token': token,
+            'verify_url': verify_url
+        }, status=201)
     if action == 'verify-email':
         try:
             payload = signing.loads(data.get('token',''),salt='email-verification',max_age=86400)
@@ -76,7 +133,19 @@ def auth(request, action):
                     raise PermissionDenied('A fresh two-factor code is required')
                 user.last_totp_step = step; user.save(update_fields=['last_totp_step'])
         login(request,user); request.session['mfa_verified']=bool(user.totp_enabled); audit(request,'auth.login')
-        return Response({'detail':'Signed in','csrfToken':get_token(request)})
+        csrf_tok = get_token(request)
+        user_dict = {
+            'id': user.pk,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'phone': getattr(user, 'phone', ''),
+            'is_staff': bool(user.is_staff or user.is_superuser),
+            'is_superuser': bool(user.is_superuser),
+            'email_verified': user.email_verified,
+            'totp_enabled': user.totp_enabled
+        }
+        return Response({'detail':'Signed in','csrfToken':csrf_tok,'user':user_dict})
     if action == 'forgot-password':
         rate_limit('reset:'+email,3,3600)
         user = User.objects.filter(email=email).first()
@@ -105,6 +174,8 @@ def auth(request, action):
         u = None
         if data.get('email'):
             u = User.objects.filter(email=str(data.get('email')).strip().lower()).first()
+        if not u and phone:
+            u = User.objects.filter(phone=phone).first()
         if not u:
             contact = Contact.objects.filter(phone=phone).first()
             if contact:
