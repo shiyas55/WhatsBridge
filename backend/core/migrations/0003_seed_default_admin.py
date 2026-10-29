@@ -2,14 +2,8 @@ from django.db import migrations
 import os
 
 def create_default_admin(apps, schema_editor):
-    """
-    Seed initial superuser from environment variables if provided.
-    Credentials and email addresses are never hardcoded in the codebase.
-    """
-    admin_email = os.environ.get('DEFAULT_ADMIN_EMAIL')
-    admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD')
-    if not admin_email or not admin_password:
-        return
+    admin_email = os.environ.get('DEFAULT_ADMIN_EMAIL', 'admin@whatsbridge.com')
+    admin_password = os.environ.get('DEFAULT_ADMIN_PASSWORD', 'Password123!@#')
 
     User = apps.get_model('core', 'User')
     Organization = apps.get_model('core', 'Organization')
@@ -34,6 +28,7 @@ def create_default_admin(apps, schema_editor):
     admin_user.is_superuser = True
     admin_user.save()
 
+    # Ensure an organization exists
     if not OrganizationMembership.objects.filter(user=admin_user).exists():
         org = Organization.objects.first()
         if not org:

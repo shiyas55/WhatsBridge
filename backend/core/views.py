@@ -556,6 +556,7 @@ def platform(request):
         'users': user_list,
         'projects': list(Project.objects.values('id', 'name', 'organization__name', 'sandbox', 'created_at').order_by('-created_at')[:100]),
         'connections': list(WhatsAppConnection.objects.values('id', 'name', 'provider', 'status', 'project__name', 'last_connected_at', 'created_at').order_by('-created_at')[:100]),
+        'audit_logs': list(AuditLog.objects.order_by('-created_at').values('action', 'target', 'created_at', 'actor__email')[:100]),
     })
 
 class TemplateViewSet(TenantViewSet):

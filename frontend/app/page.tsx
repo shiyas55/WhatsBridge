@@ -7,9 +7,10 @@ import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDow
 
 type Row=Record<string,any>;
 type Field={name:string;label:string;type?:string;options?:{value:string;label:string}[];value?:string;required?:boolean};
-const nav=[['Workspace',['Overview','Projects','Connections','API Keys']],['Build',['Send Message','Bulk Messaging','Inbox','Contacts','OTP Verification','Workflow Builder','Templates','Webhooks']],['Manage',['AI Assistant','Analytics','Usage & Billing','Team Members','Settings','Admin']],['Resources',['API Playground','API Documentation']]] as const;
-const icons:Record<string,any>={'Overview':LayoutDashboard,'Projects':Blocks,'Connections':MessageCircle,'API Keys':KeyRound,'Send Message':Send,'Bulk Messaging':Users,'Inbox':Mail,'Contacts':Contact,'OTP Verification':ShieldCheck,'Workflow Builder':Workflow,'Templates':BookOpen,'Webhooks':Webhook,'AI Assistant':Sparkles,'Analytics':Activity,'Usage & Billing':Globe,'Team Members':Users,'Settings':Settings,'API Playground':Code2,'API Documentation':BookOpen,'Admin':ShieldCheck};
-const descriptions:Record<string,string>={'Overview':'Your messaging infrastructure, at a glance.','Projects':'Separate your environments, credentials, and integrations.','Connections':'Connect a supported transport to your application.','API Keys':'Scoped access. Secrets shown once. Control that stays with you.','Send Message':'Send a message through your project transport.','Bulk Messaging':'Send broadcasts to multiple WhatsApp numbers with automated pacing.','Inbox':'Follow incoming messages and confirmed delivery events.','Contacts':'Keep recipient details and verifiable history.','OTP Verification':'Generate and verify 6-digit WhatsApp OTP codes.','Workflow Builder':'Build an ordered automation. Publish a version when it is ready.','Webhooks':'Deliver signed events to your approved HTTPS endpoints.','Templates':'Save reusable template drafts. Manage provider approval in Meta WhatsApp Manager.','AI Assistant':'Draft, classify, and summarize with human review.','Analytics':'Real activity from your project.','Usage & Billing':'Track reservations and accepted sends against your organization limit.','Team Members':'Invite collaborators with the right level of access.','Settings':'Manage your account and project settings.','Admin':'Platform-wide controls for authorized administrators.','API Playground':'Try the API with your secure browser session.','API Documentation':'Everything you need to connect your application.'};
+const customerNav=[['Workspace',['Overview','Projects','Connections','API Keys']],['Build',['Send Message','Bulk Messaging','Inbox','Contacts','OTP Verification','Workflow Builder','Templates','Webhooks']],['Manage',['AI Assistant','Analytics','Usage & Billing','Team Members','Settings']],['Resources',['API Playground','API Documentation']]] as const;
+const adminNav=[['Platform Administration',['Platform Users','Usage & Plans','Platform Overview','Audit Logs']],['Account',['Settings']]] as const;
+const icons:Record<string,any>={'Overview':LayoutDashboard,'Projects':Blocks,'Connections':MessageCircle,'API Keys':KeyRound,'Send Message':Send,'Bulk Messaging':Users,'Inbox':Mail,'Contacts':Contact,'OTP Verification':ShieldCheck,'Workflow Builder':Workflow,'Templates':BookOpen,'Webhooks':Webhook,'AI Assistant':Sparkles,'Analytics':Activity,'Usage & Billing':Globe,'Team Members':Users,'Settings':Settings,'API Playground':Code2,'API Documentation':BookOpen,'Platform Users':Users,'Usage & Plans':Globe,'Platform Overview':LayoutDashboard,'Audit Logs':ShieldCheck};
+const descriptions:Record<string,string>={'Platform Users':'All registered platform users, roles, active/blocked status, and administrative controls.','Usage & Plans':'Platform quotas, organization limits, subscription plans, and suspended status.','Platform Overview':'Platform-wide infrastructure metrics and real-time health.','Audit Logs':'System security logs and platform administrator action history.','Overview':'Your messaging infrastructure, at a glance.','Projects':'Separate your environments, credentials, and integrations.','Connections':'Connect a supported transport to your application.','API Keys':'Scoped access. Secrets shown once. Control that stays with you.','Send Message':'Send a message through your project transport.','Bulk Messaging':'Send broadcasts to multiple WhatsApp numbers with automated pacing.','Inbox':'Follow incoming messages and confirmed delivery events.','Contacts':'Keep recipient details and verifiable history.','OTP Verification':'Generate and verify 6-digit WhatsApp OTP codes.','Workflow Builder':'Build an ordered automation. Publish a version when it is ready.','Webhooks':'Deliver signed events to your approved HTTPS endpoints.','Templates':'Save reusable template drafts. Manage provider approval in Meta WhatsApp Manager.','AI Assistant':'Draft, classify, and summarize with human review.','Analytics':'Real activity from your project.','Usage & Billing':'Track reservations and accepted sends against your organization limit.','Team Members':'Invite collaborators with the right level of access.','Settings':'Manage your account and project settings.','Admin':'Platform-wide controls for authorized administrators.','API Playground':'Try the API with your secure browser session.','API Documentation':'Everything you need to connect your application.'};
 function Badge({children}:{children:React.ReactNode}){return <span className={'badge '+String(children).toLowerCase()}>{children}</span>}
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
 const COUNTRIES = [
@@ -101,11 +102,49 @@ export default function Home(){
  const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=await parseResponse(r);if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
  const act=async(fn:()=>Promise<void>)=>{setError('');try{await fn()}catch(e){setError((e as Error).message)}};
  const [experimentalOTP,setExperimentalOTP]=useState(false);
+ const isAdmin = Boolean(user?.is_staff || user?.is_superuser);
+
+ const refreshPlatform=useCallback(async()=>{
+   if(!user?.is_staff && !user?.is_superuser)return;
+   setBusy(true);
+   try{
+     const d = await api('/api/platform');
+     setResult(d);
+   }catch(err:any){
+     setError(err.message);
+   }finally{
+     setBusy(false);
+   }
+ },[user,api]);
+
  const loadSession=async()=>{try{const r=await fetch('/api/auth/session',{credentials:'include'});const data=await parseResponse(r);if(data?.csrfToken)setCsrf(data.csrfToken);if(data?.features)setExperimentalOTP(Boolean(data.features?.experimental_qr_otp));if(data?.user)setUser(data.user);setReady(true);}catch(e){console.warn('loadSession error:',e);setReady(true);}};
  useEffect(()=>{loadSession().catch(()=>{setError('Cannot reach the backend. Check that the services are running.');setReady(true)})},[]);
- const refreshProjects=useCallback(async()=>{const [ps,os]=await Promise.all([api('/api/projects'),api('/api/organizations')]);setProjects(ps);setOrgs(os);setProject(old=>ps.some((p:Row)=>p.id===old)?old:ps[0]?.id??'')},[api]);
- useEffect(()=>{if(user)refreshProjects().catch(e=>setError(e.message))},[user,refreshProjects]);
+
+ useEffect(()=>{
+   if(user){
+     if(user.is_staff || user.is_superuser){
+       if(!['Platform Users','Usage & Plans','Platform Overview','Audit Logs','Settings'].includes(page)){
+         setPage('Platform Users');
+       }
+       refreshPlatform();
+     }else{
+       if(['Platform Users','Usage & Plans','Platform Overview','Audit Logs','Admin'].includes(page)){
+         setPage('Overview');
+       }
+     }
+   }
+ },[user,refreshPlatform]);
+
+ const refreshProjects=useCallback(async()=>{
+   if(user?.is_staff || user?.is_superuser) return;
+   const [ps,os]=await Promise.all([api('/api/projects'),api('/api/organizations')]);setProjects(ps);setOrgs(os);setProject(old=>ps.some((p:Row)=>p.id===old)?old:ps[0]?.id??'')
+ },[api,user]);
+ useEffect(()=>{if(user && !user.is_staff && !user.is_superuser)refreshProjects().catch(e=>setError(e.message))},[user,refreshProjects]);
  const refresh=useCallback(async(background=false)=>{
+   if(user?.is_staff || user?.is_superuser){
+     await refreshPlatform();
+     return;
+   }
    if(!project)return;
    if(background || rowsRef.current.length > 0){
      setSyncing(true);
@@ -619,13 +658,14 @@ export default function Home(){
       </section>
     </div>
   );
+ const currentNav = isAdmin ? adminNav : customerNav;
  return (
   <>
-  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage('Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span></a><div className="workspace"><span className="avatar">{(active?.name??'W').slice(0,1)}</span><div><strong>{active?.name??'Your workspace'}</strong><small>Production workspace</small></div><ChevronDown size={14}/></div><nav>{nav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.filter(n=>n!=='Admin'||(user?.is_staff||user?.is_superuser)).map(n=>{const Icon=icons[n];return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{if(page!==n){setRows([]);setBusy(true);}setPage(n);setMobile(false);setError('');}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom"><div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div><button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||'Developer'}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
- <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">Workspace <span>/</span><strong>{page}</strong></div><div className="top-actions"><span className="environment"><i/>Production Live</span><button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={()=>act(async()=>{await api('/api/auth/logout','POST',{});await loadSession()})}><LogOut size={17}/></button></div></header>
- <main><div className="page-heading"><div><span className="eyebrow">{page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE'}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</div></div>
+  <div className="shell"><aside className={mobile?'sidebar open':'sidebar'}><a className="brand" href="#" onClick={()=>setPage(isAdmin ? 'Platform Users' : 'Overview')}><span className="logo-mark"><MessageCircle size={21}/></span>WhatsBridge<span className="brand-dot">.</span>{isAdmin && <span style={{marginLeft:'6px',fontSize:'10px',background:'var(--red, #ef4444)',color:'#fff',padding:'2px 6px',borderRadius:'4px',fontWeight:700,letterSpacing:'0.5px'}}>ADMIN</span>}</a><div className="workspace"><span className="avatar">{isAdmin ? '🛡️' : (active?.name??'W').slice(0,1)}</span><div><strong>{isAdmin ? 'Super Administrator' : (active?.name??'Your workspace')}</strong><small>{isAdmin ? 'Platform Management' : 'Production workspace'}</small></div>{!isAdmin && <ChevronDown size={14}/>}</div><nav>{currentNav.map(([group,items])=><div className="nav-group" key={group}><span>{group}</span>{items.map(n=>{const Icon=icons[n] || ShieldCheck;return <button key={n} className={page===n?'nav-item active':'nav-item'} onClick={()=>{if(page!==n){setRows([]);setBusy(true);}setPage(n);setMobile(false);setError('');}}><Icon size={17}/>{n}{n==='Connections'&&<small>{connections.filter(c=>c.status==='CONNECTED').length}</small>}{n==='Platform Users'&&result?.users_count && <small>{result.users_count}</small>}</button>})}</div>)}</nav><div className="sidebar-bottom">{isAdmin ? <div className="help-card" style={{border:'1px solid rgba(239,68,68,0.2)'}}><ShieldCheck size={18} color="var(--red, #ef4444)"/><strong>Super Admin Console</strong><p>Full control over platform users, quotas, and organization plans.</p></div> : <div className="help-card"><Zap size={18}/><strong>Built for production</strong><p>Connect your WhatsApp.<br/>Automate and send messages.</p><button onClick={()=>setPage('API Documentation')}>Read the quickstart <ArrowUpRight size={14}/></button></div>}<button className="profile" onClick={()=>setPage('Settings')}><span className="avatar">{user.email?.slice(0,1).toUpperCase()}</span><span><strong>{user.first_name||(isAdmin ? 'Super Admin' : 'Developer')}</strong><small>{user.email}</small></span><MoreHorizontal size={16}/></button></div></aside>
+ <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">{isAdmin ? 'Super Admin Console' : 'Workspace'} <span>/</span><strong>{page}</strong></div><div className="top-actions">{isAdmin ? <span className="pill" style={{background:'rgba(239,68,68,0.1)',color:'var(--red, #ef4444)',fontWeight:700,border:'1px solid rgba(239,68,68,0.2)'}}><ShieldCheck size={13}/> Super Admin</span> : <span className="environment"><i/>Production Live</span>}<button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={()=>act(async()=>{await api('/api/auth/logout','POST',{});await loadSession()})}><LogOut size={17}/></button></div></header>
+ <main><div className="page-heading"><div><span className="eyebrow">{isAdmin ? 'SUPER ADMIN PLATFORM CONTROL' : (page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE')}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{isAdmin ? <button className="primary" onClick={refreshPlatform} disabled={busy}><Activity size={15}/> {busy ? 'Refreshing…' : 'Refresh Data'}</button> : (<>{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</>)}</div></div>
  {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}{notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice('')}>Dismiss</button></div>}{urlParams.has('invite')&&<button className="primary" onClick={()=>act(async()=>{await api('/api/auth/accept-invitation','POST',{token:urlParams.get('invite')});history.replaceState({},'','/');await refreshProjects();setNotice('Invitation accepted')})}>Accept team invitation</button>}
- {!project&&page!=='Projects'?<section className="card welcome"><h2>Make room for your first integration.</h2><p>Create a project to get scoped API keys, WhatsApp connections, and messaging tools.</p><button className="primary" onClick={()=>setModal('project')}>Create your first project <ArrowRight size={16}/></button></section>:<>
+ {!isAdmin&&!project&&page!=='Projects'?<section className="card welcome"><h2>Make room for your first integration.</h2><p>Create a project to get scoped API keys, WhatsApp connections, and messaging tools.</p><button className="primary" onClick={()=>setModal('project')}>Create your first project <ArrowRight size={16}/></button></section>:<>
  {page==='Overview'&&<><section className="welcome"><div><span className="pill"><span/> PRODUCTION ENVIRONMENT</span><h2>From a few lines of code<br/>to a real conversation.</h2><p>Manage your official transport, link your WhatsApp, and monitor confirmed message events in real time.</p><button className="primary" onClick={()=>setPage('Send Message')}>Send a message <ArrowRight size={16}/></button><button className="text-button" onClick={()=>setPage('API Documentation')}>Explore the docs <ArrowUpRight size={15}/></button></div><div className="code-card"><div><span/><span/><span/><small>your-next-idea.ts</small></div><pre>{`// One request. A new conversation.
 await whatsbridge.messages.create({
   phone: "+15551234567",
@@ -961,362 +1001,326 @@ await whatsbridge.messages.create({
               {page === 'AI Assistant' && <section className="card narrow"><span className="pill"><Sparkles size={13} /> HUMAN REVIEW REQUIRED</span><h2>A thoughtful first draft</h2><p className="muted">Gemini must be configured by your platform administrator and enabled in project settings. Generated replies are suggestions.</p><Form fields={[{ name: 'mode', label: 'Task', options: ['reply', 'summary', 'intent', 'workflow'].map(v => ({ value: v, label: v })) }, { name: 'prompt', label: 'Customer question or conversation · English / Malayalam', type: 'textarea' }]} label="Generate suggestion" submit={d => act(async () => setResult(await api('/api/ai?project=' + project, 'POST', { ...d, project })))} /></section>}
               {['Analytics', 'Usage & Billing'].includes(page) && <div className="two-col"><section className="card"><h2>{page === 'Analytics' ? 'Message status' : 'Usage accounting'}</h2>{(page === 'Analytics' ? stats.by_status : stats.usage)?.map((r: Row) => <div className="usage-row" key={r.status || r.kind}><span>{r.status || r.kind}</span><strong>{r.count ?? r.quantity}</strong><div className="meter"><i style={{ width: `${Math.min(100, 100 * (r.count ?? r.quantity) / Math.max(stats.messages ?? 1, 1))}%` }} /></div></div>)}</section><section className="card"><h2>{stats.subscription?.plan ?? 'Sandbox'} plan</h2><p className="metric">{stats.subscription?.monthly_limit?.toLocaleString()}</p><p className="muted">Monthly organization-wide message reservations. Accepted sends are tracked separately. Payment collection is not connected.</p></section></div>}
               {page === 'Settings' && <div className="two-col"><section className="card"><h2>Your account</h2><Form fields={[{ name: 'first_name', label: 'Display name', value: user.first_name, required: false }]} submit={d => act(async () => { await api('/api/auth/profile', 'POST', d); await loadSession(); setNotice('Profile saved') })} /><hr /><h3>Two-factor authentication</h3><p className="muted">{user.totp_enabled ? 'Enabled' : 'Protect sign-in with an authenticator app.'}</p>{!user.totp_enabled && <><button onClick={() => act(async () => setResult(await api('/api/auth/2fa-setup', 'POST', {})))}>Generate authenticator secret</button><Form fields={[{ name: 'code', label: 'Authenticator code' }]} label="Enable two-factor" submit={d => act(async () => { await api('/api/auth/2fa-enable', 'POST', d); await loadSession() })} /></>}</section><section className="card"><h2>Project settings</h2><Form key={project} fields={[{ name: 'name', label: 'Project name', value: active?.name }, { name: 'ai_enabled', label: 'AI suggestions', value: String(active?.ai_enabled), options: [{ value: 'false', label: 'Disabled' }, { value: 'true', label: 'Enabled' }] }, { name: 'faq', label: 'Private FAQ knowledge base', type: 'textarea', value: active?.faq, required: false }]} submit={d => act(async () => { await api('/api/projects?project=' + project, 'PATCH', { ...d, ai_enabled: d.ai_enabled === 'true', project }); await refreshProjects(); setNotice('Settings saved') })} /><hr style={{margin:'20px 0'}}/><div style={{border:'1px solid rgba(239,68,68,0.25)',background:'rgba(239,68,68,0.03)',borderRadius:'8px',padding:'16px'}}><h3 style={{color:'var(--red, #ef4444)',margin:0,fontSize:'14px',display:'flex',alignItems:'center',gap:'6px'}}><Trash2 size={15}/> Danger Zone</h3><p className="muted" style={{fontSize:'12px',margin:'6px 0 12px'}}>Permanently delete this project, along with all associated credentials, connections, API keys, and messages.</p><button type="button" style={{background:'var(--red, #ef4444)',color:'#fff',border:'none',padding:'8px 14px',borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer'}} onClick={()=>{if(projects.length<=1){alert('Cannot delete the last remaining project in your organization.');return;}if(confirm(`Are you sure you want to permanently delete project "${active?.name}"? This action cannot be undone.`)){act(async()=>{await api('/api/projects?project='+project,'DELETE',{});await refreshProjects();setPage('Overview');setNotice(`Project "${active?.name}" deleted.`);});}}}>Delete Project</button></div></section></div>}
-              {page === 'Admin' && (!user?.is_staff && !user?.is_superuser) && (
-                <section className="card" style={{textAlign:'center',padding:'48px 24px'}}>
-                  <ShieldCheck size={48} style={{margin:'0 auto 16px',color:'var(--red, #ef4444)'}} />
-                  <h2>Access Denied</h2>
-                  <p className="muted">Platform Administrator privileges are required to view this page.</p>
-                  <button className="primary" style={{marginTop:'16px'}} onClick={()=>setPage('Overview')}>Return to Dashboard</button>
-                </section>
-              )}
-              {page === 'Admin' && (user?.is_staff || user?.is_superuser) && (
+              {page === 'Platform Users' && (
                 <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
                   <div className="stat-grid">
-                    {[['Platform Users', result?.users_count ?? result?.users?.length ?? 0, Users],
-                      ['Total Projects', result?.projects_count ?? result?.projects?.length ?? 0, Blocks],
-                      ['Active Transports', result?.connections_count ?? result?.connections?.length ?? 0, MessageCircle],
-                      ['Total Messages', result?.messages_total ?? result?.queue ?? 0, Send]].map(([label, value, Icon]: any) => (
+                    {[
+                      ['Platform Users', result?.users_count ?? result?.users?.length ?? 0, Users],
+                      ['Active Users', (result?.users ?? []).filter((u: Row) => u.is_active).length, Check],
+                      ['Blocked Users', (result?.users ?? []).filter((u: Row) => !u.is_active).length, ShieldCheck],
+                      ['Super Admins', (result?.users ?? []).filter((u: Row) => u.is_staff || u.is_superuser).length, Zap]
+                    ].map(([label, value, Icon]: any) => (
                       <div className="stat-card" key={label}>
                         <div><span>{label}</span><Icon size={17} /></div>
                         <strong>{Number(value).toLocaleString()}</strong>
-                        <small>Platform-wide administrator metric</small>
+                        <small>Platform user metric</small>
                       </div>
                     ))}
                   </div>
 
-                  <div style={{display:'flex',gap:'8px',borderBottom:'1px solid var(--line)',paddingBottom:'10px',flexWrap:'wrap'}}>
-                    {[
-                      ['users','All Platform Users'],
-                      ['usage','Platform Usage & Quotas'],
-                      ['projects','All Projects'],
-                      ['connections','All Transports'],
-                      ['overview','Organization Controls']
-                    ].map(([k,label])=>(
-                      <button key={k} type="button" className={adminTab===k?'primary':''} onClick={()=>setAdminTab(k as any)} style={{padding:'7px 14px',fontSize:'12px'}}>
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-
-                  {adminTab === 'users' && (
-                    <section className="card">
-                      <div className="section-heading">
-                        <div>
-                          <h2>All Platform Users ({result?.users?.length ?? 0})</h2>
-                          <p>Full administrator user controls: roles, verification, credentials, and full account management.</p>
-                        </div>
+                  <section className="card">
+                    <div className="section-heading" style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'12px'}}>
+                      <div>
+                        <h2>All Platform Users ({(result?.users ?? []).filter((u: Row) => !search || u.email?.toLowerCase().includes(search.toLowerCase()) || u.first_name?.toLowerCase().includes(search.toLowerCase())).length})</h2>
+                        <p>Full administrative user controls: block / unblock accounts, manage roles, verify emails, reset credentials, and delete users.</p>
                       </div>
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>User / Email</th>
-                              <th>Role & Access</th>
-                              <th>Projects & Usage</th>
-                              <th>Status</th>
-                              <th>Joined</th>
-                              <th>Admin Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(result?.users ?? []).map((u: Row) => (
-                              <tr key={u.id}>
-                                <td>
-                                  <strong>{u.email}</strong>
-                                  <small>ID: {u.id} · {u.first_name || 'No display name'}</small>
-                                </td>
-                                <td>
-                                  <Badge>{u.is_superuser ? 'Super Administrator' : u.is_staff ? 'Staff Member' : 'Standard Developer'}</Badge>
-                                </td>
-                                <td>
-                                  <strong>{u.projects_count ?? 0} projects</strong>
-                                  <small>{(u.messages_count ?? 0).toLocaleString()} messages sent</small>
-                                </td>
-                                <td>
-                                  <div style={{display:'flex',gap:'4px',flexDirection:'column'}}>
-                                    <Badge>{u.email_verified ? 'Verified' : 'Unverified'}</Badge>
-                                    <small style={{color: u.is_active ? 'var(--green)' : 'var(--red)'}}>{u.is_active ? 'Active' : 'Disabled'}</small>
-                                  </div>
-                                </td>
-                                <td>
-                                  <small>{new Date(u.date_joined).toLocaleDateString()}</small>
-                                </td>
-                                <td>
-                                  <div className="row-actions">
-                                    <button type="button" onClick={() => act(async () => {
-                                      const r = await api('/api/platform', 'POST', { action: 'toggle_staff', user_id: u.id });
-                                      setNotice(r.detail);
-                                      await refresh();
-                                    })}>
-                                      {u.is_staff ? 'Revoke Staff' : 'Make Super Admin'}
-                                    </button>
-                                    <button type="button" onClick={() => act(async () => {
-                                      const r = await api('/api/platform', 'POST', { action: 'toggle_verify', user_id: u.id });
-                                      setNotice(r.detail);
-                                      await refresh();
-                                    })}>
-                                      {u.email_verified ? 'Unverify' : 'Mark Verified'}
-                                    </button>
-                                    <button type="button" onClick={() => act(async () => {
-                                      const r = await api('/api/platform', 'POST', { action: 'toggle_active', user_id: u.id });
-                                      setNotice(r.detail);
-                                      await refresh();
-                                    })}>
-                                      {u.is_active ? 'Deactivate' : 'Activate'}
-                                    </button>
-                                    <button type="button" onClick={() => {
-                                      const customPw = prompt(`Enter new password for ${u.email} (leave blank to auto-generate):`, '');
-                                      if (customPw === null) return;
-                                      act(async () => {
-                                        const r = await api('/api/platform', 'POST', { action: 'reset_user_password', user_id: u.id, ...(customPw ? { password: customPw } : {}) });
-                                        setNotice(r.detail);
-                                      });
-                                    }}>
-                                      Reset PW
-                                    </button>
-                                    {String(user?.id) !== String(u.id) && (
-                                      <button
-                                        type="button"
-                                        style={{color:'var(--red, #ef4444)'}}
-                                        title="Delete User"
-                                        onClick={() => {
-                                          if (confirm(`Permanently delete user "${u.email}"? All their projects and data will be removed.`)) {
-                                            act(async () => {
-                                              const r = await api('/api/platform', 'POST', { action: 'delete_user', user_id: u.id });
-                                              setNotice(r.detail);
-                                              await refresh();
-                                            });
-                                          }
-                                        }}
-                                      >
-                                        <Trash2 size={13} />
-                                      </button>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                      <div style={{position:'relative',minWidth:'260px'}}>
+                        <Search size={14} style={{position:'absolute',left:'10px',top:'50%',transform:'translateY(-50%)',color:'var(--muted)'}}/>
+                        <input
+                          type="text"
+                          placeholder="Search users by email or name…"
+                          value={search}
+                          onChange={e => setSearch(e.target.value)}
+                          style={{paddingLeft:'32px',width:'100%',boxSizing:'border-box',fontSize:'13px',borderRadius:'8px',border:'1px solid var(--line)',background:'var(--surface)'}}
+                        />
                       </div>
-                    </section>
-                  )}
-
-                  {adminTab === 'usage' && (
-                    <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
-                      <div className="stat-grid">
-                        {[
-                          ['Total Messages', result?.messages_total ?? 0, Send],
-                          ['Queued in Pipeline', result?.queue ?? 0, Activity],
-                          ['Failed / Rejected', result?.failures ?? 0, LifeBuoy],
-                          ['Dead Letter Webhooks', result?.webhook_dead_letters ?? 0, Webhook]
-                        ].map(([label, value, Icon]: any) => (
-                          <div className="stat-card" key={label}>
-                            <div><span>{label}</span><Icon size={17} /></div>
-                            <strong>{Number(value).toLocaleString()}</strong>
-                            <small>Global metric</small>
-                          </div>
-                        ))}
-                      </div>
-
-                      <div className="two-col">
-                        <section className="card">
-                          <h2>Message Delivery Statuses</h2>
-                          <p className="muted">Live distribution of messages by lifecycle stage.</p>
-                          {(result?.by_status ?? []).map((s: Row) => (
-                            <div className="usage-row" key={s.status}>
-                              <span>{s.status}</span>
-                              <strong>{Number(s.count).toLocaleString()}</strong>
-                              <div className="meter">
-                                <i style={{ width: `${Math.min(100, 100 * s.count / Math.max(result?.messages_total || 1, 1))}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </section>
-
-                        <section className="card">
-                          <h2>Message Formats (Kinds)</h2>
-                          <p className="muted">Volume split between plain text, templates, and OTPs.</p>
-                          {(result?.by_kind ?? []).map((k: Row) => (
-                            <div className="usage-row" key={k.kind}>
-                              <span>{k.kind}</span>
-                              <strong>{Number(k.count).toLocaleString()}</strong>
-                              <div className="meter">
-                                <i style={{ width: `${Math.min(100, 100 * k.count / Math.max(result?.messages_total || 1, 1))}%` }} />
-                              </div>
-                            </div>
-                          ))}
-                        </section>
-                      </div>
-
-                      <section className="card">
-                        <h2>Organization Quotas & Consumption</h2>
-                        <div className="table-scroll">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Organization Name</th>
-                                <th>Monthly Quota Limit</th>
-                                <th>Projects</th>
-                                <th>Messages Sent</th>
-                                <th>Status</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(result?.organizations ?? []).map((org: Row) => (
-                                <tr key={org.id}>
-                                  <td><strong>{org.name}</strong><small>{org.id}</small></td>
-                                  <td>{Number(org.monthly_limit).toLocaleString()} msg / mo</td>
-                                  <td>{org.projects_count ?? 0} projects</td>
-                                  <td><strong>{Number(org.messages_count ?? 0).toLocaleString()}</strong></td>
-                                  <td><Badge>{org.suspended ? 'Suspended' : 'Active'}</Badge></td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </section>
                     </div>
-                  )}
-
-                  {adminTab === 'projects' && (
-                    <section className="card">
-                      <div className="section-heading">
-                        <div>
-                          <h2>All Platform Projects ({result?.projects?.length ?? 0})</h2>
-                          <p>Every tenant project provisioned across the platform.</p>
-                        </div>
-                      </div>
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Project Name</th>
-                              <th>Organization</th>
-                              <th>Environment</th>
-                              <th>Created</th>
-                              <th>Admin Actions</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(result?.projects ?? []).map((p: Row) => (
-                              <tr key={p.id}>
-                                <td>
-                                  <strong>{p.name}</strong>
-                                  <small>{p.id}</small>
-                                </td>
-                                <td>{p['organization__name'] || 'Organization'}</td>
-                                <td><Badge>Production</Badge></td>
-                                <td><small>{new Date(p.created_at).toLocaleDateString()}</small></td>
-                                <td>
-                                  <div className="row-actions">
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>User / Email</th>
+                            <th>Role & Access</th>
+                            <th>Projects & Usage</th>
+                            <th>Status</th>
+                            <th>Email Verified</th>
+                            <th>Joined</th>
+                            <th>Admin Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(result?.users ?? [])
+                            .filter((u: Row) => !search || u.email?.toLowerCase().includes(search.toLowerCase()) || u.first_name?.toLowerCase().includes(search.toLowerCase()))
+                            .map((u: Row) => (
+                            <tr key={u.id}>
+                              <td>
+                                <div style={{display:'flex',flexDirection:'column'}}>
+                                  <strong style={{display:'inline-flex',alignItems:'center',gap:'6px'}}>
+                                    {u.email}
+                                    <button type="button" className="text-button" style={{padding:'2px 4px'}} title="Copy Email" onClick={() => copyText(u.email, 'u-em-' + u.id)}>
+                                      {copiedText === 'u-em-' + u.id ? <Check size={11} color="var(--green)"/> : <Copy size={11}/>}
+                                    </button>
+                                  </strong>
+                                  <small style={{color:'var(--muted)'}}>ID: {u.id} · {u.first_name ? (u.first_name + ' ' + (u.last_name || '')).trim() : 'No display name'}</small>
+                                </div>
+                              </td>
+                              <td>
+                                <span className="badge" style={u.is_superuser ? {background:'rgba(239,68,68,0.1)',color:'#dc2626',fontWeight:700} : u.is_staff ? {background:'rgba(59,130,246,0.1)',color:'#2563eb',fontWeight:600} : {background:'rgba(107,114,128,0.1)',color:'var(--ink)'}}>
+                                  {u.is_superuser ? 'Super Administrator' : u.is_staff ? 'Staff Member' : 'Standard Developer'}
+                                </span>
+                              </td>
+                              <td>
+                                <strong>{u.projects_count ?? 0} projects</strong>
+                                <small style={{display:'block',color:'var(--muted)'}}>{(u.messages_count ?? 0).toLocaleString()} messages sent</small>
+                              </td>
+                              <td>
+                                {u.is_active ? (
+                                  <span className="badge" style={{background:'#dcfce7',color:'#15803d',fontWeight:600}}>Active</span>
+                                ) : (
+                                  <span className="badge" style={{background:'#fee2e2',color:'#b91c1c',fontWeight:700}}>🚫 Blocked</span>
+                                )}
+                              </td>
+                              <td>
+                                {u.email_verified ? (
+                                  <span className="badge" style={{background:'#e0f2fe',color:'#0369a1'}}>Verified</span>
+                                ) : (
+                                  <span className="badge" style={{background:'#fef3c7',color:'#b45309'}}>Unverified</span>
+                                )}
+                              </td>
+                              <td>
+                                <small style={{color:'var(--muted)'}}>{new Date(u.date_joined).toLocaleDateString()}</small>
+                              </td>
+                              <td>
+                                <div className="row-actions">
+                                  <button
+                                    type="button"
+                                    style={u.is_active ? {color:'#dc2626',fontWeight:600,borderColor:'rgba(220,38,38,0.3)'} : {color:'#15803d',fontWeight:700,borderColor:'rgba(21,128,61,0.3)'}}
+                                    onClick={() => act(async () => {
+                                      const r = await api('/api/platform', 'POST', { action: 'toggle_active', user_id: u.id });
+                                      setNotice('User ' + u.email + ' is now ' + (u.is_active ? 'blocked' : 'unblocked'));
+                                      await refreshPlatform();
+                                    })}
+                                  >
+                                    {u.is_active ? '🚫 Block User' : '✅ Unblock'}
+                                  </button>
+                                  <button type="button" onClick={() => act(async () => {
+                                    const r = await api('/api/platform', 'POST', { action: 'toggle_staff', user_id: u.id });
+                                    setNotice(r.detail);
+                                    await refreshPlatform();
+                                  })}>
+                                    {u.is_staff ? 'Revoke Admin' : 'Make Admin'}
+                                  </button>
+                                  <button type="button" onClick={() => act(async () => {
+                                    const r = await api('/api/platform', 'POST', { action: 'toggle_verify', user_id: u.id });
+                                    setNotice(r.detail);
+                                    await refreshPlatform();
+                                  })}>
+                                    {u.email_verified ? 'Unverify' : 'Verify'}
+                                  </button>
+                                  <button type="button" onClick={() => {
+                                    const customPw = prompt('Enter new password for ' + u.email + ' (leave blank to auto-generate):', '');
+                                    if (customPw === null) return;
+                                    act(async () => {
+                                      const r = await api('/api/platform', 'POST', { action: 'reset_user_password', user_id: u.id, ...(customPw ? { password: customPw } : {}) });
+                                      setNotice(r.detail);
+                                    });
+                                  }}>
+                                    Reset PW
+                                  </button>
+                                  {String(user?.id) !== String(u.id) && (
                                     <button
                                       type="button"
                                       style={{color:'var(--red, #ef4444)'}}
+                                      title="Delete User"
                                       onClick={() => {
-                                        if (confirm(`Permanently delete project "${p.name}" (${p.id})? This will delete all its connections and keys.`)) {
+                                        if (confirm('Permanently delete user "' + u.email + '"? All their projects and data will be removed.')) {
                                           act(async () => {
-                                            const r = await api('/api/platform', 'POST', { action: 'delete_project', project_id: p.id });
+                                            const r = await api('/api/platform', 'POST', { action: 'delete_user', user_id: u.id });
                                             setNotice(r.detail);
-                                            await refresh();
-                                            await refreshProjects();
+                                            await refreshPlatform();
                                           });
                                         }
                                       }}
                                     >
-                                      Delete Project
+                                      <Trash2 size={13} />
                                     </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  )}
-
-                  {adminTab === 'connections' && (
-                    <section className="card">
-                      <div className="section-heading">
-                        <div>
-                          <h2>All WhatsApp & Gateway Connections ({result?.connections?.length ?? 0})</h2>
-                          <p>Every linked QR phone and Meta Cloud API transport across all projects.</p>
-                        </div>
-                      </div>
-                      <div className="table-scroll">
-                        <table>
-                          <thead>
-                            <tr>
-                              <th>Transport Name</th>
-                              <th>Provider</th>
-                              <th>Status</th>
-                              <th>Project</th>
-                              <th>Last Active</th>
-                              <th>Admin Actions</th>
+                                  )}
+                                </div>
+                              </td>
                             </tr>
-                          </thead>
-                          <tbody>
-                            {(result?.connections ?? []).map((c: Row) => (
-                              <tr key={c.id}>
-                                <td>
-                                  <strong>{c.name}</strong>
-                                  <small>{c.id}</small>
-                                </td>
-                                <td>{c.provider === 'baileys' ? 'WhatsApp QR' : c.provider === 'meta' ? 'Meta Cloud API' : 'Sandbox'}</td>
-                                <td><Badge>{c.status}</Badge></td>
-                                <td>{c['project__name'] || 'Project'}</td>
-                                <td><small>{c.last_connected_at ? new Date(c.last_connected_at).toLocaleString() : 'Never'}</small></td>
-                                <td>
-                                  <div className="row-actions">
-                                    <button
-                                      type="button"
-                                      style={{color:'var(--red, #ef4444)'}}
-                                      onClick={() => {
-                                        if (confirm(`Permanently delete connection "${c.name}" (${c.id})?`)) {
-                                          act(async () => {
-                                            const r = await api('/api/platform', 'POST', { action: 'delete_connection', connection_id: c.id });
-                                            setNotice(r.detail);
-                                            await refresh();
-                                          });
-                                        }
-                                      }}
-                                    >
-                                      Delete Connection
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </section>
-                  )}
-
-                  {adminTab === 'overview' && (
-                    <section className="card">
-                      <div className="section-heading">
-                        <div>
-                          <h2>Organization & Quota Controls</h2>
-                          <p>Suspend tenants or scale monthly message capacities across the platform.</p>
-                        </div>
-                        <a href="/admin/" target="_blank" rel="noreferrer" style={{fontSize:'12px',fontWeight:600}}>
-                          Open Django administration ↗
-                        </a>
-                      </div>
-                      <Form fields={[
-                        { name: 'organization', label: 'Organization', options: (result?.organizations ?? []).map((o: Row) => ({ value: o.id, label: o.name })) },
-                        { name: 'suspended', label: 'Access Status', options: [{ value: 'false', label: 'Active · Normal Access' }, { value: 'true', label: 'Suspended · Block API & Sending' }] },
-                        { name: 'monthly_limit', label: 'Monthly Message Limit', type: 'number', value: '50000' }
-                      ]} label="Update Organization Settings" submit={d => act(async () => {
-                        await api('/api/platform', 'POST', { ...d, suspended: d.suspended === 'true', monthly_limit: Number(d.monthly_limit) });
-                        await refresh();
-                        setNotice('Organization settings updated successfully');
-                      })} />
-                    </section>
-                  )}
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
                 </div>
+              )}
+
+              {page === 'Usage & Plans' && (
+                <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
+                  <section className="card">
+                    <div className="section-heading">
+                      <div>
+                        <h2>Organization Plan Quotas & Access Controls ({result?.organizations?.length ?? 0})</h2>
+                        <p>Set monthly message limits, view tenant project counts, and suspend or unsuspend organizations across the platform.</p>
+                      </div>
+                    </div>
+                    <div className="table-scroll">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Organization</th>
+                            <th>Monthly Message Limit</th>
+                            <th>Plan Status</th>
+                            <th>Projects & Messages</th>
+                            <th>Plan Controls</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(result?.organizations ?? []).map((org: Row) => (
+                            <tr key={org.id}>
+                              <td>
+                                <strong>{org.name}</strong>
+                                <small style={{display:'block',color:'var(--muted)'}}>ID: {org.id}</small>
+                              </td>
+                              <td>
+                                <strong>{Number(org.monthly_limit || 0).toLocaleString()}</strong>
+                                <small style={{display:'block',color:'var(--muted)'}}>messages / month</small>
+                              </td>
+                              <td>
+                                {org.suspended ? (
+                                  <span className="badge" style={{background:'#fee2e2',color:'#b91c1c',fontWeight:700}}>🚫 Suspended</span>
+                                ) : (
+                                  <span className="badge" style={{background:'#dcfce7',color:'#15803d',fontWeight:600}}>Active</span>
+                                )}
+                              </td>
+                              <td>
+                                <strong>{org.projects_count ?? 0} projects</strong>
+                                <small style={{display:'block',color:'var(--muted)'}}>{(org.messages_count ?? 0).toLocaleString()} messages sent</small>
+                              </td>
+                              <td>
+                                <div className="row-actions">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const newLimit = prompt('Enter new monthly message limit for "' + org.name + '":', String(org.monthly_limit || 50000));
+                                      if (newLimit === null) return;
+                                      const num = parseInt(newLimit, 10);
+                                      if (isNaN(num) || num < 0) { alert('Please enter a valid positive number'); return; }
+                                      act(async () => {
+                                        await api('/api/platform', 'POST', { organization: org.id, monthly_limit: num });
+                                        setNotice('Updated monthly limit for ' + org.name + ' to ' + num.toLocaleString());
+                                        await refreshPlatform();
+                                      });
+                                    }}
+                                  >
+                                    Adjust Limit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    style={org.suspended ? {color:'#15803d',fontWeight:700} : {color:'#b91c1c'}}
+                                    onClick={() => act(async () => {
+                                      await api('/api/platform', 'POST', { organization: org.id, suspended: !org.suspended });
+                                      setNotice('Organization "' + org.name + '" is now ' + (!org.suspended ? 'suspended' : 'active'));
+                                      await refreshPlatform();
+                                    })}
+                                  >
+                                    {org.suspended ? '✅ Unsuspend Org' : '🚫 Suspend Org'}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </section>
+
+                  <div className="two-col">
+                    <section className="card">
+                      <h2>Message Delivery Statuses</h2>
+                      <p className="muted">Live distribution of all messages by lifecycle stage.</p>
+                      {(result?.by_status ?? []).map((s: Row) => (
+                        <div className="usage-row" key={s.status}>
+                          <span>{s.status}</span>
+                          <strong>{Number(s.count).toLocaleString()}</strong>
+                          <div className="meter">
+                            <i style={{ width: `${Math.min(100, 100 * s.count / Math.max(result?.messages_total || 1, 1))}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </section>
+
+                    <section className="card">
+                      <h2>Message Formats (Kinds)</h2>
+                      <p className="muted">Volume split across plain text, templates, and OTPs.</p>
+                      {(result?.by_kind ?? []).map((k: Row) => (
+                        <div className="usage-row" key={k.kind}>
+                          <span>{k.kind}</span>
+                          <strong>{Number(k.count).toLocaleString()}</strong>
+                          <div className="meter">
+                            <i style={{ width: `${Math.min(100, 100 * k.count / Math.max(result?.messages_total || 1, 1))}%` }} />
+                          </div>
+                        </div>
+                      ))}
+                    </section>
+                  </div>
+                </div>
+              )}
+
+              {page === 'Platform Overview' && (
+                <div style={{display:'flex',flexDirection:'column',gap:'20px'}}>
+                  <div className="stat-grid">
+                    {[
+                      ['Platform Users', result?.users_count ?? result?.users?.length ?? 0, Users],
+                      ['Total Projects', result?.projects_count ?? 0, Blocks],
+                      ['Active Transports', result?.connections_count ?? 0, MessageCircle],
+                      ['Total Messages', result?.messages_total ?? 0, Send],
+                      ['Queued in Pipeline', result?.queue ?? 0, Activity],
+                      ['Failed / Rejected', result?.failures ?? 0, LifeBuoy],
+                      ['Dead Letter Webhooks', result?.webhook_dead_letters ?? 0, Webhook]
+                    ].map(([label, value, Icon]: any) => (
+                      <div className="stat-card" key={label}>
+                        <div><span>{label}</span><Icon size={17} /></div>
+                        <strong>{Number(value).toLocaleString()}</strong>
+                        <small>Platform-wide infrastructure metric</small>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {page === 'Audit Logs' && (
+                <section className="card">
+                  <div className="section-heading">
+                    <div>
+                      <h2>Platform Security & Audit Logs ({result?.audit_logs?.length ?? 0})</h2>
+                      <p>Real-time security log of all administrative operations and platform authentication events.</p>
+                    </div>
+                  </div>
+                  <div className="table-scroll">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Action</th>
+                          <th>Actor</th>
+                          <th>Target</th>
+                          <th>Timestamp</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(result?.audit_logs ?? []).map((l: Row, i: number) => (
+                          <tr key={i}>
+                            <td><code>{l.action}</code></td>
+                            <td><small>{l.actor__email || 'System'}</small></td>
+                            <td><small>{l.target || '—'}</small></td>
+                            <td><small>{new Date(l.created_at).toLocaleString()}</small></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
               )}
               {page === 'API Playground' && <section className="card"><h2>Session-authenticated request</h2><p className="muted">No API key is stored in the browser. Your backend integrations should use a scoped Bearer key.</p><Form fields={[{ name: 'method', label: 'Method', options: ['GET', 'POST'].map(v => ({ value: v, label: v })) }, { name: 'path', label: 'API path', value: '/api/v1/messages' }, { name: 'body', label: 'JSON request body', type: 'textarea', value: '{}' }]} label="Run request" submit={d => act(async () => { if (!d.path.startsWith('/api/v1/')) throw new Error('Use a /api/v1/ path'); setResult(await api(d.path + '?project=' + project, d.method, d.method === 'POST' ? { ...JSON.parse(d.body), project } : undefined, { 'Idempotency-Key': crypto.randomUUID() })) })} /></section>}
               {page === 'API Documentation' && (() => {
