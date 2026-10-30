@@ -75,7 +75,35 @@ For ChatGPT Custom GPTs, OpenAI uses OpenAPI Schema actions:
 
 ---
 
-## 💻 3. Setup in Cursor / Windsurf
+## 🔮 3. Setup with Google Gemini (Function Calling / Agents)
+
+You can connect **Google Gemini** (`gemini-2.5-flash`, `gemini-2.5-pro`) directly to WhatsBridge using native function calling with the official `google-genai` SDK:
+
+```python
+from google import genai
+from google.genai import types
+from gemini_agent import send_whatsapp_message, send_whatsapp_otp, verify_whatsapp_otp
+
+client = genai.Client(api_key="YOUR_GEMINI_API_KEY")
+
+# Pass WhatsBridge tools directly to Gemini
+response = client.models.generate_content(
+    model='gemini-2.5-flash',
+    contents="Send a WhatsApp message to +919567334117 saying 'Your order has shipped!'",
+    config=types.GenerateContentConfig(
+        tools=[send_whatsapp_message, send_whatsapp_otp, verify_whatsapp_otp],
+        system_instruction="You are an autonomous WhatsApp assistant. Use WhatsBridge tools to fulfill user messaging requests."
+    )
+)
+
+print(response.text)
+```
+
+See [`gemini_agent.py`](gemini_agent.py) for the complete reference implementation.
+
+---
+
+## 💻 4. Setup in Cursor / Windsurf
 
 In Cursor settings &rarr; **Features** &rarr; **MCP Servers** &rarr; **Add New MCP Server**:
 - **Name:** `whatsbridge`
@@ -108,3 +136,4 @@ Broadcasts message to an array of recipients with anti-spam pacing.
 
 ### `list_whatsapp_connections`
 Lists WhatsApp transports and current connectivity status.
+
