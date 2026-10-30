@@ -7,10 +7,10 @@ import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDow
 
 type Row=Record<string,any>;
 type Field={name:string;label:string;type?:string;options?:{value:string;label:string}[];value?:string;required?:boolean};
-const customerNav=[['Workspace',['Overview','Projects','Connections','API Keys']],['Build',['Send Message','Bulk Messaging','Inbox','Contacts','OTP Verification','Workflow Builder','Templates','Webhooks']],['Manage',['AI Assistant','Analytics','Usage & Billing','Team Members','Settings']],['Resources',['API Playground','API Documentation']]] as const;
+const customerNav=[['Workspace',['Overview','Projects','Connections','API Keys']],['AI & Automations',['AI Assistant','Connect AI (MCP)','Workflow Builder']],['Build',['Send Message','Bulk Messaging','Inbox','Contacts','OTP Verification','Templates','Webhooks']],['Manage',['Analytics','Usage & Billing','Team Members','Settings']],['Resources',['API Playground','API Documentation']]] as const;
 const adminNav=[['Platform Administration',['Platform Users','Usage & Plans','Platform Overview','Audit Logs']],['Account',['Settings']]] as const;
-const icons:Record<string,any>={'Overview':LayoutDashboard,'Projects':Blocks,'Connections':MessageCircle,'API Keys':KeyRound,'Send Message':Send,'Bulk Messaging':Users,'Inbox':Mail,'Contacts':Contact,'OTP Verification':ShieldCheck,'Workflow Builder':Workflow,'Templates':BookOpen,'Webhooks':Webhook,'AI Assistant':Sparkles,'Analytics':Activity,'Usage & Billing':Globe,'Team Members':Users,'Settings':Settings,'API Playground':Code2,'API Documentation':BookOpen,'Platform Users':Users,'Usage & Plans':Globe,'Platform Overview':LayoutDashboard,'Audit Logs':ShieldCheck};
-const descriptions:Record<string,string>={'Platform Users':'All registered platform users, roles, active/blocked status, and administrative controls.','Usage & Plans':'Platform quotas, organization limits, subscription plans, and suspended status.','Platform Overview':'Platform-wide infrastructure metrics and real-time health.','Audit Logs':'System security logs and platform administrator action history.','Overview':'Your messaging infrastructure, at a glance.','Projects':'Separate your environments, credentials, and integrations.','Connections':'Connect a supported transport to your application.','API Keys':'Scoped access. Secrets shown once. Control that stays with you.','Send Message':'Send a message through your project transport.','Bulk Messaging':'Send broadcasts to multiple WhatsApp numbers with automated pacing.','Inbox':'Follow incoming messages and confirmed delivery events.','Contacts':'Keep recipient details and verifiable history.','OTP Verification':'Generate and verify 6-digit WhatsApp OTP codes.','Workflow Builder':'Build an ordered automation. Publish a version when it is ready.','Webhooks':'Deliver signed events to your approved HTTPS endpoints.','Templates':'Save reusable template drafts. Manage provider approval in Meta WhatsApp Manager.','AI Assistant':'Draft, classify, and summarize with human review.','Analytics':'Real activity from your project.','Usage & Billing':'Track reservations and accepted sends against your organization limit.','Team Members':'Invite collaborators with the right level of access.','Settings':'Manage your account and project settings.','Admin':'Platform-wide controls for authorized administrators.','API Playground':'Try the API with your secure browser session.','API Documentation':'Everything you need to connect your application.'};
+const icons:Record<string,any>={'Overview':LayoutDashboard,'Projects':Blocks,'Connections':MessageCircle,'API Keys':KeyRound,'Send Message':Send,'Bulk Messaging':Users,'Inbox':Mail,'Contacts':Contact,'OTP Verification':ShieldCheck,'Workflow Builder':Workflow,'Templates':BookOpen,'Webhooks':Webhook,'AI Assistant':Sparkles,'Connect AI (MCP)':Sparkles,'Analytics':Activity,'Usage & Billing':Globe,'Team Members':Users,'Settings':Settings,'API Playground':Code2,'API Documentation':BookOpen,'Platform Users':Users,'Usage & Plans':Globe,'Platform Overview':LayoutDashboard,'Audit Logs':ShieldCheck};
+const descriptions:Record<string,string>={'Platform Users':'All registered platform users, roles, active/blocked status, and administrative controls.','Usage & Plans':'Platform quotas, organization limits, subscription plans, and suspended status.','Platform Overview':'Platform-wide infrastructure metrics and real-time health.','Audit Logs':'System security logs and platform administrator action history.','Overview':'Your messaging infrastructure, at a glance.','Projects':'Separate your environments, credentials, and integrations.','Connections':'Connect a supported transport to your application.','API Keys':'Scoped access. Secrets shown once. Control that stays with you.','Send Message':'Send a message through your project transport.','Bulk Messaging':'Send broadcasts to multiple WhatsApp numbers with automated pacing.','Inbox':'Follow incoming messages and confirmed delivery events.','Contacts':'Keep recipient details and verifiable history.','OTP Verification':'Generate and verify 6-digit WhatsApp OTP codes.','Connect AI (MCP)':'Connect your personal WhatsApp connection to ChatGPT, Claude, and Google Gemini.','Workflow Builder':'Build an ordered automation. Publish a version when it is ready.','Webhooks':'Deliver signed events to your approved HTTPS endpoints.','Templates':'Save reusable template drafts. Manage provider approval in Meta WhatsApp Manager.','AI Assistant':'Draft, classify, and summarize with human review.','Analytics':'Real activity from your project.','Usage & Billing':'Track reservations and accepted sends against your organization limit.','Team Members':'Invite collaborators with the right level of access.','Settings':'Manage your account and project settings.','Admin':'Platform-wide controls for authorized administrators.','API Playground':'Try the API with your secure browser session.','API Documentation':'Everything you need to connect your application.'};
 function Badge({children}:{children:React.ReactNode}){return <span className={'badge '+String(children).toLowerCase()}>{children}</span>}
 function Form({fields,submit,label='Save',children}:{fields:Field[];submit:(data:Row)=>Promise<void>;label?:string;children?:React.ReactNode}){const [busy,setBusy]=useState(false);return <form style={{display:'flex',flexDirection:'column',width:'100%',gap:'16px'}} onSubmit={async(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const data=Object.fromEntries(new FormData(e.currentTarget));setBusy(true);try{await submit(data)}finally{setBusy(false)}}}>{fields.map(f=><label className="field" key={f.name} style={{display:'flex',flexDirection:'column',width:'100%',gap:'7px',margin:0,fontSize:'12px',fontWeight:600,color:'var(--ink)'}}><span>{f.label}</span>{f.options?<select name={f.name} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}>{f.options.map(o=><option value={o.value} key={o.value}>{o.label}</option>)}</select>:f.type==='textarea'?<textarea name={f.name} defaultValue={f.value} required={f.required!==false} rows={4} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>:<input name={f.name} type={f.type??'text'} defaultValue={f.value} required={f.required!==false} style={{width:'100%',boxSizing:'border-box',padding:'10px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px',background:'var(--surface)',color:'var(--ink)'}}/>}</label>)}{children}<button className="primary" disabled={busy} style={{width:'100%',height:'42px',marginTop:'6px',justifyContent:'center',fontSize:'13px',fontWeight:600}}>{busy?'Working…':label}<ArrowRight size={15}/></button></form>}
 const COUNTRIES = [
@@ -90,6 +90,7 @@ export default function Home(){
  const [otpCountdown, setOtpCountdown] = useState(0);
  const [otpRecipient, setOtpRecipient] = useState('');
  const [verificationLink, setVerificationLink] = useState('');
+ const [mcpClientTab, setMcpClientTab] = useState<'chatgpt' | 'claude' | 'gemini' | 'cursor'>('chatgpt');
  useEffect(() => {
    if (otpCountdown <= 0) return;
    const t = setInterval(() => setOtpCountdown(c => (c > 0 ? c - 1 : 0)), 1000);
@@ -1489,6 +1490,299 @@ await whatsbridge.messages.create({
                 </section>
               )}
               {page === 'AI Assistant' && <section className="card narrow"><span className="pill"><Sparkles size={13} /> HUMAN REVIEW REQUIRED</span><h2>A thoughtful first draft</h2><p className="muted">Gemini must be configured by your platform administrator and enabled in project settings. Generated replies are suggestions.</p><Form fields={[{ name: 'mode', label: 'Task', options: ['reply', 'summary', 'intent', 'workflow'].map(v => ({ value: v, label: v })) }, { name: 'prompt', label: 'Customer question or conversation · English / Malayalam', type: 'textarea' }]} label="Generate suggestion" submit={d => act(async () => setResult(await api('/api/ai?project=' + project, 'POST', { ...d, project })))} /></section>}
+              {page === 'Connect AI (MCP)' && (() => {
+                const connId = connections.find(c => c.status === 'CONNECTED')?.id || (connections[0]?.id ?? 'YOUR_CONNECTION_ID');
+                const connName = connections.find(c => c.status === 'CONNECTED')?.name || (connections[0]?.name ?? 'WhatsApp Transport');
+                const connStatus = connections.find(c => c.status === 'CONNECTED')?.status || (connections[0]?.status ?? 'DISCONNECTED');
+                const liveApiKey = 'wb_live_YOUR_API_KEY';
+                const currentProj = active?.name || 'WhatsApp Production';
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
+                    <div style={{ background: 'linear-gradient(135deg, rgba(0, 128, 105, 0.08) 0%, rgba(37, 211, 102, 0.04) 100%)', border: '1px solid rgba(0, 128, 105, 0.2)', borderRadius: '14px', padding: '24px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
+                        <div>
+                          <span className="pill" style={{ background: '#dcfce7', color: '#166534', fontWeight: 700, marginBottom: '8px' }}>
+                            <Sparkles size={13} style={{ marginRight: '4px' }} /> MULTI-TENANT AI & MCP INTEGRATION
+                          </span>
+                          <h2 style={{ fontSize: '20px', margin: '4px 0 6px', color: 'var(--ink)' }}>
+                            Connect Your Personal WhatsApp to ChatGPT, Claude, and Gemini
+                          </h2>
+                          <p className="muted" style={{ maxWidth: '640px', fontSize: '13px', lineHeight: '1.6', margin: 0 }}>
+                            Every user gets their own isolated credentials. Connect your personal WhatsApp to ChatGPT on your phone or Claude on desktop. You can say <em>"Send a WhatsApp to my mother saying I will be home soon"</em>, and your AI agent automatically routes it through your linked WhatsApp number!
+                          </p>
+                        </div>
+                        <div style={{ background: 'var(--surface)', padding: '12px 18px', borderRadius: '10px', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          <span style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>Active WhatsApp Transport</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: connStatus === 'CONNECTED' ? '#22c55e' : '#f59e0b' }} />
+                            <strong style={{ fontSize: '13px' }}>{connName}</strong>
+                            <small className="pill" style={{ fontSize: '10px', padding: '2px 6px' }}>{connStatus}</small>
+                          </div>
+                          <code style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>{connId}</code>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* App Tabs */}
+                    <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap' }}>
+                      {[
+                        ['chatgpt', '🤖 ChatGPT (Mobile App & Web)'],
+                        ['claude', '🧠 Claude Desktop & Mobile (MCP)'],
+                        ['gemini', '🔮 Google Gemini (Function Calling)'],
+                        ['cursor', '💻 Cursor & Windsurf IDE']
+                      ].map(([id, title]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className={mcpClientTab === id ? 'primary' : ''}
+                          onClick={() => setMcpClientTab(id as any)}
+                          style={{ padding: '8px 16px', fontSize: '12.5px', fontWeight: 600 }}
+                        >
+                          {title}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* TAB 1: ChatGPT */}
+                    {mcpClientTab === 'chatgpt' && (
+                      <section className="card">
+                        <div className="section-heading">
+                          <div>
+                            <h2>Connect to ChatGPT (Custom GPT / Actions)</h2>
+                            <p>Enable ChatGPT on your iOS/Android phone or web browser to send WhatsApp messages using your account.</p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', margin: '16px 0' }}>
+                          <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 1: Create a Custom GPT</strong>
+                            <p className="muted" style={{ fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
+                              Go to <strong>chatgpt.com &rarr; Explore GPTs &rarr; Create</strong>. Name it <em>"My WhatsApp Assistant"</em>.
+                            </p>
+                          </div>
+                          <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 2: Add Actions & Schema</strong>
+                            <p className="muted" style={{ fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
+                              Under <strong>Configure &rarr; Actions &rarr; Create new action</strong>, paste the schema below.
+                            </p>
+                          </div>
+                          <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 3: Enter Your API Key</strong>
+                            <p className="muted" style={{ fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
+                              Set <strong>Authentication: API Key (Bearer)</strong>, paste your API key from the API Keys tab, and save!
+                            </p>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <label style={{ fontSize: '12px', fontWeight: 600 }}>OpenAPI Action Schema (Pre-configured with your Connection ID):</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const spec = {
+                                openapi: "3.1.0",
+                                info: { title: "WhatsBridge WhatsApp Action", version: "1.0.0" },
+                                servers: [{ url: "https://whatsbridge-backend.onrender.com" }],
+                                paths: {
+                                  "/api/v1/messages": {
+                                    post: {
+                                      summary: "Send WhatsApp Message",
+                                      operationId: "sendWhatsAppMessage",
+                                      requestBody: {
+                                        required: true,
+                                        content: {
+                                          "application/json": {
+                                            schema: {
+                                              type: "object",
+                                              required: ["connection", "phone", "kind", "payload"],
+                                              properties: {
+                                                connection: { type: "string", default: connId },
+                                                phone: { type: "string", description: "Recipient phone number (e.g. +919567334117)" },
+                                                kind: { type: "string", default: "text" },
+                                                payload: {
+                                                  type: "object",
+                                                  required: ["body"],
+                                                  properties: { body: { type: "string", description: "Message body" } }
+                                                }
+                                              }
+                                            }
+                                          }
+                                        }
+                                      },
+                                      responses: { "202": { description: "Message sent" } }
+                                    }
+                                  }
+                                }
+                              };
+                              copyText(JSON.stringify(spec, null, 2), 'chatgpt_schema');
+                            }}
+                            style={{ padding: '6px 12px', fontSize: '11.5px' }}
+                          >
+                            {copiedText === 'chatgpt_schema' ? '✓ Copied Schema!' : 'Copy OpenAPI Schema'}
+                          </button>
+                        </div>
+                        <pre style={{ borderRadius: '10px', fontSize: '12px', padding: '16px', background: '#1c2d25', color: '#cae8d5', overflowX: 'auto', maxHeight: '240px' }}>
+{JSON.stringify({
+  "openapi": "3.1.0",
+  "info": { "title": "WhatsBridge WhatsApp Action", "version": "1.0.0" },
+  "servers": [{ "url": "https://whatsbridge-backend.onrender.com" }],
+  "paths": {
+    "/api/v1/messages": {
+      "post": {
+        "summary": "Send WhatsApp Message",
+        "operationId": "sendWhatsAppMessage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["connection", "phone", "kind", "payload"],
+                "properties": {
+                  "connection": { "type": "string", "default": connId },
+                  "phone": { "type": "string", "description": "Recipient phone in E.164 (e.g. +919567334117)" },
+                  "kind": { "type": "string", "default": "text" },
+                  "payload": {
+                    "type": "object",
+                    "required": ["body"],
+                    "properties": { "body": { "type": "string" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}, null, 2)}
+                        </pre>
+                        <div style={{ marginTop: '16px', padding: '12px 14px', background: '#eef8f1', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '12.5px', color: '#166534' }}>
+                          💡 <strong>How to prompt ChatGPT in your phone:</strong><br />
+                          <em>"Send a message to my mother (+919876543210) saying I'll arrive home by 7 PM."</em> &mdash; ChatGPT will call this action and send it through your WhatsApp!
+                        </div>
+                      </section>
+                    )}
+
+                    {/* TAB 2: Claude Desktop (MCP) */}
+                    {mcpClientTab === 'claude' && (
+                      <section className="card">
+                        <div className="section-heading">
+                          <div>
+                            <h2>Connect to Claude Desktop via Model Context Protocol (MCP)</h2>
+                            <p>Give Claude native 🔨 tools to send messages, OTPs, and check live delivery status.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const config = {
+                                mcpServers: {
+                                  whatsbridge: {
+                                    command: "python3",
+                                    args: ["/path/to/whatsbridge/mcp-server/server.py"],
+                                    env: {
+                                      WHATSBRIDGE_BASE_URL: "https://whatsbridge-backend.onrender.com",
+                                      WHATSBRIDGE_API_KEY: "YOUR_API_KEY_HERE",
+                                      WHATSBRIDGE_CONNECTION_ID: connId,
+                                      WHATSBRIDGE_PROJECT_ID: project
+                                    }
+                                  }
+                                }
+                              };
+                              copyText(JSON.stringify(config, null, 2), 'claude_config');
+                            }}
+                            style={{ padding: '6px 12px', fontSize: '11.5px' }}
+                          >
+                            {copiedText === 'claude_config' ? '✓ Config Copied!' : 'Copy Claude Config'}
+                          </button>
+                        </div>
+                        <p className="muted" style={{ fontSize: '12.5px' }}>
+                          Add this to your <code>claude_desktop_config.json</code> (located at <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> on Mac):
+                        </p>
+                        <pre style={{ borderRadius: '10px', fontSize: '12px', padding: '16px', background: '#1c2d25', color: '#cae8d5', overflowX: 'auto' }}>
+{`{
+  "mcpServers": {
+    "whatsbridge": {
+      "command": "python3",
+      "args": [
+        "${typeof window !== 'undefined' ? window.location.origin : ''}/mcp-server/server.py"
+      ],
+      "env": {
+        "WHATSBRIDGE_BASE_URL": "https://whatsbridge-backend.onrender.com",
+        "WHATSBRIDGE_API_KEY": "YOUR_API_KEY_HERE",
+        "WHATSBRIDGE_CONNECTION_ID": "${connId}",
+        "WHATSBRIDGE_PROJECT_ID": "${project}"
+      }
+    }
+  }
+}`}
+                        </pre>
+                      </section>
+                    )}
+
+                    {/* TAB 3: Google Gemini */}
+                    {mcpClientTab === 'gemini' && (
+                      <section className="card">
+                        <div className="section-heading">
+                          <div>
+                            <h2>Connect to Google Gemini (Function Calling)</h2>
+                            <p>Use Gemini 2.5 Flash / Pro with native tools to trigger WhatsApp messages dynamically.</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const code = `from google import genai\nfrom google.genai import types\nfrom gemini_agent import send_whatsapp_message, send_whatsapp_otp\n\nclient = genai.Client(api_key="YOUR_GEMINI_API_KEY")\n\n# Ask Gemini in natural language\nresponse = client.models.generate_content(\n    model="gemini-2.5-flash",\n    contents="Send a WhatsApp message to +919567334117 saying 'Your order is confirmed!'",\n    config=types.GenerateContentConfig(\n        tools=[send_whatsapp_message, send_whatsapp_otp],\n        system_instruction="You are an autonomous WhatsApp assistant. Execute WhatsBridge tools to message users."\n    )\n)\nprint(response.text)`;
+                              copyText(code, 'gemini_code');
+                            }}
+                            style={{ padding: '6px 12px', fontSize: '11.5px' }}
+                          >
+                            {copiedText === 'gemini_code' ? '✓ Code Copied!' : 'Copy Python Code'}
+                          </button>
+                        </div>
+                        <pre style={{ borderRadius: '10px', fontSize: '12px', padding: '16px', background: '#1c2d25', color: '#cae8d5', overflowX: 'auto' }}>
+{`from google import genai
+from google.genai import types
+from gemini_agent import send_whatsapp_message, send_whatsapp_otp
+
+client = genai.Client(api_key="YOUR_GEMINI_API_KEY")
+
+# Pass tools directly to Gemini
+response = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="Send a WhatsApp message to +919567334117 saying 'Hello from Gemini!'",
+    config=types.GenerateContentConfig(
+        tools=[send_whatsapp_message, send_whatsapp_otp],
+        system_instruction="You are an autonomous WhatsApp assistant."
+    )
+)
+print(response.text)`}
+                        </pre>
+                      </section>
+                    )}
+
+                    {/* TAB 4: Cursor & Windsurf */}
+                    {mcpClientTab === 'cursor' && (
+                      <section className="card">
+                        <div className="section-heading">
+                          <div>
+                            <h2>Connect to Cursor / Windsurf IDE</h2>
+                            <p>Allow your AI code editor to send test WhatsApp messages and verify OTPs directly while developing.</p>
+                          </div>
+                        </div>
+                        <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                          <p style={{ margin: '0 0 10px', fontSize: '13px' }}>In <strong>Cursor Settings &rarr; Features &rarr; MCP Servers &rarr; Add New MCP Server</strong>:</p>
+                          <ul style={{ margin: 0, paddingLeft: '20px', fontSize: '12.5px', lineHeight: '1.8' }}>
+                            <li><strong>Name:</strong> <code>whatsbridge</code></li>
+                            <li><strong>Type:</strong> <code>command</code></li>
+                            <li><strong>Command:</strong> <code>python3 /path/to/whatsbridge/mcp-server/server.py</code></li>
+                          </ul>
+                        </div>
+                      </section>
+                    )}
+                  </div>
+                );
+              })()}
               {['Analytics', 'Usage & Billing'].includes(page) && <div className="two-col"><section className="card"><h2>{page === 'Analytics' ? 'Message status' : 'Usage accounting'}</h2>{(page === 'Analytics' ? stats.by_status : stats.usage)?.map((r: Row) => <div className="usage-row" key={r.status || r.kind}><span>{r.status || r.kind}</span><strong>{r.count ?? r.quantity}</strong><div className="meter"><i style={{ width: `${Math.min(100, 100 * (r.count ?? r.quantity) / Math.max(stats.messages ?? 1, 1))}%` }} /></div></div>)}</section><section className="card"><h2>{stats.subscription?.plan ?? 'Sandbox'} plan</h2><p className="metric">{stats.subscription?.monthly_limit?.toLocaleString()}</p><p className="muted">Monthly organization-wide message reservations. Accepted sends are tracked separately. Payment collection is not connected.</p></section></div>}
               {page === 'Settings' && <div className="two-col"><section className="card"><h2>Your account</h2><Form fields={[{ name: 'first_name', label: 'Display name', value: user.first_name, required: false }]} submit={d => act(async () => { await api('/api/auth/profile', 'POST', d); await loadSession(); setNotice('Profile saved') })} /><hr /><h3>Two-factor authentication</h3><p className="muted">{user.totp_enabled ? 'Enabled' : 'Protect sign-in with an authenticator app.'}</p>{!user.totp_enabled && <><button onClick={() => act(async () => setResult(await api('/api/auth/2fa-setup', 'POST', {})))}>Generate authenticator secret</button><Form fields={[{ name: 'code', label: 'Authenticator code' }]} label="Enable two-factor" submit={d => act(async () => { await api('/api/auth/2fa-enable', 'POST', d); await loadSession() })} /></>}</section><section className="card"><h2>Project settings</h2><Form key={project} fields={[{ name: 'name', label: 'Project name', value: active?.name }, { name: 'ai_enabled', label: 'AI suggestions', value: String(active?.ai_enabled), options: [{ value: 'false', label: 'Disabled' }, { value: 'true', label: 'Enabled' }] }, { name: 'faq', label: 'Private FAQ knowledge base', type: 'textarea', value: active?.faq, required: false }]} submit={d => act(async () => { await api('/api/projects?project=' + project, 'PATCH', { ...d, ai_enabled: d.ai_enabled === 'true', project }); await refreshProjects(); setNotice('Settings saved') })} /><hr style={{margin:'20px 0'}}/><div style={{border:'1px solid rgba(239,68,68,0.25)',background:'rgba(239,68,68,0.03)',borderRadius:'8px',padding:'16px'}}><h3 style={{color:'var(--red, #ef4444)',margin:0,fontSize:'14px',display:'flex',alignItems:'center',gap:'6px'}}><Trash2 size={15}/> Danger Zone</h3><p className="muted" style={{fontSize:'12px',margin:'6px 0 12px'}}>Permanently delete this project, along with all associated credentials, connections, API keys, and messages.</p><button type="button" style={{background:'var(--red, #ef4444)',color:'#fff',border:'none',padding:'8px 14px',borderRadius:'6px',fontSize:'12px',fontWeight:600,cursor:'pointer'}} onClick={()=>{if(projects.length<=1){alert('Cannot delete the last remaining project in your organization.');return;}if(confirm(`Are you sure you want to permanently delete project "${active?.name}"? This action cannot be undone.`)){act(async()=>{await api('/api/projects?project='+project,'DELETE',{});await refreshProjects();setPage('Overview');setNotice(`Project "${active?.name}" deleted.`);});}}}>Delete Project</button></div></section><section className="card" style={{gridColumn:'1 / -1',marginTop:'16px'}}><div className="section-heading"><div><h2 style={{display:'flex',alignItems:'center',gap:'8px'}}><Mail size={18} color="var(--green)"/> SMTP Email Dispatch & Diagnostics</h2><p>Verify outbound email sending for account verification, password resets, and team invitations.</p></div><span className="pill" style={{background:smtpInfo?.configured?'rgba(34,197,94,0.1)':'rgba(245,158,11,0.1)',color:smtpInfo?.configured?'#16a34a':'#d97706',fontWeight:700}}>{smtpInfo?.configured ? '🟢 SMTP Configured' : '⚠️ Console Backend (Unconfigured)'}</span></div><div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit, minmax(200px, 1fr))',gap:'12px',margin:'16px 0',background:'var(--bg)',padding:'14px',borderRadius:'8px',border:'1px solid var(--border)'}}><div><small style={{color:'var(--muted)',display:'block'}}>SMTP Host</small><strong>{smtpInfo?.host || 'smtp.gmail.com'}</strong></div><div><small style={{color:'var(--muted)',display:'block'}}>Port / Encryption</small><strong>{smtpInfo?.port || 587} (TLS)</strong></div><div><small style={{color:'var(--muted)',display:'block'}}>SMTP Username</small><strong>{smtpInfo?.user || 'None (Set EMAIL_HOST_USER)'}</strong></div><div><small style={{color:'var(--muted)',display:'block'}}>Sender From</small><strong>{smtpInfo?.from_email || 'WhatsBridge <hello@whatsbridge.com>'}</strong></div></div><div style={{marginTop:'12px',display:'flex',flexDirection:'column',gap:'10px'}}><label style={{fontSize:'12px',fontWeight:600}}>Send a Test Email</label><div style={{display:'flex',gap:'10px',flexWrap:'wrap'}}><input type="email" placeholder={user.email} value={testSmtpEmail} onChange={e => setTestSmtpEmail(e.target.value)} style={{flex:1,minWidth:'240px',padding:'9px 12px',borderRadius:'8px',border:'1px solid #dfe6e1',fontSize:'13px'}}/><button type="button" className="primary" disabled={testSmtpBusy} onClick={async () => { setTestSmtpBusy(true); setTestSmtpResult(null); try { const r = await api('/api/auth/test-smtp', 'POST', { email: testSmtpEmail.trim() || user.email }); setTestSmtpResult(r); setNotice(r.detail || 'Test email dispatched successfully!'); } catch (err: any) { setTestSmtpResult({ success: false, detail: err.message || 'SMTP dispatch failed' }); setError(err.message || 'SMTP dispatch failed'); } finally { setTestSmtpBusy(false); } }} style={{display:'inline-flex',alignItems:'center',gap:'6px'}}><Send size={14}/> {testSmtpBusy ? 'Sending Test…' : 'Send Test Email'}</button></div>{testSmtpResult && (<div style={{marginTop:'10px',padding:'12px 16px',borderRadius:'8px',background:testSmtpResult.success?'#eef8f1':'#fef2f2',border:`1px solid ${testSmtpResult.success?'#bbf7d0':'#fecaca'}`,color:testSmtpResult.success?'#166534':'#991b1b',fontSize:'13px',lineHeight:'1.5'}}><strong>{testSmtpResult.success ? '✓ SMTP Verification Passed:' : '❌ SMTP Verification Failed:'}</strong> {testSmtpResult.detail}{!testSmtpResult.success && (<div style={{marginTop:'8px',fontSize:'11.5px',color:'#7f1d1d'}}><strong>How to resolve:</strong><ul style={{margin:'4px 0 0 16px',padding:0}}><li>If using Gmail, enable 2-Step Verification and generate a 16-character <strong>App Password</strong> at <code>myaccount.google.com/apppasswords</code>.</li><li>In your Render Dashboard Environment Variables, set <code>EMAIL_HOST_USER=your_email@gmail.com</code> and <code>EMAIL_HOST_PASSWORD=your_16_char_app_password</code>.</li><li>Set <code>EMAIL_PORT=587</code> and <code>EMAIL_USE_TLS=1</code>.</li></ul></div>)}</div>)}</div></section></div>}
               {page === 'Platform Users' && (
