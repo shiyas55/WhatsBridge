@@ -1,0 +1,199 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "WhatsBridge MCP & OpenAI Tools Specification",
+    "description": "Send WhatsApp messages, dispatch OTPs, verify challenges, and broadcast notifications via WhatsBridge.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://whatsbridge-backend.onrender.com"
+    }
+  ],
+  "paths": {
+    "/api/v1/messages": {
+      "post": {
+        "summary": "Send WhatsApp Message",
+        "description": "Sends a real WhatsApp text message to an international phone number.",
+        "operationId": "sendWhatsAppMessage",
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["connection", "phone", "kind", "payload"],
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "WhatsApp Connection UUID"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "Recipient phone number in E.164 format (e.g. +919567334117)"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": ["text"],
+                    "default": "text"
+                  },
+                  "payload": {
+                    "type": "object",
+                    "required": ["body"],
+                    "properties": {
+                      "body": {
+                        "type": "string",
+                        "description": "Text message content"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Message enqueued successfully."
+          }
+        }
+      }
+    },
+    "/api/v1/otp/send": {
+      "post": {
+        "summary": "Send WhatsApp OTP",
+        "description": "Dispatches a 6-digit WhatsApp OTP verification challenge.",
+        "operationId": "sendWhatsAppOTP",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["phone"],
+                "properties": {
+                  "phone": {
+                    "type": "string",
+                    "description": "Recipient phone number in E.164 format"
+                  },
+                  "connection": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Optional WhatsApp Connection UUID"
+                  },
+                  "ttl_seconds": {
+                    "type": "integer",
+                    "default": 300,
+                    "description": "TTL in seconds (60-600)"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "OTP challenge created."
+          }
+        }
+      }
+    },
+    "/api/v1/otp/verify": {
+      "post": {
+        "summary": "Verify WhatsApp OTP",
+        "description": "Validates a 6-digit code submitted by the user against the challenge.",
+        "operationId": "verifyWhatsAppOTP",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["challenge_id", "code"],
+                "properties": {
+                  "challenge_id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Challenge UUID returned by send OTP"
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "6-digit verification code"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Challenge verified."
+          }
+        }
+      }
+    },
+    "/api/v1/messages/bulk": {
+      "post": {
+        "summary": "Broadcast WhatsApp Bulk Campaign",
+        "description": "Sends messages to multiple phone numbers with automated pacing to protect from spam limits.",
+        "operationId": "broadcastWhatsApp",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["connection", "phones", "body"],
+                "properties": {
+                  "connection": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "WhatsApp Connection UUID"
+                  },
+                  "phones": {
+                    "type": "string",
+                    "description": "One phone number per line or comma-separated E.164 numbers"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "Broadcast message text"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Bulk broadcast enqueued."
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "APIKey"
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
+}
