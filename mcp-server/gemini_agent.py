@@ -94,3 +94,4 @@ def run_gemini_whatsapp_agent(user_prompt: str, gemini_api_key: str):
 if __name__ == "__main__":
     print("WhatsBridge Google Gemini Integration ready.")
     print("Available tools: send_whatsapp_message, send_whatsapp_otp, verify_whatsapp_otp")
+
