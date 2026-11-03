@@ -3,7 +3,7 @@ import QRPairing from './QRPairing';
 import Modal from './Modal';
 import WhatsAppWeb from './WhatsAppWeb';
 import { useEffect, useState, useCallback, useRef, FormEvent } from 'react';
-import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDown, Code2, Contact, Copy, Globe, KeyRound, LayoutDashboard, LifeBuoy, Link as LinkIcon, LogOut, Mail, MessageCircle, MoreHorizontal, Plus, Search, Send, Settings, ShieldCheck, Sparkles, Sun, Users, Webhook, Workflow, Zap, Menu, Trash2, GripVertical, Play, Clock, GitBranch } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDown, Code2, Contact, Copy, Globe, KeyRound, LayoutDashboard, LifeBuoy, Link as LinkIcon, LogOut, Mail, MessageCircle, MoreHorizontal, Plus, QrCode, Search, Send, Settings, ShieldCheck, Sparkles, Sun, Users, Webhook, Workflow, Zap, Menu, Trash2, GripVertical, Play, Clock, GitBranch } from 'lucide-react';
 
 type Row=Record<string,any>;
 type Field={name:string;label:string;type?:string;options?:{value:string;label:string}[];value?:string;required?:boolean};
@@ -122,7 +122,25 @@ export default function Home(){
 
  const runApiTest=async(apiKeySecret:string,connectionId?:string)=>{setTestRunning(true);setTestResult(null);try{const conn=connectionId||connections.find(c=>c.status==='CONNECTED')?.id||connections[0]?.id;const res=await fetch('/api/v1/messages?project='+project,{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+apiKeySecret.trim(),'Idempotency-Key':crypto.randomUUID()},body:JSON.stringify({...(conn?{connection:conn}:{}),phone:testPhone,kind:'text',payload:{body:testBody}})});const data=await parseResponse(res);if(!res.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));setTestResult(data);setNotice('Test message successfully sent via API key!');await refresh(true);}catch(err:any){setTestResult({error:err.message});}finally{setTestRunning(false);}};
  const active=projects.find(p=>p.id===project);
- const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{const r=await fetch(path,{method,credentials:'include',headers:{'Content-Type':'application/json','X-CSRFToken':csrf,...extra},...(body?{body:JSON.stringify(body)}:{})});const data=await parseResponse(r);if(!r.ok)throw new Error(typeof data?.error?.details==='string'?data.error.details:JSON.stringify(data?.error?.details??data));return data},[csrf]);
+ const api=useCallback(async(path:string,method='GET',body?:Row,extra:Row={})=>{
+    const headers: Record<string, string> = { 'Content-Type': 'application/json', ...extra };
+    if (csrf) headers['X-CSRFToken'] = csrf;
+    const r=await fetch(path,{method,credentials:'include',headers,...(body?{body:JSON.stringify(body)}:{})});
+    const data=await parseResponse(r);
+    if(!r.ok) {
+      let msg = 'Request failed';
+      if (typeof data?.error?.details === 'string') msg = data.error.details;
+      else if (typeof data?.error?.details?.detail === 'string') msg = data.error.details.detail;
+      else if (typeof data?.detail === 'string') msg = data.detail;
+      else if (typeof data?.error?.message === 'string') msg = data.error.message;
+      else if (typeof data?.error === 'string') msg = data.error;
+      else if (data?.error?.details && typeof data.error.details === 'object') msg = Object.values(data.error.details).flat().join(', ');
+      else if (data && typeof data === 'object') msg = Object.values(data).flat().join(', ');
+      else if (data) msg = String(data);
+      throw new Error(msg || `Request failed (${r.status})`);
+    }
+    return data;
+  },[csrf]);
  const act=async(fn:()=>Promise<void>)=>{setError('');try{await fn()}catch(e){setError((e as Error).message)}};
  const [experimentalOTP,setExperimentalOTP]=useState(false);
  const isAdmin = Boolean(user?.is_staff || user?.is_superuser);
@@ -883,6 +901,155 @@ export default function Home(){
       </section>
     </div>
   );
+
+  const isConnected = connections.some(c => c.status === 'CONNECTED');
+  const hasMessages = (stats.messages ?? 0) > 0;
+  const completedSteps = [
+    projects.length > 0,
+    isConnected,
+    hasMessages
+  ];
+  const completedCount = completedSteps.filter(Boolean).length;
+
+  const renderOnboardingGuide = () => {
+    return (
+      <section className="wb-guide-container">
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px', marginBottom: '20px' }}>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+              <span className="pill" style={{ background: '#dcfce7', color: '#15803d', fontWeight: 700, padding: '3px 9px', fontSize: '11px' }}>
+                <Sparkles size={12} style={{ marginRight: '4px' }} /> INTERACTIVE SETUP GUIDE
+              </span>
+              <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600 }}>
+                {completedCount} of 3 steps complete
+              </span>
+            </div>
+            <h2 style={{ fontSize: '20px', margin: '2px 0 6px', color: 'var(--ink)' }}>
+              {completedCount === 0 ? 'Welcome to WhatsBridge! Let’s get your WhatsApp connected.' : completedCount === 3 ? '🎉 Your WhatsApp infrastructure is fully operational!' : 'Complete your setup to start messaging.'}
+            </h2>
+            <p className="muted" style={{ fontSize: '13px', margin: 0 }}>
+              Follow these 3 quick steps to initialize your isolated workspace, link your WhatsApp QR, and send your first message.
+            </p>
+          </div>
+
+          <div style={{ width: '100%', maxWidth: '240px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--muted)', marginBottom: '5px' }}>
+              <span>Progress</span>
+              <strong>{Math.round((completedCount / 3) * 100)}%</strong>
+            </div>
+            <div style={{ height: '7px', background: 'var(--line)', borderRadius: '4px', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${(completedCount / 3) * 100}%`, background: 'linear-gradient(90deg, #008069, #25d366)', borderRadius: '4px', transition: 'width 0.4s ease' }} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          {/* STEP 1 */}
+          <div className={`wb-step-card ${projects.length > 0 ? 'completed' : 'active'}`}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className={`wb-step-badge ${projects.length > 0 ? 'completed' : 'active'}`}>
+                  {projects.length > 0 ? <Check size={15}/> : '1'}
+                </span>
+                <div>
+                  <strong style={{ fontSize: '14px', display: 'block', color: 'var(--ink)' }}>1. Create Project</strong>
+                  <small style={{ color: 'var(--muted)', fontSize: '11px' }}>{projects.length > 0 ? (active?.name || projects[0]?.name || 'Active') : 'Required workspace'}</small>
+                </div>
+              </div>
+              <Blocks size={20} color={projects.length > 0 ? '#16a34a' : 'var(--muted)'} />
+            </div>
+            <p style={{ fontSize: '12.5px', color: 'var(--muted)', lineHeight: '1.5', margin: 0 }}>
+              Projects provide isolated API keys, contacts, and dedicated WhatsApp connection state.
+            </p>
+            {projects.length === 0 ? (
+              <button type="button" className="primary" onClick={() => setModal('project')} style={{ width: '100%', justifyContent: 'center' }}>
+                <Plus size={14} /> Create First Project
+              </button>
+            ) : (
+              <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Check size={14}/> Workspace Initialized
+              </div>
+            )}
+          </div>
+
+          {/* STEP 2 */}
+          <div className={`wb-step-card ${isConnected ? 'completed' : (projects.length > 0 ? 'active' : '')}`}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className={`wb-step-badge ${isConnected ? 'completed' : (projects.length > 0 ? 'active' : 'pending')}`}>
+                  {isConnected ? <Check size={15}/> : '2'}
+                </span>
+                <div>
+                  <strong style={{ fontSize: '14px', display: 'block', color: 'var(--ink)' }}>2. Link WhatsApp Phone</strong>
+                  <small style={{ color: 'var(--muted)', fontSize: '11px' }}>
+                    {isConnected ? 'Linked via QR Code' : 'Pair via QR Scan'}
+                  </small>
+                </div>
+              </div>
+              <QrCode size={20} color={isConnected ? '#16a34a' : 'var(--muted)'} />
+            </div>
+            <p style={{ fontSize: '12.5px', color: 'var(--muted)', lineHeight: '1.5', margin: 0 }}>
+              Scan the pairing QR code directly from your Android / iPhone WhatsApp (Linked Devices).
+            </p>
+            {isConnected ? (
+              <div style={{ fontSize: '11.5px', color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Check size={14}/> Phone Connected ({connections.find(c => c.status === 'CONNECTED')?.name || 'WhatsApp Web'})
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="primary"
+                disabled={projects.length === 0}
+                onClick={linkWhatsApp}
+                style={{ width: '100%', justifyContent: 'center' }}
+              >
+                <QrCode size={14} /> Scan QR & Link WhatsApp
+              </button>
+            )}
+          </div>
+
+          {/* STEP 3 */}
+          <div className={`wb-step-card ${hasMessages ? 'completed' : (isConnected ? 'active' : '')}`}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className={`wb-step-badge ${hasMessages ? 'completed' : (isConnected ? 'active' : 'pending')}`}>
+                  {hasMessages ? <Check size={15}/> : '3'}
+                </span>
+                <div>
+                  <strong style={{ fontSize: '14px', display: 'block', color: 'var(--ink)' }}>3. Send Message or Connect AI</strong>
+                  <small style={{ color: 'var(--muted)', fontSize: '11px' }}>ChatGPT, Claude, or Test Send</small>
+                </div>
+              </div>
+              <Sparkles size={20} color={hasMessages ? '#16a34a' : 'var(--muted)'} />
+            </div>
+            <p style={{ fontSize: '12.5px', color: 'var(--muted)', lineHeight: '1.5', margin: 0 }}>
+              Say <em>"Send WhatsApp to Mom"</em> in ChatGPT/Claude or test a direct dispatch right now.
+            </p>
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <button
+                type="button"
+                className="primary"
+                disabled={!isConnected}
+                onClick={() => setPage('Connect AI (MCP)')}
+                style={{ flex: 1, justifyContent: 'center', padding: '8px 12px', fontSize: '11.5px' }}
+              >
+                <Sparkles size={12}/> Connect AI (MCP)
+              </button>
+              <button
+                type="button"
+                disabled={!isConnected}
+                onClick={() => setPage('Send Message')}
+                style={{ padding: '8px 12px', fontSize: '11.5px' }}
+              >
+                Send Test →
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  };
+
  const currentNav = isAdmin ? adminNav : customerNav;
  return (
   <>
@@ -890,8 +1057,8 @@ export default function Home(){
  <div className="main"><header className="topbar"><button className="mobile-menu" aria-label="Toggle navigation" onClick={()=>setMobile(!mobile)}><Menu/></button><div className="breadcrumb">{isAdmin ? 'Super Admin Console' : 'Workspace'} <span>/</span><strong>{page}</strong></div><div className="top-actions">{isAdmin ? <span className="pill" style={{background:'rgba(239,68,68,0.1)',color:'var(--red, #ef4444)',fontWeight:700,border:'1px solid rgba(239,68,68,0.2)'}}><ShieldCheck size={13}/> Super Admin</span> : <span className="environment"><i/>Production Live</span>}<button aria-label="Toggle color theme" onClick={()=>document.documentElement.classList.toggle('dark')}><Sun size={18}/></button><button aria-label="Sign out" onClick={handleSignOut}><LogOut size={17}/></button></div></header>
  <main><div className="page-heading"><div><span className="eyebrow">{isAdmin ? 'SUPER ADMIN PLATFORM CONTROL' : (page==='Overview'?'YOUR WORKSPACE, CONNECTED':'WHATSBRIDGE CONSOLE')}</span><h1>{page==='Overview'?'Workspace overview':page}</h1><p>{descriptions[page]}</p></div><div className="heading-actions">{isAdmin ? <button className="primary" onClick={refreshPlatform} disabled={busy}><Activity size={15}/> {busy ? 'Refreshing…' : 'Refresh Data'}</button> : (<>{page==='Connections'&&<button className="primary" onClick={linkWhatsApp}>Link my WhatsApp · QR</button>}<select aria-label="Active project" value={project} onChange={e=>setProject(e.target.value)}><option value="">Select a project</option>{projects.map(p=><option value={p.id} key={p.id}>{p.name}</option>)}</select>{!['Workflow Builder','Templates','Webhooks'].includes(page)&&<button className="primary" onClick={()=>setModal(page==='Projects'||!project?'project':page==='Connections'?'connection':page==='API Keys'?'key':page==='Contacts'?'contact':page==='Team Members'?'invite':'project')}><Plus size={16}/>{page==='Connections'?'Add connection':page==='API Keys'?'Create key':page==='Contacts'?'Add contact':page==='Team Members'?'Invite member':'New project'}</button>}</>)}</div></div>
  {error&&<div className="error" role="alert">{error}<button onClick={()=>setError('')}>Dismiss</button></div>}{notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice('')}>Dismiss</button></div>}{urlParams.has('invite')&&<button className="primary" onClick={()=>act(async()=>{await api('/api/auth/accept-invitation','POST',{token:urlParams.get('invite')});history.replaceState({},'','/');await refreshProjects();setNotice('Invitation accepted')})}>Accept team invitation</button>}
- {!isAdmin&&!project&&projects.length===0&&page!=='Projects'?<section className="card welcome"><h2>Make room for your first integration.</h2><p>Create a project to get scoped API keys, WhatsApp connections, and messaging tools.</p><button className="primary" onClick={()=>setModal('project')}>Create your first project <ArrowRight size={16}/></button></section>:<>
- {page==='Overview'&&<><section className="welcome"><div><span className="pill"><span/> PRODUCTION ENVIRONMENT</span><h2>From a few lines of code<br/>to a real conversation.</h2><p>Manage your official transport, link your WhatsApp, and monitor confirmed message events in real time.</p><button className="primary" onClick={()=>setPage('Send Message')}>Send a message <ArrowRight size={16}/></button><button className="text-button" onClick={()=>setPage('API Documentation')}>Explore the docs <ArrowUpRight size={15}/></button></div><div className="code-card"><div><span/><span/><span/><small>your-next-idea.ts</small></div><pre>{`// One request. A new conversation.
+ {!isAdmin&&projects.length===0&&page!=='Projects'?renderOnboardingGuide():<>
+ {page==='Overview'&&<>{renderOnboardingGuide()}<section className="welcome"><div><span className="pill"><span/> PRODUCTION ENVIRONMENT</span><h2>From a few lines of code<br/>to a real conversation.</h2><p>Manage your official transport, link your WhatsApp, and monitor confirmed message events in real time.</p><button className="primary" onClick={()=>setPage('Send Message')}>Send a message <ArrowRight size={16}/></button><button className="text-button" onClick={()=>setPage('API Documentation')}>Explore the docs <ArrowUpRight size={15}/></button></div><div className="code-card"><div><span/><span/><span/><small>your-next-idea.ts</small></div><pre>{`// One request. A new conversation.
 await whatsbridge.messages.create({
   phone: "+15551234567",
   kind: "text",

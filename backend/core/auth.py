@@ -125,8 +125,6 @@ def auth(request, action):
             org = Organization.objects.create(name=org_name)
             OrganizationMembership.objects.create(organization=org,user=user,role='owner')
             Subscription.objects.create(organization=org)
-            initial_proj = Project.objects.create(organization=org, name='WhatsApp Production', sandbox=False)
-            WhatsAppConnection.objects.create(project=initial_proj, name='WhatsApp Web', provider='baileys', status='DISCONNECTED')
             
         sent, token, verify_url, smtp_err = send_verification(user)
         if not sent:

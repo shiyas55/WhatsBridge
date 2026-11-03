@@ -374,24 +374,10 @@ def projects(request):
                 organization__organizationmembership__user=request.user,
                 organization__suspended=False
             ).distinct().order_by('created_at')
-            if not qs.exists():
-                user_org_member = OrganizationMembership.objects.filter(user=request.user, organization__suspended=False).first()
-                if user_org_member:
-                    target_org = user_org_member.organization
-                else:
-                    target_org = Organization.objects.filter(name='WhatsBridge Production', suspended=False).first()
-                    if not target_org:
-                        target_org = Organization.objects.create(name=f"{request.user.first_name or 'My'} Organization", monthly_limit=50000)
-                        Subscription.objects.get_or_create(organization=target_org)
-                    OrganizationMembership.objects.get_or_create(organization=target_org, user=request.user, defaults={'role': 'owner'})
-                Project.objects.create(organization=target_org, name='WhatsApp Production', sandbox=False)
-                qs = Project.objects.filter(organization=target_org, organization__suspended=False)
         return Response(ProjectSerializer(qs, many=True).data)
     if request.method=='DELETE':
         project=project_for(request,write=True,admin=True)
         org=project.organization
-        if org.project_set.count() <= 1:
-            raise ValidationError('Cannot delete the last remaining project in an organization')
         for conn in WhatsAppConnection.objects.filter(project=project, provider='baileys'):
             try:
                 from .experimental import connector
