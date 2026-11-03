@@ -90,7 +90,7 @@ export default function Home(){
  const [otpCountdown, setOtpCountdown] = useState(0);
  const [otpRecipient, setOtpRecipient] = useState('');
  const [verificationLink, setVerificationLink] = useState('');
- const [mcpClientTab, setMcpClientTab] = useState<'chatgpt' | 'claude' | 'gemini' | 'cursor'>('chatgpt');
+ const [mcpClientTab, setMcpClientTab] = useState<'chatgpt' | 'claude-web' | 'claude' | 'gemini' | 'cursor'>('chatgpt');
  useEffect(() => {
    if (otpCountdown <= 0) return;
    const t = setInterval(() => setOtpCountdown(c => (c > 0 ? c - 1 : 0)), 1000);
@@ -1685,6 +1685,7 @@ await whatsbridge.messages.create({
                 const currentProj = active?.name || 'WhatsApp Production';
                 const backendUrl = 'https://whatsbridge-backend.onrender.com';
                 const openApiUrl = 'https://whatsbridge-backend.onrender.com/api/mcp/openapi.json';
+                const mcpSseUrl = 'https://whatsbridge-backend.onrender.com/api/mcp/sse';
 
                 const generateAiApiKey = async () => {
                   if (!project) {
@@ -1728,7 +1729,7 @@ await whatsbridge.messages.create({
                       </div>
 
                       {/* Personal Credentials Row with 1-Click Generator */}
-                      <div style={{ marginTop: '20px', paddingTop: '18px', borderTop: '1px solid rgba(0,128,105,0.15)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                      <div style={{ marginTop: '20px', paddingTop: '18px', borderTop: '1px solid rgba(0,128,105,0.15)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
                         <div style={{ background: 'var(--surface)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                           <small style={{ color: 'var(--muted)', display: 'block', marginBottom: '4px' }}>Server Base URL (Hosted)</small>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1745,6 +1746,16 @@ await whatsbridge.messages.create({
                             <code style={{ fontSize: '11.5px', color: 'var(--green)' }}>.../api/mcp/openapi.json</code>
                             <button type="button" className="text-button" onClick={() => copyText(openApiUrl, 'ai-openapi-url')} title="Copy URL">
                               {copiedText === 'ai-openapi-url' ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'var(--surface)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <small style={{ color: 'var(--muted)', display: 'block', marginBottom: '4px' }}>Remote MCP (SSE) URL</small>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <code style={{ fontSize: '11.5px', color: 'var(--green)' }}>.../api/mcp/sse</code>
+                            <button type="button" className="text-button" onClick={() => copyText(mcpSseUrl, 'ai-sse-url')} title="Copy SSE URL">
+                              {copiedText === 'ai-sse-url' ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
                             </button>
                           </div>
                         </div>
@@ -1773,7 +1784,8 @@ await whatsbridge.messages.create({
                     <div style={{ display: 'flex', gap: '10px', borderBottom: '1px solid var(--border)', paddingBottom: '12px', flexWrap: 'wrap' }}>
                       {[
                         ['chatgpt', '🤖 ChatGPT (Mobile App & Web)'],
-                        ['claude', '🧠 Claude Desktop & Mobile (MCP)'],
+                        ['claude-web', '🧠 Claude Web (claude.ai)'],
+                        ['claude', '🖥️ Claude Desktop (MCP)'],
                         ['gemini', '🔮 Google Gemini (Function Calling)'],
                         ['cursor', '💻 Cursor & Windsurf IDE']
                       ].map(([id, title]) => (
@@ -1932,7 +1944,142 @@ await whatsbridge.messages.create({
                       </section>
                     )}
 
-                    {/* TAB 2: Claude Desktop (MCP) */}
+                    {/* TAB 2: Claude Web (claude.ai) */}
+                    {mcpClientTab === 'claude-web' && (
+                      <section className="card">
+                        <div className="section-heading">
+                          <div>
+                            <h2>Connect to Claude Web (claude.ai Projects & Custom Tools)</h2>
+                            <p>Enable Claude on your phone, tablet, or web browser at <strong>claude.ai</strong> to send real WhatsApp messages, OTPs, and automate messaging.</p>
+                          </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                const prompt = `You are my personal WhatsApp assistant connected to WhatsBridge.\n\nWhenever I ask to send a WhatsApp message or dispatch an OTP code, execute an HTTP request using these parameters:\n- API Endpoint: ${backendUrl}/api/v1/messages\n- Authorization: Bearer ${liveApiKey}\n- Connection ID: ${connId}\n- Project ID: ${project}\n- OpenAPI Schema: ${openApiUrl}\n- MCP SSE Endpoint: ${mcpSseUrl}\n\nWhen sending a message to a recipient, format the JSON body as:\n{\n  "connection": "${connId}",\n  "phone": "<RECIPIENT_PHONE_E164>",\n  "kind": "text",\n  "payload": {"body": "<MESSAGE_TEXT>"}\n}\n\nAlways confirm delivery status with the user after sending.`;
+                                copyText(prompt, 'claude_web_prompt');
+                                setNotice('Claude Web Project Instructions copied! Paste into Project Instructions at claude.ai.');
+                              }}
+                              style={{ padding: '7px 14px', fontSize: '12px' }}
+                            >
+                              <Sparkles size={13}/> {copiedText === 'claude_web_prompt' ? '✓ Instructions Copied!' : 'Copy Project Instructions'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                copyText(mcpSseUrl, 'claude_sse_url');
+                                setNotice('Remote MCP SSE URL copied! Use this in Claude Custom Connectors or Remote MCP clients.');
+                              }}
+                              style={{ padding: '7px 14px', fontSize: '12px', background: 'var(--surface)' }}
+                            >
+                              <LinkIcon size={13}/> {copiedText === 'claude_sse_url' ? '✓ SSE URL Copied!' : 'Copy Remote MCP (SSE) URL'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.open('https://claude.ai/new', '_blank')}
+                              style={{ padding: '7px 14px', fontSize: '12px', background: 'var(--surface)' }}
+                            >
+                              Open claude.ai ↗
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Setup Guide Cards */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', margin: '18px 0' }}>
+                          <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <span style={{ background: '#008069', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>1</span>
+                              <strong style={{ fontSize: '13px' }}>Create Project in Claude.ai</strong>
+                            </div>
+                            <p style={{ fontSize: '12.5px', color: 'var(--muted)', margin: 0, lineHeight: '1.5' }}>
+                              Open <strong><a href="https://claude.ai" target="_blank" rel="noreferrer" style={{ color: '#008069' }}>claude.ai</a></strong> on your computer or mobile phone. Click <strong>Projects</strong> in the sidebar and choose <strong>Create Project</strong> (e.g. <em>"WhatsApp Assistant"</em>).
+                            </p>
+                          </div>
+
+                          <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <span style={{ background: '#008069', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>2</span>
+                              <strong style={{ fontSize: '13px' }}>Paste Project Instructions</strong>
+                            </div>
+                            <p style={{ fontSize: '12.5px', color: 'var(--muted)', margin: 0, lineHeight: '1.5' }}>
+                              Click <strong>Set Project Instructions</strong>. Click the green <strong>"Copy Project Instructions"</strong> button above and paste the pre-configured instructions with your live API credentials.
+                            </p>
+                          </div>
+
+                          <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                              <span style={{ background: '#008069', color: '#fff', width: '22px', height: '22px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700 }}>3</span>
+                              <strong style={{ fontSize: '13px' }}>Chat & Send WhatsApp</strong>
+                            </div>
+                            <p style={{ fontSize: '12.5px', color: 'var(--muted)', margin: 0, lineHeight: '1.5' }}>
+                              Start chatting in Claude! Tell Claude: <em>"Send a message to my mother (+91...) saying I will be home soon"</em>. Claude will execute the send via your WhatsApp connection!
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Project Instructions Code Box */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ink)' }}>Claude Web Project Instructions (Pre-configured with your Account):</span>
+                          <button
+                            type="button"
+                            className="text-button"
+                            onClick={() => {
+                              const prompt = `You are my personal WhatsApp assistant connected to WhatsBridge.\n\nWhenever I ask to send a WhatsApp message or dispatch an OTP code, execute an HTTP request using these parameters:\n- API Endpoint: ${backendUrl}/api/v1/messages\n- Authorization: Bearer ${liveApiKey}\n- Connection ID: ${connId}\n- Project ID: ${project}\n- OpenAPI Schema: ${openApiUrl}\n- MCP SSE Endpoint: ${mcpSseUrl}\n\nWhen sending a message to a recipient, format the JSON body as:\n{\n  "connection": "${connId}",\n  "phone": "<RECIPIENT_PHONE_E164>",\n  "kind": "text",\n  "payload": {"body": "<MESSAGE_TEXT>"}\n}\n\nAlways confirm delivery status with the user after sending.`;
+                              copyText(prompt, 'claude_web_prompt_box');
+                            }}
+                          >
+                            {copiedText === 'claude_web_prompt_box' ? '✓ Copied!' : 'Copy Instructions'}
+                          </button>
+                        </div>
+                        <pre style={{ margin: 0, maxHeight: '200px', overflow: 'auto', background: '#0f172a', color: '#f8fafc', padding: '14px', borderRadius: '8px', fontSize: '12px' }}>
+{`You are my personal WhatsApp assistant connected to WhatsBridge.
+
+Whenever I ask to send a WhatsApp message or dispatch an OTP code, execute an HTTP request using these parameters:
+- API Endpoint: ${backendUrl}/api/v1/messages
+- Authorization: Bearer ${liveApiKey}
+- Connection ID: ${connId}
+- Project ID: ${project}
+- OpenAPI Schema: ${openApiUrl}
+- MCP SSE Endpoint: ${mcpSseUrl}
+
+When sending a message to a recipient, format the JSON body as:
+{
+  "connection": "${connId}",
+  "phone": "<RECIPIENT_PHONE_E164>",
+  "kind": "text",
+  "payload": {"body": "<MESSAGE_TEXT>"}
+}
+
+Always confirm delivery status with the user after sending.`}
+                        </pre>
+
+                        {/* Remote MCP Connector option */}
+                        <div style={{ marginTop: '16px', padding: '14px', background: 'var(--bg)', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                            <strong style={{ fontSize: '12.5px' }}>⚡ Remote MCP Connector (Server-Sent Events)</strong>
+                            <span className="pill" style={{ fontSize: '10px' }}>MCP Standard</span>
+                          </div>
+                          <p style={{ fontSize: '12px', color: 'var(--muted)', margin: '0 0 10px' }}>
+                            For custom connectors, mobile apps, or browser extensions connecting directly via Model Context Protocol over SSE:
+                          </p>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: 'var(--surface)', padding: '8px 12px', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                            <code style={{ fontSize: '11.5px', flex: 1, color: 'var(--green)' }}>{mcpSseUrl}</code>
+                            <button type="button" className="text-button" onClick={() => copyText(mcpSseUrl, 'mcp_sse_direct')}>
+                              {copiedText === 'mcp_sse_direct' ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Prompt example */}
+                        <div style={{ marginTop: '16px', padding: '12px 14px', background: '#eef8f1', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '12.5px', color: '#166534' }}>
+                          💡 <strong>How to prompt Claude in your phone or browser at claude.ai:</strong><br />
+                          <em>"Send a message to my mother (+919876543210) saying I will arrive home by 7 PM."</em> &mdash; Claude executes the WhatsBridge tool and sends it directly from your connected WhatsApp number!
+                        </div>
+                      </section>
+                    )}
+
+                    {/* TAB 3: Claude Desktop (MCP) */}
                     {mcpClientTab === 'claude' && (
                       <section className="card">
                         <div className="section-heading">
