@@ -230,3 +230,4 @@ def mcp_openapi_spec(request):
         }
     }
     return Response(schema)
+

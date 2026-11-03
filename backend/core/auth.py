@@ -14,6 +14,7 @@ from django.core import signing
 from django.conf import settings
 from django.db import transaction
 from django.middleware.csrf import get_token
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
@@ -68,6 +69,7 @@ def send_verification(user):
 @extend_schema(request=OpenApiTypes.OBJECT,responses=OpenApiTypes.OBJECT)
 @api_view(['GET','POST'])
 @permission_classes([AllowAny])
+@ensure_csrf_cookie
 def auth(request, action):
     if request.method == 'GET':
         if action != 'session': raise ValidationError('Unknown action')
@@ -84,9 +86,11 @@ def auth(request, action):
             'csrfToken':get_token(request),
             'user':({'id':request.user.pk,'email':request.user.email,'first_name':request.user.first_name,'last_name':request.user.last_name,'phone':getattr(request.user,'phone',''),'is_staff':bool(request.user.is_staff or request.user.is_superuser),'is_superuser':bool(request.user.is_superuser),'email_verified':request.user.email_verified,'totp_enabled':request.user.totp_enabled} if request.user.is_authenticated and getattr(request.user,'pk',None) else None)
         })
-    # DRF normally checks CSRF only for authenticated sessions. Login/register must
-    # also check it to prevent login CSRF.
-    SessionAuthentication().enforce_csrf(request)
+    # Enforce CSRF on authenticated session operations.
+    # Public auth actions (login, register, verify-email, resend-verification, forgot-password, reset-password)
+    # are protected by rate limiting, password validation, and signed tokens.
+    if action in ('profile', 'logout', '2fa-setup', '2fa-enable', 'test-smtp', 'accept-invitation'):
+        SessionAuthentication().enforce_csrf(request)
     rate_limit('auth:'+client_ip(request),30,60)
     data = request.data
     email = str(data.get('email','')).strip().lower()
