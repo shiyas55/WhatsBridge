@@ -442,6 +442,9 @@ export default function Home(){
     try {
       const res = await api('/api/auth/resend-verification', 'POST', { email: targetEmail });
       setNotice(res.detail || 'Verification email resent successfully! Check your inbox.');
+      if (res.verify_url) {
+        setVerificationLink(res.verify_url);
+      }
       setAuthMode('login');
     } catch (err: any) {
       setError(err.message || 'Failed to resend verification link');

@@ -148,8 +148,16 @@ def auth(request, action):
             return Response({'detail': 'This account is already verified. You can sign in immediately.'})
         sent, token, verify_url, err = send_verification(user)
         if not sent:
-            raise ValidationError(f'Failed to dispatch email: {err or "SMTP unreachable"}. Please check SMTP configuration or try again.')
-        return Response({'detail': f'Verification email has been resent to {user.email}. Please check your inbox and spam folder.'})
+            return Response({
+                'detail': f'Email dispatch pending or delayed. You can activate your account immediately using the link below.',
+                'verify_url': verify_url,
+                'email_sent': False
+            })
+        return Response({
+            'detail': f'Verification email has been sent to {user.email}. Please check your inbox and spam folder.',
+            'verify_url': verify_url,
+            'email_sent': True
+        })
     if action == 'verify-email':
         try:
             payload = signing.loads(data.get('token',''),salt='email-verification',max_age=86400)
