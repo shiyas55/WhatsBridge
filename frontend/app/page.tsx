@@ -1363,7 +1363,86 @@ await whatsbridge.messages.create({
                 </section>
               ))}
               {page === 'Send Message' && <section className="card narrow"><h2>Create a message</h2><p className="muted">Send a text message directly through your connected WhatsApp or sandbox transport.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phone', label: 'Recipient · E.164', value: '+15551234567' }, { name: 'body', label: 'Message', type: 'textarea', value: 'Hello from WhatsBridge 👋' }]} label="Queue message" submit={d => act(async () => { const r = await api('/api/v1/messages?project=' + project, 'POST', { project, connection: d.connection, phone: d.phone, kind: 'text', payload: { body: d.body } }, { 'Idempotency-Key': crypto.randomUUID() }); setResult(r); setNotice('Message dispatched successfully! Check Inbox for delivery.'); await refresh() })} /><p className="fine">Use the API Playground for templates, media, and scheduled messages.</p></section>}
-              {page === 'Bulk Messaging' && <section className="card narrow"><h2>Bulk Broadcast Messaging</h2><p className="muted">Broadcast WhatsApp messages to multiple recipients at once. Messages are automatically scheduled with a safe 5-second interval to avoid anti-spam limits.</p><Form fields={[{ name: 'connection', label: 'Connection', options: connectionOptions }, { name: 'phones', label: 'Recipient Numbers (one per line or comma-separated E.164, e.g. +15551234567)', type: 'textarea', value: '+15551234567\n+15559876543' }, { name: 'body', label: 'Message Body', type: 'textarea', value: 'Hello! This is a message from WhatsBridge.' }]} label="Dispatch Bulk Campaign" submit={d => act(async () => { const r = await api('/api/v1/messages/bulk?project=' + project, 'POST', { project, connection: d.connection, phones: d.phones, body: d.body }); setResult(r); setNotice(`Bulk campaign queued for ${r.total} recipient(s)!`); await refresh() })} /><p className="fine">Works directly with your linked WhatsApp account or official provider.</p></section>}
+              {page === 'Bulk Messaging' && (
+                <section className="card narrow">
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
+                    <div>
+                      <h2>Bulk Broadcast Messaging</h2>
+                      <p className="muted" style={{ margin: '4px 0 0', fontSize: '13px' }}>
+                        Broadcast WhatsApp messages with automated <strong>Anti-Ban Human Delay Simulation</strong> to protect your WhatsApp account from being blocked.
+                      </p>
+                    </div>
+                    <span className="pill" style={{ background: '#dcfce7', color: '#166534', fontWeight: 700 }}>
+                      <ShieldCheck size={13} style={{ marginRight: '4px' }} /> ANTI-BAN SHIELD ACTIVE
+                    </span>
+                  </div>
+
+                  {/* Anti-Ban Capabilities Grid */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '10px', margin: '14px 0 18px', padding: '14px', background: 'var(--bg)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }} />
+                      <span style={{ fontSize: '12px', color: 'var(--ink)' }}><strong>Online State:</strong> Simulates active user</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#008069' }} />
+                      <span style={{ fontSize: '12px', color: 'var(--ink)' }}><strong>Typing Indicator:</strong> Natural typing presence</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6' }} />
+                      <span style={{ fontSize: '12px', color: 'var(--ink)' }}><strong>Human Jitter:</strong> Randomized seconds</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
+                      <span style={{ fontSize: '12px', color: 'var(--ink)' }}><strong>Breather Breaks:</strong> Coffee pause every 10 msgs</span>
+                    </div>
+                  </div>
+
+                  <Form
+                    fields={[
+                      { name: 'connection', label: 'WhatsApp Transport Connection', options: connectionOptions },
+                      {
+                        name: 'delay_preset',
+                        label: 'Anti-Ban Human Pacing Delay',
+                        options: [
+                          { value: 'safe', label: '🛡️ Safe Human Simulation (7 - 16s randomized delay + natural typing · Recommended)' },
+                          { value: 'ultra_safe', label: '🔒 Ultra-Safe Anti-Ban (15 - 30s delay + 35s pause every 8 msgs · High Volume)' },
+                          { value: 'moderate', label: '⚡ Fast Human Pacing (4 - 8s randomized delay + 15s pause every 15 msgs)' }
+                        ],
+                        value: 'safe'
+                      },
+                      {
+                        name: 'phones',
+                        label: 'Recipient Numbers (one per line or comma-separated E.164, e.g. +919567334117)',
+                        type: 'textarea',
+                        value: '+919567334117\n+15551234567'
+                      },
+                      {
+                        name: 'body',
+                        label: 'Message Body',
+                        type: 'textarea',
+                        value: 'Hello! This is a message from WhatsBridge.'
+                      }
+                    ]}
+                    label="Dispatch Protected Bulk Campaign"
+                    submit={d => act(async () => {
+                      const r = await api('/api/v1/messages/bulk?project=' + project, 'POST', {
+                        project,
+                        connection: d.connection,
+                        phones: d.phones,
+                        body: d.body,
+                        delay_preset: d.delay_preset || 'safe'
+                      });
+                      setResult(r);
+                      const pacingInfo = r.pacing ? ` (${r.pacing.min_delay_seconds}s - ${r.pacing.max_delay_seconds}s human pacing)` : '';
+                      setNotice(`Bulk campaign queued for ${r.total} recipient(s)! Anti-ban human simulation active${pacingInfo}.`);
+                      await refresh();
+                    })}
+                  />
+                  <p className="fine" style={{ marginTop: '14px' }}>
+                    Messages are queued and dispatched sequentially through your connected WhatsApp. Each message shows online presence, sends a typing indicator, and spaces sends with human jitter to keep your account safe.
+                  </p>
+                </section>
+              )}
               {page === 'OTP Verification' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   {/* Connection Status Helper if no connected WhatsApp transports */}

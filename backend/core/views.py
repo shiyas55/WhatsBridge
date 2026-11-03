@@ -166,6 +166,30 @@ class MessageViewSet(TenantViewSet):
             raise ValidationError({'phones': 'Provide at least one phone number'})
         if not body:
             raise ValidationError({'body': 'Message body is required'})
+
+        # Anti-Ban Human Delay Configuration
+        preset = str(data.get('delay_preset', 'safe')).lower()
+        custom_min = data.get('min_delay')
+        custom_max = data.get('max_delay')
+
+        if custom_min is not None and custom_max is not None:
+            try:
+                min_delay = max(2.0, float(custom_min))
+                max_delay = max(min_delay + 1.0, float(custom_max))
+                pause_every = 10
+                pause_duration = 20.0
+            except (ValueError, TypeError):
+                min_delay, max_delay, pause_every, pause_duration = 7.0, 16.0, 10, 25.0
+        elif preset == 'ultra_safe':
+            # Ultra-Safe Pacing for fresh numbers or large lists: 15-30s delay + 35s pause every 8 msgs
+            min_delay, max_delay, pause_every, pause_duration = 15.0, 30.0, 8, 35.0
+        elif preset == 'moderate':
+            # Moderate Pacing: 4-8s delay + 15s pause every 15 msgs
+            min_delay, max_delay, pause_every, pause_duration = 4.0, 8.0, 15, 15.0
+        else:
+            # Safe Human Simulation (Default): 7-16s delay + 25s pause every 10 msgs
+            min_delay, max_delay, pause_every, pause_duration = 7.0, 16.0, 10, 25.0
+
         results = []
         msg_ids = []
         for idx, raw_phone in enumerate(phones):
@@ -192,13 +216,22 @@ class MessageViewSet(TenantViewSet):
             import time, random
             from django.db import close_old_connections
             from .tasks import send_message
-            for mid in msg_ids:
+            for idx, mid in enumerate(msg_ids):
                 close_old_connections()
                 try:
                     send_message(mid)
                 except Exception:
                     pass
-                time.sleep(random.uniform(1.8, 3.5))
+
+                # If there are subsequent messages, simulate human delay & periodic pauses
+                if idx < len(msg_ids) - 1:
+                    if (idx + 1) % pause_every == 0:
+                        # Human coffee break / breather to prevent WhatsApp spam flags
+                        breather = pause_duration + random.uniform(5.0, 15.0)
+                        time.sleep(breather)
+                    else:
+                        delay = random.uniform(min_delay, max_delay)
+                        time.sleep(delay)
             close_old_connections()
 
         if msg_ids:
@@ -206,7 +239,20 @@ class MessageViewSet(TenantViewSet):
             threading.Thread(target=dispatch_bulk, daemon=True).start()
 
         audit(request, 'message.bulk_enqueue', project.organization, len(results))
-        return Response({'total': len(results), 'queued': results}, status=202)
+        return Response({
+            'total': len(results),
+            'queued': results,
+            'pacing': {
+                'mode': preset,
+                'min_delay_seconds': min_delay,
+                'max_delay_seconds': max_delay,
+                'pause_every': pause_every,
+                'pause_duration_seconds': pause_duration,
+                'anti_ban_active': True,
+                'typing_simulation': True,
+                'online_presence_simulation': True
+            }
+        }, status=202)
 
 class KeyViewSet(TenantViewSet):
     queryset=APIKey.objects.all();serializer_class=APIKeySerializer;http_method_names=['get','post','delete','head','options']

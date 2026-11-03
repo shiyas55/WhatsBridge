@@ -79,8 +79,15 @@ app.post(route+'/send',async(req,res)=>{
  try{
   const jid=b.phone.slice(1)+'@s.whatsapp.net';
   try {
+    // 1. Simulate human coming online
+    await s.sock.sendPresenceUpdate('available');
+    await new Promise(r => setTimeout(r, 400 + Math.floor(Math.random() * 400)));
+
+    // 2. Simulate human opening chat and typing
     await s.sock.sendPresenceUpdate('composing', jid);
-    await new Promise(r => setTimeout(r, 450));
+    const charCount = (b.payload.body || '').length;
+    const typingMs = Math.min(4500, Math.max(1200, charCount * 30 + Math.floor(Math.random() * 600)));
+    await new Promise(r => setTimeout(r, typingMs));
   } catch {}
   const sent=await s.sock.sendMessage(jid,{text:b.payload.body});
   try { await s.sock.sendPresenceUpdate('paused', jid); } catch {}
