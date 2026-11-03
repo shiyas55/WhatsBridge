@@ -3,7 +3,7 @@ import QRPairing from './QRPairing';
 import Modal from './Modal';
 import WhatsAppWeb from './WhatsAppWeb';
 import { useEffect, useState, useCallback, useRef, FormEvent } from 'react';
-import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDown, Code2, Contact, Copy, Globe, KeyRound, LayoutDashboard, LifeBuoy, LogOut, Mail, MessageCircle, MoreHorizontal, Plus, Search, Send, Settings, ShieldCheck, Sparkles, Sun, Users, Webhook, Workflow, Zap, Menu, Trash2, GripVertical, Play, Clock, GitBranch } from 'lucide-react';
+import { ArrowUpRight, ArrowRight, Activity, Blocks, BookOpen, Check, ChevronDown, Code2, Contact, Copy, Globe, KeyRound, LayoutDashboard, LifeBuoy, Link as LinkIcon, LogOut, Mail, MessageCircle, MoreHorizontal, Plus, Search, Send, Settings, ShieldCheck, Sparkles, Sun, Users, Webhook, Workflow, Zap, Menu, Trash2, GripVertical, Play, Clock, GitBranch } from 'lucide-react';
 
 type Row=Record<string,any>;
 type Field={name:string;label:string;type?:string;options?:{value:string;label:string}[];value?:string;required?:boolean};
@@ -1514,8 +1514,25 @@ await whatsbridge.messages.create({
                 const connId = connections.find(c => c.status === 'CONNECTED')?.id || (connections[0]?.id ?? 'YOUR_CONNECTION_ID');
                 const connName = connections.find(c => c.status === 'CONNECTED')?.name || (connections[0]?.name ?? 'WhatsApp Transport');
                 const connStatus = connections.find(c => c.status === 'CONNECTED')?.status || (connections[0]?.status ?? 'DISCONNECTED');
-                const liveApiKey = 'wb_live_YOUR_API_KEY';
+                const liveApiKey = createdKey?.token || 'wb_live_YOUR_API_KEY';
                 const currentProj = active?.name || 'WhatsApp Production';
+                const backendUrl = 'https://whatsbridge-backend.onrender.com';
+                const openApiUrl = 'https://whatsbridge-backend.onrender.com/api/mcp/openapi.json';
+
+                const generateAiApiKey = async () => {
+                  if (!project) {
+                    setError('Please select or create a project first');
+                    return;
+                  }
+                  act(async () => {
+                    const k = await api('/api/v1/keys?project=' + project, 'POST', {
+                      name: 'AI Agent · ' + (active?.name || 'Live'),
+                      scopes: ['messages:send', 'messages:read', 'connections:read', 'otp:send', 'otp:verify']
+                    });
+                    setCreatedKey(k);
+                    setNotice(`Personal AI API Key created! Injected into your configuration snippets.`);
+                  });
+                };
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '22px' }}>
@@ -1540,6 +1557,47 @@ await whatsbridge.messages.create({
                             <small className="pill" style={{ fontSize: '10px', padding: '2px 6px' }}>{connStatus}</small>
                           </div>
                           <code style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>{connId}</code>
+                        </div>
+                      </div>
+
+                      {/* Personal Credentials Row with 1-Click Generator */}
+                      <div style={{ marginTop: '20px', paddingTop: '18px', borderTop: '1px solid rgba(0,128,105,0.15)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+                        <div style={{ background: 'var(--surface)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <small style={{ color: 'var(--muted)', display: 'block', marginBottom: '4px' }}>Server Base URL (Hosted)</small>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <code style={{ fontSize: '11.5px', color: 'var(--ink)' }}>{backendUrl}</code>
+                            <button type="button" className="text-button" onClick={() => copyText(backendUrl, 'ai-base-url')} title="Copy URL">
+                              {copiedText === 'ai-base-url' ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'var(--surface)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <small style={{ color: 'var(--muted)', display: 'block', marginBottom: '4px' }}>ChatGPT Action Import URL</small>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <code style={{ fontSize: '11.5px', color: 'var(--green)' }}>.../api/mcp/openapi.json</code>
+                            <button type="button" className="text-button" onClick={() => copyText(openApiUrl, 'ai-openapi-url')} title="Copy URL">
+                              {copiedText === 'ai-openapi-url' ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'var(--surface)', padding: '10px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                          <small style={{ color: 'var(--muted)', display: 'block', marginBottom: '4px' }}>Your Scoped API Key</small>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                            {createdKey?.token ? (
+                              <>
+                                <code style={{ fontSize: '11px', color: '#16a34a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{createdKey.token.slice(0, 18)}…</code>
+                                <button type="button" className="text-button" onClick={() => copyText(createdKey.token, 'ai-key-val')} title="Copy Token">
+                                  {copiedText === 'ai-key-val' ? <Check size={12} color="var(--green)"/> : <Copy size={12}/>}
+                                </button>
+                              </>
+                            ) : (
+                              <button type="button" className="primary" onClick={generateAiApiKey} style={{ padding: '4px 10px', fontSize: '11px', width: '100%', justifyContent: 'center' }}>
+                                <Sparkles size={11}/> 1-Click Generate Key
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1572,38 +1630,60 @@ await whatsbridge.messages.create({
                             <h2>Connect to ChatGPT (Custom GPT / Actions)</h2>
                             <p>Enable ChatGPT on your iOS/Android phone or web browser to send WhatsApp messages using your account.</p>
                           </div>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="primary"
+                              onClick={() => {
+                                copyText(openApiUrl, 'chatgpt_action_url');
+                                setNotice('ChatGPT Action URL copied! Click "Open ChatGPT" and paste under "Import from URL".');
+                              }}
+                              style={{ padding: '7px 14px', fontSize: '12px' }}
+                            >
+                              <LinkIcon size={13}/> {copiedText === 'chatgpt_action_url' ? '✓ URL Copied!' : 'Copy Action URL'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => window.open('https://chatgpt.com/create', '_blank')}
+                              style={{ padding: '7px 14px', fontSize: '12px', background: 'var(--surface)' }}
+                            >
+                              Open ChatGPT ↗
+                            </button>
+                          </div>
                         </div>
 
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', margin: '16px 0' }}>
                           <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 1: Create a Custom GPT</strong>
+                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 1: Open ChatGPT Custom GPT Builder</strong>
                             <p className="muted" style={{ fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
-                              Go to <strong>chatgpt.com &rarr; Explore GPTs &rarr; Create</strong>. Name it <em>"My WhatsApp Assistant"</em>.
+                              Go to <strong>chatgpt.com &rarr; Explore GPTs &rarr; Create</strong> (or click the button above). Name it <em>"My WhatsApp Assistant"</em>.
                             </p>
                           </div>
                           <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 2: Add Actions & Schema</strong>
+                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 2: Auto-Import Action URL</strong>
                             <p className="muted" style={{ fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
-                              Under <strong>Configure &rarr; Actions &rarr; Create new action</strong>, paste the schema below.
+                              Under <strong>Configure &rarr; Actions &rarr; Create new action</strong>, click <strong>"Import from URL"</strong> and paste:
+                              <br/>
+                              <code style={{ fontSize: '11px', color: 'var(--green)', display: 'block', marginTop: '4px' }}>{openApiUrl}</code>
                             </p>
                           </div>
                           <div style={{ background: 'var(--bg)', padding: '16px', borderRadius: '10px', border: '1px solid var(--border)' }}>
-                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 3: Enter Your API Key</strong>
+                            <strong style={{ fontSize: '13px', display: 'block', marginBottom: '6px' }}>Step 3: Paste Your Personal API Key</strong>
                             <p className="muted" style={{ fontSize: '12px', lineHeight: '1.5', margin: 0 }}>
-                              Set <strong>Authentication: API Key (Bearer)</strong>, paste your API key from the API Keys tab, and save!
+                              Set <strong>Authentication: API Key (Bearer)</strong>, paste your API key (click <em>"1-Click Generate Key"</em> above if needed), and save!
                             </p>
                           </div>
                         </div>
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <label style={{ fontSize: '12px', fontWeight: 600 }}>OpenAPI Action Schema (Pre-configured with your Connection ID):</label>
+                          <label style={{ fontSize: '12px', fontWeight: 600 }}>Raw OpenAPI Schema (Fallback if not importing via URL):</label>
                           <button
                             type="button"
                             onClick={() => {
                               const spec = {
                                 openapi: "3.1.0",
                                 info: { title: "WhatsBridge WhatsApp Action", version: "1.0.0" },
-                                servers: [{ url: "https://whatsbridge-backend.onrender.com" }],
+                                servers: [{ url: backendUrl }],
                                 paths: {
                                   "/api/v1/messages": {
                                     post: {
@@ -1642,11 +1722,11 @@ await whatsbridge.messages.create({
                             {copiedText === 'chatgpt_schema' ? '✓ Copied Schema!' : 'Copy OpenAPI Schema'}
                           </button>
                         </div>
-                        <pre style={{ borderRadius: '10px', fontSize: '12px', padding: '16px', background: '#1c2d25', color: '#cae8d5', overflowX: 'auto', maxHeight: '240px' }}>
+                        <pre style={{ borderRadius: '10px', fontSize: '12px', padding: '16px', background: '#1c2d25', color: '#cae8d5', overflowX: 'auto', maxHeight: '220px' }}>
 {JSON.stringify({
   "openapi": "3.1.0",
   "info": { "title": "WhatsBridge WhatsApp Action", "version": "1.0.0" },
-  "servers": [{ "url": "https://whatsbridge-backend.onrender.com" }],
+  "servers": [{ "url": backendUrl }],
   "paths": {
     "/api/v1/messages": {
       "post": {
@@ -1679,8 +1759,8 @@ await whatsbridge.messages.create({
 }, null, 2)}
                         </pre>
                         <div style={{ marginTop: '16px', padding: '12px 14px', background: '#eef8f1', borderRadius: '8px', border: '1px solid #bbf7d0', fontSize: '12.5px', color: '#166534' }}>
-                          💡 <strong>How to prompt ChatGPT in your phone:</strong><br />
-                          <em>"Send a message to my mother (+919876543210) saying I'll arrive home by 7 PM."</em> &mdash; ChatGPT will call this action and send it through your WhatsApp!
+                          💡 <strong>How to prompt ChatGPT in your phone or browser:</strong><br />
+                          <em>"Send a message to my mother (+919876543210) saying I'll arrive home by 7 PM."</em> &mdash; ChatGPT calls your WhatsBridge Action and sends it through your personal WhatsApp number!
                         </div>
                       </section>
                     )}
@@ -1695,6 +1775,7 @@ await whatsbridge.messages.create({
                           </div>
                           <button
                             type="button"
+                            className="primary"
                             onClick={() => {
                               const config = {
                                 mcpServers: {
@@ -1702,8 +1783,8 @@ await whatsbridge.messages.create({
                                     command: "python3",
                                     args: ["/path/to/whatsbridge/mcp-server/server.py"],
                                     env: {
-                                      WHATSBRIDGE_BASE_URL: "https://whatsbridge-backend.onrender.com",
-                                      WHATSBRIDGE_API_KEY: "YOUR_API_KEY_HERE",
+                                      WHATSBRIDGE_BASE_URL: backendUrl,
+                                      WHATSBRIDGE_API_KEY: liveApiKey,
                                       WHATSBRIDGE_CONNECTION_ID: connId,
                                       WHATSBRIDGE_PROJECT_ID: project
                                     }
@@ -1718,7 +1799,7 @@ await whatsbridge.messages.create({
                           </button>
                         </div>
                         <p className="muted" style={{ fontSize: '12.5px' }}>
-                          Add this to your <code>claude_desktop_config.json</code> (located at <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> on Mac):
+                          Paste this into your <code>claude_desktop_config.json</code> (located at <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> on macOS or <code>%APPDATA%\\Claude\\claude_desktop_config.json</code> on Windows):
                         </p>
                         <pre style={{ borderRadius: '10px', fontSize: '12px', padding: '16px', background: '#1c2d25', color: '#cae8d5', overflowX: 'auto' }}>
 {`{
@@ -1729,8 +1810,8 @@ await whatsbridge.messages.create({
         "${typeof window !== 'undefined' ? window.location.origin : ''}/mcp-server/server.py"
       ],
       "env": {
-        "WHATSBRIDGE_BASE_URL": "https://whatsbridge-backend.onrender.com",
-        "WHATSBRIDGE_API_KEY": "YOUR_API_KEY_HERE",
+        "WHATSBRIDGE_BASE_URL": "${backendUrl}",
+        "WHATSBRIDGE_API_KEY": "${liveApiKey}",
         "WHATSBRIDGE_CONNECTION_ID": "${connId}",
         "WHATSBRIDGE_PROJECT_ID": "${project}"
       }
